@@ -35,3 +35,34 @@ Negs-only data, not from spektrafilm:
   entries for Double-X and three colour negatives to check the method. B&W
   papers (kodak_2302, ilford_mgrc_deluxe_grade2) have no colour to balance,
   so they get no entries and keep the C0 M50 Y50 fallback.
+
+2026-11: four more Negs-only preparations from manufacturer datasheets
+
+- profiles/agfa_apx25.json, profiles/agfa_apx100.json and
+  profiles/agfa_apx400.json are new single-channel B&W preparations from the
+  Agfa APX datasheets (status 08/1995), printing to
+  ilford_mgrc_deluxe_grade2. Sources, derived axis calibration and
+  assumptions: profile-sources/agfa-apx25, agfa-apx100 and agfa-apx400.
+  Development conditions differ in how well they resolve and each recipe says
+  so: APX 25's gradient matches every listed developer at its recommended
+  time, APX 100's is about 0.8 of recommended, and APX 400's falls below
+  everything on its own gamma-time panel, so its 6 minutes is a nominal label.
+- profiles/kodak_ektachrome64_epr.json is a new colour preparation from Kodak
+  publication E-8, the first needing no donor dye curves because that sheet
+  plots C, M and Y separately. Sources and method:
+  profile-sources/kodak-ektachrome64-epr. Two things in it are not the
+  stock's own and the profile's datasource says so: its spectral adaptation
+  parameters are borrowed from kodak_ektachrome_100, and its density curves
+  are balanced against a rendered grey ramp rather than left as the sheet
+  plots them.
+- profile-sources/ektachrome100-control holds upstream's own digitised
+  Ektachrome 100 points, reused as a fixture so this pipeline can be measured
+  against a profile whose finished form already ships. No profile is built
+  from it for the catalogue.
+- filters/neutral_print_filters.json is unchanged: the three APX films print
+  to a B&W paper, which has no colour to balance, and the EPR preparation is
+  a reversal film with no print stage.
+
+  Axis calibration for all four is derived from the page by
+  scripts/bw_expansion/extract_graphs.py rather than measured by hand, which
+  is the one methodological difference from the 2026-10 B&W preparations.
