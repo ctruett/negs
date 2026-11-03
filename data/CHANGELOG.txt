@@ -77,3 +77,12 @@ Negs-only data, not from spektrafilm:
   from the same sheet, extraction included, as an end-to-end check: it renders
   at mean chroma 67.6 against the shipped profile's 65.9. No profile from it
   is shipped.
+- profiles/kodak_ektachrome_64t_epy.json is a colour preparation from Kodak
+  publication E-130, and the first tungsten-balanced still film here: the
+  sheet states tungsten exposure, so the profile declares reference_illuminant
+  "T" and the preparation balances its channels against a grey under that
+  illuminant rather than D55. It fits its source better than any other colour
+  stock prepared here (0.0040 against a 0.02 gate) and reaches 1.2% off
+  neutral across five stops at upstream's default balance bias. Its spectral
+  adaptation parameters are borrowed from kodak_ektachrome_100, which is a
+  daylight stock - a known imperfection recorded in its recipe.

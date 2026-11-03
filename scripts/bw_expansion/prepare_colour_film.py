@@ -26,7 +26,8 @@ from scipy.optimize import least_squares
 from scipy.special import ndtr
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from prepare import reference_gray_spectrum, write_json  # noqa: E402
+from prepare import mitchell, reference_gray_spectrum, write_json  # noqa: E402
+import colour  # noqa: E402
 
 import matplotlib.pyplot as plt  # noqa: E402
 
@@ -34,6 +35,42 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = ROOT / "data/profile-sources"
 REVIEW_ROOT = ROOT / "docs/profile-sources-review"
 WAVELENGTHS = np.arange(380, 781, 5)
+
+
+def gray_spectrum(data_dir, illuminant):
+    """The reference grey's emitted spectrum under the film's own illuminant.
+
+    prepare.py's version is fixed to D55, which is right for a daylight stock
+    and wrong for a tungsten one: balancing a tungsten film against a daylight
+    grey mis-sets the channel scales before the ramp fit ever runs. Same
+    calculation, with the illuminant the profile declares. "T" is what the
+    engine calls an incandescent source (illuminants.py: standard_illuminant).
+    """
+    if illuminant == "D55":
+        return reference_gray_spectrum(data_dir)
+    shape = colour.SpectralShape(380, 780, 5)
+    cmf = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"].copy().align(shape).values
+    if illuminant == "T":
+        illu = colour.SDS_LIGHT_SOURCES["Incandescent"].copy().align(shape).values
+    else:
+        illu = colour.SDS_ILLUMINANTS[illuminant].copy().align(shape).values
+    white_xyz = np.sum(illu[:, None] * cmf, axis=0)
+    white_xy = white_xyz[:2] / white_xyz.sum()
+    xyz = colour.RGB_to_XYZ(np.full(3, 0.184), colourspace="sRGB", illuminant=white_xy,
+                            chromatic_adaptation_transform="CAT16")
+    xy = xyz[:2] / xyz.sum()
+    tc = np.array([(1 - xy[0]) ** 2, xy[1] / (1 - xy[0])])
+    lut = np.load(data_dir / "luts/spectral_upsampling/hanatos2025_irradiance_xy_tc.npy").astype(float)
+    pos = tc * (lut.shape[0] - 1)
+    base = np.floor(pos).astype(int)
+    value = np.zeros(81)
+    total = 0.0
+    for i in range(-1, 3):
+        for j in range(-1, 3):
+            w = mitchell(pos[0] - base[0] - i) * mitchell(pos[1] - base[1] - j)
+            value += w * lut[base[0] + i, base[1] + j]
+            total += w
+    return value / total * xyz.sum()
 
 
 def read_points(sources, name):
@@ -177,7 +214,7 @@ def main():
     sensitivity = np.column_stack([on_grid(read_points(sources, f"{sens}-{c}"))
                                    for c in "rgb"])
     linear = np.where(np.isnan(sensitivity), 0.0, 10.0**np.nan_to_num(sensitivity))
-    gray = reference_gray_spectrum(args.data_dir)
+    gray = gray_spectrum(args.data_dir, cfg.get("reference_illuminant", "D55"))
     balance = gray @ linear
     linear = linear / balance
 
@@ -198,7 +235,8 @@ def main():
                   target_print=recipe["print"]["target_print"], channel_model="color",
                   densitometer=cfg["densitometer"],
                   log_sensitivity_density_over_min=1.0,
-                  reference_illuminant="D55", viewing_illuminant="D50"),
+                  reference_illuminant=cfg.get("reference_illuminant", "D55"),
+                  viewing_illuminant="D50"),
         data=dict(
             wavelengths=[int(w) for w in WAVELENGTHS],
             log_sensitivity=[[None if not np.isfinite(v) else round(float(v), 10)
