@@ -292,8 +292,9 @@
     "midgray_total_density": 0.735182,
     "midgray_note": "Rendering convention: engine log exposure zero is placed where the green channel's total status-A density equals 0.735342, which is -log10(0.184) - the density that transmits the 18.4% reference grey this repository uses elsewhere (paper midgray_reflectance, and the B&W preparations' grey anchor). The panel's own 'Density: 1.0' is a sensitivity criterion, not a mid-tone, and anchoring there renders about half a stop dark. Not absolute ISO metering.",
     "known_gaps": [
-      "No hanatos2025 adaptation parameters, and this is the dominant defect, not a minor one. Grafting shipped Ektachrome 100's parameters onto a control profile built by this pipeline from its own source points takes mean chroma 86.1 to 74.6, against 71.1 for the shipped profile: 77% of the gap. An earlier reading that called this a small quality gap was measuring mean RGB (5.4/255), which hides it - the parameters act on saturation. Nothing in any repository's history ever wrote them, so they still have to be re-derived.",
-      "About 3.5 chroma points remain after that, from small array differences against the shipped profile (channel_density within 0.03 mean, log_sensitivity within 0.01, density_curves within 0.04) and from whatever else the upstream chain does that this one does not."
+      "Spectral adaptation parameters are borrowed from kodak_ektachrome_100, not derived. They cannot be derived here: no code in any revision of either repository ever wrote them, and the measured reflectance datasets the fit would need - Otsu, Munsell, the NIST skin set and the rest named in every profile's datasource - are in neither repository. Only the reconstruction LUTs are. Deriving them needs either those datasets or the author's own tooling.",
+      "The borrowed parameters leave about 1.2 chroma points against the shipped sibling (72.3 against 71.1), down from 16.9 with none.",
+      "Renders about 0.18 stop brighter than the shipped sibling - a consistent 11-13% across a four-stop ramp, so a scalar offset rather than a curve-shape difference. The mid-grey anchor here is -log10(0.184) on this sheet's own curves; whatever Ektachrome 100's profile uses is not recorded anywhere. Left as measured rather than tuned to match another film's lightness."
     ],
     "neutral_check_note": "The sheet plots a visual neutral beside its three dyes. Solving for the dye mixture that reproduces it gives [0.987, 1.000, 0.998] normalised to green, within 1.3% of unity, residual 0.031 D - about the thickness of the plotted line. The rescale is applied (it is factory.py's rescale_dye_density_using_neutral) and changes the render not at all, but it is an independent check on the dye extraction that passes.",
     "antihalation": "strong",
@@ -311,5 +312,9 @@
     "count": 256,
     "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure because the engine evaluates a positive's model with a negated argument (sign = -1 in refresh_density_curves_from_model)."
   },
-  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-03. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. No donor stock curves copied: this sheet publishes its own C, M and Y dye curves. New profile preparation and profile data released under CC BY-SA 4.0."
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-03. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. No donor stock curves copied: this sheet publishes its own C, M and Y dye curves. New profile preparation and profile data released under CC BY-SA 4.0.",
+  "adaptation_donor": {
+    "stock": "kodak_ektachrome_100",
+    "reason": "Nearest shipped sibling: the same manufacturer's E-6 reversal film. Donor choice is worth about 7 chroma points - borrowing from Ektachrome 100 renders at 72.3 against the shipped profile's 71.1, Kodachrome 64 at 75.0, Provia 100F at 77.1, Velvia 100 at 78.2, and Portra 400, a negative, at 79.6. Every donor beats having none, which is 88.0."
+  }
 }

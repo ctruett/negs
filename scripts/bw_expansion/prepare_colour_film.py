@@ -211,6 +211,21 @@ def main():
             density_curves=np.round(density_curves, 10).tolist(),
             density_curves_model=model))
 
+    # Spectral adaptation parameters cannot be derived here: nothing in either
+    # repository ever wrote them, and the measured reflectance datasets their
+    # fit would need are not present. Borrow them from a named shipped stock,
+    # with the same standing as a donor dye curve, and say so in the profile.
+    donor = recipe.get("adaptation_donor")
+    if donor:
+        source_profile = json.loads(
+            (args.data_dir / "profiles" / f"{donor['stock']}.json").read_text())
+        for key in ("hanatos2025_adaptation_window_params",
+                    "hanatos2025_adaptation_surface_params"):
+            profile["data"][key] = source_profile["data"][key]
+        profile["metadata"]["datasource"] += (
+            f" Spectral adaptation parameters are not this stock's own: they are "
+            f"borrowed from {donor['stock']}. {donor['reason']}")
+
     figures.mkdir(parents=True, exist_ok=True)
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.4))
     colours = ["#c0392b", "#27ae60", "#2980b9"]

@@ -98,10 +98,18 @@ colour profiles have and this does not, all recorded in `recipe.json` under
   71.1 → 72.2), and the neutral rescale (below). The cause is **not
   established**; the untested candidate is upstream's hand-correction step,
   `correct.py`'s `correct_positive_curves_with_gray_ramp`.
-- **No `hanatos2025` adaptation parameters.** Stripping them from a shipped
-  profile changes its render by 5.4/255 mean, 30/255 at the 99th percentile,
-  so this is a quality gap rather than a blocker. Nothing in any repository's
-  history ever wrote these.
+- **Adaptation parameters are borrowed, not derived.** They turned out to be
+  the dominant term in the saturation gap, not the minor one an earlier
+  mean-RGB reading suggested: a control profile built by this pipeline from
+  Ektachrome 100's own source points renders at chroma 86.1, and grafting that
+  stock's parameters on gives 74.6 against the shipped 71.1. They cannot be
+  derived here — no revision of either repository ever wrote them, and the
+  measured reflectance datasets the fit needs (Otsu, Munsell, the NIST skin
+  set, named in every profile's `datasource`) are in neither; only the
+  reconstruction LUTs are. So this profile borrows Ektachrome 100's, with the
+  same standing as a donor dye curve. Donor choice is worth about 7 chroma
+  points: Ektachrome 100 gives 72.3, Kodachrome 64 75.0, Provia 100F 77.1,
+  Velvia 100 78.2, and Portra 400 — a negative — 79.6, against 88.0 for none.
 
 So this profile is honest about its curves and incomplete about its chemistry.
 It is labelled experimental for that reason.
