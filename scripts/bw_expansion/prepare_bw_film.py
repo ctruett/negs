@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare the Agfapan APX 25 B&W profile from its extracted source points.
+"""Prepare a single-channel B&W film profile from extracted source points.
 
 Shares the fitting in prepare.py: a constrained positive normal-CDF mixture
 whose components are mathematical, not measured emulsion layers. Reads the
@@ -23,17 +23,17 @@ from prepare import (  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = ROOT / "data/profile-sources/agfa-apx25"
-FIGURES = ROOT / "docs/apx25-review"
+SOURCE_ROOT = ROOT / "data/profile-sources"
+REVIEW_ROOT = ROOT / "docs/profile-sources-review"
 
 
-def read_points(name):
-    return np.loadtxt(SOURCES / f"{name}.csv", delimiter=",", skiprows=1)
+def read_points(sources, name):
+    return np.loadtxt(sources / f"{name}.csv", delimiter=",", skiprows=1)
 
 
-def make_profile(recipe, log_exposure, densities, base, sensitivity, model):
+def make_profile(recipe, source_dir, log_exposure, densities, base, sensitivity, model):
     cfg = recipe["film"]
-    source = recipe["sources"]["agfa"]
+    source = recipe["source"]
     info = dict(stock=cfg["id"], name=cfg["name"], type="negative",
                 support="film", stage="filming", use="still",
                 antihalation="strong", target_print=recipe["print"]["target_print"],
@@ -55,21 +55,21 @@ def make_profile(recipe, log_exposure, densities, base, sensitivity, model):
     data["density_curves_layers"] = (
         ndtr((log_exposure[:, None]-centers)/sigmas)*amplitudes)[:, :, None].tolist()
     return dict(metadata=dict(
-        version="apx25-1", created="2026-11-03",
+        version=recipe["version_tag"], created=recipe["created"],
         copyright="New preparation: spektrafilm-rs contributors (Claude-assisted), 2026. Manufacturer source rights retained.",
         license="New preparation and profile: CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/ . Manufacturer graph excerpts retain their original rights.",
         citation="Spektrafilm by Andrea Volpato and contributors; https://github.com/andreavolpato/spektrafilm . New calibration, not an upstream stock profile.",
         datasource=(f"{source['document']}; SHA256 {source['sha256']}. "
-                    "Reproduce with scripts/bw_expansion/prepare_apx25.py; axis calibration "
-                    "derived from the page by scripts/bw_expansion/extract_apx25.py; source "
+                    "Reproduce with scripts/bw_expansion/prepare_bw_film.py; axis calibration "
+                    "derived from the page by scripts/bw_expansion/extract_graphs.py; source "
                     "points, assumptions and conditions: "
-                    "data/profile-sources/agfa-apx25/recipe.json. "
+                    f"data/profile-sources/{source_dir}/recipe.json. "
                     + cfg["sensitivity_note"] + " " + cfg["development_note"])),
         info=info, data=data)
 
 
-def review(name, points, at, fitted, xlabel, ylabel, title):
-    FIGURES.mkdir(parents=True, exist_ok=True)
+def review(figures, name, points, at, fitted, xlabel, ylabel, title):
+    figures.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(7, 4.6))
     ax.plot(at, fitted, color="#17666e", label="Prepared response")
     ax.scatter(points[:, 0], points[:, 1], s=7, color="#e04b22", label="Source points")
@@ -78,19 +78,26 @@ def review(name, points, at, fitted, xlabel, ylabel, title):
     ax.grid(alpha=.2)
     ax.legend(fontsize=8)
     fig.tight_layout()
-    fig.savefig(FIGURES / f"{name}-validation.png", dpi=140)
+    fig.savefig(figures / f"{name}-validation.png", dpi=140)
     plt.close(fig)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "target/apx25-profile")
+    parser.add_argument("--source", required=True,
+                        help="directory name under data/profile-sources")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "target/bw-profiles")
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data")
     args = parser.parse_args()
-    recipe = json.loads((SOURCES / "recipe.json").read_text())
+    sources = SOURCE_ROOT / args.source
+    figures = REVIEW_ROOT / args.source
+    recipe = json.loads((sources / "recipe.json").read_text())
     cfg = recipe["film"]
-    density_points = read_points("apx25-density")[:, :2]
-    sens_points = read_points("apx25-sensitivity")[:, :2]
+    graphs = recipe["graphs"]
+    density_name = next(k for k, v in graphs.items() if v["role"] == "density")
+    sens_name = next(k for k, v in graphs.items() if v["role"] == "sensitivity")
+    density_points = read_points(sources, density_name)[:, :2]
+    sens_points = read_points(sources, sens_name)[:, :2]
 
     base, ceiling = cfg["base_density"], cfg["assumed_total_density_ceiling"]
     total = film_response(density_points, base, ceiling)
@@ -114,7 +121,7 @@ def main():
     before = float(gray @ sensitivity)
     sensitivity /= before
 
-    profile = make_profile(recipe, log_e, net, base, sensitivity, model)
+    profile = make_profile(recipe, args.source, log_e, net, base, sensitivity, model)
     curve = np.array(profile["data"]["density_curves"])[:, 0]
     error = np.interp(density_points[:, 0]-origin, log_e, curve)+base-density_points[:, 1]
     worst = float(np.max(np.abs(error)))
@@ -133,18 +140,18 @@ def main():
         minimum_sampled_net_density=float(curve.min()),
         maximum_sampled_net_density=float(curve.max()),
         source_points_sha256={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
-                              for p in sorted(SOURCES.glob("*.csv"))},
+                              for p in sorted(sources.glob("*.csv"))},
         profile_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
 
     x = np.linspace(density_points[0, 0]-1, density_points[-1, 0]+2, 700)
-    review("apx25-density", density_points, x, total(x), "Source log exposure",
-           "Total diffuse density", "APX 25 density curve")
+    review(figures, density_name, density_points, x, total(x), "Source log exposure",
+           "Total diffuse density", f"{cfg['name']} density curve")
     x = np.linspace(sens_points[0, 0], sens_points[-1, 0], 700)
-    review("apx25-sensitivity", sens_points, x,
+    review(figures, sens_name, sens_points, x,
            PchipInterpolator(sens_points[:, 0], sens_points[:, 1])(x),
            "Wavelength (nm)", "Source log sensitivity (before common shift)",
-           "APX 25 spectral sensitivity")
-    write_json(FIGURES / "preparation-report.json", report)
+           f"{cfg['name']} spectral sensitivity")
+    write_json(figures / "preparation-report.json", report)
     print(json.dumps(report, indent=2))
 
 

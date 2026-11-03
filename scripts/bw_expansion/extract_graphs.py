@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract the Agfapan APX 25 curves, calibrating the axes from the page.
+"""Extract a datasheet's plotted curves, calibrating the axes from the page.
 
 Where extract_sources.py reads a hand-measured drawing index and axis
 transform out of its recipe, this finds both: plot frames from the long
@@ -22,7 +22,7 @@ import numpy as np
 import pymupdf
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCES = ROOT / "data/profile-sources/agfa-apx25"
+SOURCE_ROOT = ROOT / "data/profile-sources"
 
 MIN_AXIS = 80.0      # pt, shortest stroke taken for an axis
 TICK_MAX = 12.0      # pt, longest stroke taken for a tick
@@ -228,10 +228,13 @@ def write_csv(path, header, rows):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", required=True,
+                        help="directory name under data/profile-sources")
     parser.add_argument("--pdf", type=Path, required=True)
     args = parser.parse_args()
-    recipe = json.loads((SOURCES / "recipe.json").read_text())
-    source = recipe["sources"]["agfa"]
+    sources = SOURCE_ROOT / args.source
+    recipe = json.loads((sources / "recipe.json").read_text())
+    source = recipe["source"]
     actual = hashlib.sha256(args.pdf.read_bytes()).hexdigest()
     if actual != source["sha256"]:
         raise ValueError(f"PDF revision mismatch: {actual}")
@@ -269,7 +272,7 @@ def main():
             raise ValueError(f"{name}: found {len(found)} curves, expected {spec['curves']}")
         points, stroke = found[0]
         data = to_data(points, xcal, ycal)
-        write_csv(SOURCES / f"{name}.csv",
+        write_csv(sources / f"{name}.csv",
                   [spec["x_label"], spec["y_label"], "pdf_x_pt", "pdf_y_pt"], data)
         spec["derived"] = dict(
             frame_pdf_pt=[round(v, 3) for v in frame],
@@ -283,7 +286,7 @@ def main():
             y_extent=[round(float(data[:, 1].min()), 6), round(float(data[:, 1].max()), 6)])
         written[name] = len(data)
 
-    (SOURCES / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n")
+    (sources / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n")
     for name, count in written.items():
         d = recipe["graphs"][name]["derived"]
         print(f"{name}: {count} points, x {d['x_extent'][0]:.3f}..{d['x_extent'][1]:.3f}, "

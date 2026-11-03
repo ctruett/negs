@@ -1,0 +1,19 @@
+{
+  "stock": "agfa_apx400",
+  "source_exposure_origin": -1.5006151019301308,
+  "sensitivity_log_shift": -2.0424120977102316,
+  "midgray_raw": 1.0000000000000002,
+  "measured_nm": [
+    380,
+    660
+  ],
+  "max_source_density_error": 0.008076390737479344,
+  "tolerance": 0.018,
+  "minimum_sampled_net_density": 0.0019047409,
+  "maximum_sampled_net_density": 2.7871068011,
+  "source_points_sha256": {
+    "apx400-density.csv": "54846fc8850b3b8014d7e1e0f5874863b4072d388dedf475d86d859f4747a439",
+    "apx400-sensitivity.csv": "881cf7d2152c8fd76ad0e3f7ad0a3b07e2e8456431527670acf96176409d2090"
+  },
+  "profile_sha256": "e99859a28c0824e15560874ff8ad3efc9d6b65964675c9885456450dfd883a3a"
+}

@@ -12,7 +12,7 @@ and axis transforms, conditions, assumptions and authorship.
 
 **Calibration is derived, not measured by hand.** Unlike the bw-expansion
 record, which carries a hand-read `drawing_index` and axis transform per
-graph, `scripts/bw_expansion/extract_apx25.py` finds the plot frames from the
+graph, `scripts/bw_expansion/extract_graphs.py` finds the plot frames from the
 page's long strokes, the ticks from its short ones and its gridlines, and the
 mapping to data coordinates by snapping the printed axis labels to those
 ticks. The result is written back into `recipe.json` under each graph's
@@ -53,17 +53,17 @@ curve is stroked at 0.997 pt, which is 0.0284 D on its scale, against 0.0156 D
 for the Kodak sheet behind the Tri-X preparation. The error is 0.40 of the
 stroke width. These are graph-fitting tolerances, not empirical accuracy
 claims. Overlays and the report are in
-[docs/apx25-review](../../../docs/apx25-review).
+[docs/profile-sources-review/agfa-apx25](../../../docs/profile-sources-review/agfa-apx25).
 
 Run from the repository root with Python 3.13 and
 `scripts/bw_expansion/requirements.txt` installed in a dedicated environment:
 
 ```sh
 # Normal regeneration uses the checked-in points, not the PDF.
-python scripts/bw_expansion/prepare_apx25.py --output-dir target/apx25-profile
+python scripts/bw_expansion/prepare_bw_film.py --source agfa-apx25 --output-dir target/bw-profiles
 
 # Optional re-extraction: supply the exact document. Hash mismatches are rejected.
-python scripts/bw_expansion/extract_apx25.py --pdf /path/to/agfapanapx25.pdf
+python scripts/bw_expansion/extract_graphs.py --pdf /path/to/agfapanapx25.pdf
 ```
 
 The profile stays outside the catalogue unless `--output-dir data/profiles` is

@@ -1,15 +1,16 @@
 {
   "version": 1,
+  "version_tag": "agfa-apx-1",
+  "created": "2026-11-03",
   "page_1based": 2,
-  "sources": {
-    "agfa": {
-      "document": "Agfa Datenblatt APX 25, status 08/1995, 1st edition",
-      "sha256": "50d77e7ca6c1dfd69803e28d34fd11c622affcf87a1362155d3c0c9ad2046d81",
-      "credit": "AGFA-GEVAERT AG; original manufacturer measurements and graph content"
-    }
+  "source": {
+    "document": "Agfa Datenblatt APX 25, status 08/1995, 1st edition",
+    "sha256": "50d77e7ca6c1dfd69803e28d34fd11c622affcf87a1362155d3c0c9ad2046d81",
+    "credit": "AGFA-GEVAERT AG; original manufacturer measurements and graph content"
   },
   "graphs": {
     "apx25-density": {
+      "role": "density",
       "x_label": "log10_exposure_lux_seconds",
       "y_label": "total_diffuse_density",
       "x_range": [
@@ -54,6 +55,7 @@
       }
     },
     "apx25-sensitivity": {
+      "role": "sensitivity",
       "x_label": "wavelength_nm",
       "y_label": "log10_sensitivity",
       "x_range": [
