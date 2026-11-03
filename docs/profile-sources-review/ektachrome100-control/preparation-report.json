@@ -1,0 +1,66 @@
+{
+  "stock": "e100_control",
+  "source_exposure_anchor": [
+    -0.8040871439917469,
+    -0.7950254094561819,
+    -0.8355489896059477
+  ],
+  "neutral_mix": [
+    0.9991444651501539,
+    1.0,
+    1.0006582348802453
+  ],
+  "neutral_fit_residual": 0.01608328257700964,
+  "crosstalk_matrix": [
+    [
+      0.999999999999802,
+      0.1656596798795591,
+      0.008765283688227534
+    ],
+    [
+      0.16274218143345806,
+      0.9999999999999998,
+      0.07122955080832068
+    ],
+    [
+      0.07958011444655184,
+      0.17300772122984512,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.2564929575482506,
+    1.1982312925097418,
+    1.1273105016167995
+  ],
+  "channel_dmin": [
+    0.15994728049906562,
+    0.16308513343056324,
+    0.15487663490712578
+  ],
+  "max_amount_residual": 0.009858745771399688,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    32.21662379656336,
+    36.65631734998429,
+    55.12608049061895
+  ],
+  "dye_amount_max": [
+    2.590430698199822,
+    2.8097276368097894,
+    2.907144167040393
+  ],
+  "source_points_sha256": {
+    "e100-characteristic-b.csv": "f6e20dd4c0665c91e4e7012eb2894c9434ff04b6196eb9989958cc8152f272c6",
+    "e100-characteristic-g.csv": "6d3fc0d2b689cc64f2e7512a0fdd56cbd978ae75001a24d25e65f8287f88786c",
+    "e100-characteristic-r.csv": "276c7bec23e86a8a4c1ec1fe39b9d18a413dbfe4814672b143871d471115dd18",
+    "e100-dye-c.csv": "e4a674e189ca48aea2c7e3eb52c6ea55521a27a7904495d4ccc6cd65adae8f58",
+    "e100-dye-m.csv": "82ff06319c9ecb1239600fe0ce27b9a37d60532c9ecf0f994ac50b6b6249f2a9",
+    "e100-dye-neutral.csv": "ebf74a6ff912688d4fc9b7ca2b3ab5ca56f5cba4ea742156de29fc827b99db4d",
+    "e100-dye-y.csv": "3e99c5dbc858fa2088d5b0d9bf21e64f6aa3c98c83e01676f80cd3e165276e53",
+    "e100-sensitivity-b.csv": "13548917857a92620220b10352a7671c254948cbbdc5863528d48e44b255ba41",
+    "e100-sensitivity-g.csv": "91c2b419fba5eeb60c813d5047dfd0cf839d05dd55d1608f07d65ec60446582b",
+    "e100-sensitivity-r.csv": "c2edf3dc0a52dfd01f3e05015e580da19e924562c52317111a00a3be40d3c598"
+  },
+  "profile_sha256": "853a5c3ceb0d1edff0a061563c54b812fa2dde7000804489c66e99d44fc282e8"
+}

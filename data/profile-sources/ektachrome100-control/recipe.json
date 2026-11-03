@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-03",
+  "page_1based": 5,
+  "source": {
+    "document": "Kodak Professional Ektachrome Film E100, August 2018, E-4000 (source points as digitised upstream)",
+    "sha256": "n/a - points taken from spektrafilm e418a25^, not re-extracted from the PDF",
+    "credit": "Eastman Kodak Company; digitisation by Andrea Volpato"
+  },
+  "graphs": {
+    "e100-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_A_density",
+      "x_range": [
+        0,
+        0
+      ],
+      "x_tolerance": 0,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "conditions": "Upstream's own digitised points, reused as a control."
+    },
+    "e100-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        0,
+        0
+      ],
+      "x_tolerance": 0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "conditions": "As above."
+    },
+    "e100-dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        0,
+        0
+      ],
+      "x_tolerance": 0,
+      "curves": 4,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "y",
+        "m",
+        "neutral",
+        "c"
+      ],
+      "conditions": "As above."
+    }
+  },
+  "film": {
+    "id": "e100_control",
+    "name": "Ektachrome 100 rebuilt by this pipeline (control)",
+    "type": "positive",
+    "densitometer": "status_A",
+    "base_density": 0.1,
+    "base_density_note": "Same flat assumption as the EPR preparation, for comparability.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel's E.N.D. density criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not on plotted density. The E-8 panels are stroked finely and the characteristic panel calibrates to 0.0001, so the binding uncertainty here is the unmixing, not the tracing. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range; the fit lands at 0.0163.",
+    "midgray_total_density": 0.735182,
+    "midgray_note": "Rendering convention: engine log exposure zero is placed where the green channel's total status-A density equals 0.735342, which is -log10(0.184) - the density that transmits the 18.4% reference grey this repository uses elsewhere (paper midgray_reflectance, and the B&W preparations' grey anchor). The panel's own 'Density: 1.0' is a sensitivity criterion, not a mid-tone, and anchoring there renders about half a stop dark. Not absolute ISO metering.",
+    "known_gaps": [
+      "Control profile only: exists to measure what this pipeline does to source points whose finished profile is already known. Not a stock to ship."
+    ],
+    "neutral_check_note": "The sheet plots a visual neutral beside its three dyes. Solving for the dye mixture that reproduces it gives [0.987, 1.000, 0.998] normalised to green, within 1.3% of unity, residual 0.031 D - about the thickness of the plotted line. The rescale is applied (it is factory.py's rescale_dye_density_using_neutral) and changes the render not at all, but it is an independent check on the dye extraction that passes.",
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektachrome_100, the nearest sibling, rather than guessed; it drives the halation preset only, and moving it weak-to-strong changed a rendered frame's mean chroma by 0.6.",
+    "ramp_balance_note": "Prepared curves are balanced against a rendered grey ramp by scripts/bw_expansion/balance_against_ramp.py, which is upstream's correct_positive_curves_with_gray_ramp done against this engine. Without it a grey renders 38% off neutral at the ends of a five-stop ramp, against 2.0% for shipped Ektachrome 100, 6.5% for Kodachrome 64 and 13.3% for Velvia 100 - so the shipped profiles are ramp-corrected and source curves alone are not enough. The correction is fitted against the engine, not measured from the datasheet."
+  },
+  "print": {
+    "target_print": null,
+    "note": "A reversal film: scanned directly, no print stage."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure because the engine evaluates a positive's model with a negated argument (sign = -1 in refresh_density_curves_from_model)."
+  },
+  "authorship": "Control experiment, 2026-11-03: upstream's own digitised points for Ektachrome 100 (spektrafilm e418a25^) run through this repository's colour preparation, so the pipeline's output can be compared against the shipped profile built from the same points."
+}
