@@ -41,17 +41,22 @@
           "labels": 4,
           "worst_label_error": 0.004804704879916244
         },
-        "points": 193,
-        "stroke_pdf_pt": 0.997,
-        "stroke_in_y_units": 0.02837,
-        "x_extent": [
-          -3.96581,
-          2.00801
-        ],
-        "y_extent": [
-          0.228889,
-          2.35688
-        ]
+        "traces": {
+          "apx25-density": {
+            "points": 193,
+            "stroke_pdf_pt": 0.997,
+            "stroke_in_y_units": 0.02837,
+            "x_extent": [
+              -3.96581,
+              2.00801
+            ],
+            "y_extent": [
+              0.228889,
+              2.35688
+            ],
+            "peak_x": 2.008
+          }
+        }
       }
     },
     "apx25-sensitivity": {
@@ -86,17 +91,22 @@
           "labels": 4,
           "worst_label_error": 0.004964268684676032
         },
-        "points": 353,
-        "stroke_pdf_pt": 0.998,
-        "stroke_in_y_units": 0.01771,
-        "x_extent": [
-          380.604324,
-          664.608629
-        ],
-        "y_extent": [
-          -2.003127,
-          0.056534
-        ]
+        "traces": {
+          "apx25-sensitivity": {
+            "points": 353,
+            "stroke_pdf_pt": 0.998,
+            "stroke_in_y_units": 0.01771,
+            "x_extent": [
+              380.604324,
+              664.608629
+            ],
+            "y_extent": [
+              -2.003127,
+              0.056534
+            ],
+            "peak_x": 380.604
+          }
+        }
       }
     }
   },

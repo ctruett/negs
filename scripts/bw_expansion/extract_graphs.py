@@ -170,40 +170,59 @@ def calibrate(tickpos, found, axis_name):
 
 
 def flatten(items):
-    """Path items to a polyline in page coordinates."""
-    points = []
+    """Path items to polylines in page coordinates.
+
+    One drawing often holds several traces — a colour sheet draws all three
+    layers in a single path, moving the pen between them — so a break in
+    continuity starts a new polyline.
+    """
+    polylines, current = [], []
+
+    def start(point):
+        nonlocal current
+        if current and (abs(current[-1][0] - point[0]) > 0.3
+                        or abs(current[-1][1] - point[1]) > 0.3):
+            polylines.append(current)
+            current = []
+        if not current:
+            current = [point]
+
     for item in items:
         kind, *vertices = item
         if kind not in ("l", "c"):
-            return None          # frames and fills, not plotted data
-        p = np.array([[v.x, v.y] for v in vertices])
+            return []            # frames and fills, not plotted data
+        p = [np.array([v.x, v.y]) for v in vertices]
+        start(p[0])
         if kind == "l":
-            points.extend(p)
+            current.append(p[1])
         else:
-            for t in np.linspace(0, 1, BEZIER_STEPS):
-                points.append((1-t)**3*p[0] + 3*(1-t)**2*t*p[1]
-                              + 3*(1-t)*t*t*p[2] + t**3*p[3])
-    return np.array(points) if points else None
+            for t in np.linspace(0, 1, BEZIER_STEPS)[1:]:
+                current.append((1-t)**3*p[0] + 3*(1-t)**2*t*p[1]
+                               + 3*(1-t)*t*t*p[2] + t**3*p[3])
+    if current:
+        polylines.append(current)
+    return [np.array(p) for p in polylines if len(p) >= 8]
 
 
 def curves_in(page, frame, pad=1.5):
-    """Every plotted path that stays inside the frame."""
+    """Every plotted trace that stays inside the frame."""
     x0, y0, x1, y1 = frame
     out = []
     for drawing in page.get_drawings():
-        points = flatten(drawing["items"])
-        if points is None or len(points) < 8:
-            continue
-        if not (np.all(points[:, 0] > x0 - pad) and np.all(points[:, 0] < x1 + pad)
-                and np.all(points[:, 1] > y0 - pad) and np.all(points[:, 1] < y1 + pad)):
-            continue
-        if np.ptp(points[:, 0]) < 0.1 * (x1 - x0):
-            continue
-        on_edge = (np.minimum(np.abs(points[:, 0] - x0), np.abs(points[:, 0] - x1)) < 1.0) | \
-                  (np.minimum(np.abs(points[:, 1] - y0), np.abs(points[:, 1] - y1)) < 1.0)
-        if on_edge.all():       # the axis box or a gridline, not a trace
-            continue
-        out.append((points, drawing.get("width")))
+        for points in flatten(drawing["items"]):
+            if not (np.all(points[:, 0] > x0 - pad) and np.all(points[:, 0] < x1 + pad)
+                    and np.all(points[:, 1] > y0 - pad)
+                    and np.all(points[:, 1] < y1 + pad)):
+                continue
+            if np.ptp(points[:, 0]) < 0.1 * (x1 - x0):
+                continue
+            on_edge = (np.minimum(np.abs(points[:, 0] - x0),
+                                  np.abs(points[:, 0] - x1)) < 1.0) | \
+                      (np.minimum(np.abs(points[:, 1] - y0),
+                                  np.abs(points[:, 1] - y1)) < 1.0)
+            if on_edge.all():    # the axis box or a gridline, not a trace
+                continue
+            out.append((points, drawing.get("width")))
     return out
 
 
@@ -270,28 +289,43 @@ def main():
         found = curves_in(page, frame)
         if len(found) != spec["curves"]:
             raise ValueError(f"{name}: found {len(found)} curves, expected {spec['curves']}")
-        points, stroke = found[0]
-        data = to_data(points, xcal, ycal)
-        write_csv(sources / f"{name}.csv",
-                  [spec["x_label"], spec["y_label"], "pdf_x_pt", "pdf_y_pt"], data)
-        spec["derived"] = dict(
-            frame_pdf_pt=[round(v, 3) for v in frame],
-            x=xcal, y=ycal, points=len(data),
-            # How thick the printed line is in plotted units: the floor on
-            # how precisely any trace of it can be read.
-            stroke_pdf_pt=round(float(stroke), 4) if stroke else None,
-            stroke_in_y_units=(round(float(stroke) / ycal["pt_per_unit"], 5)
-                               if stroke else None),
-            x_extent=[round(float(data[0, 0]), 6), round(float(data[-1, 0]), 6)],
-            y_extent=[round(float(data[:, 1].min()), 6), round(float(data[:, 1].max()), 6)])
-        written[name] = len(data)
+        traces = [(to_data(points, xcal, ycal), stroke) for points, stroke in found]
+        # A multi-curve panel needs its traces named. Spectral panels sort by
+        # where each peaks, characteristic panels by how high each climbs;
+        # the recipe says which, and what the sorted traces are called.
+        names = spec.get("curve_names") or [None]
+        if len(names) > 1:
+            key = {"peak_x": lambda t: t[0][int(np.argmax(t[0][:, 1])), 0],
+                   "max_y": lambda t: t[0][:, 1].max()}[spec["curve_order"]]
+            traces.sort(key=key)
+        spec["derived"] = dict(frame_pdf_pt=[round(v, 3) for v in frame],
+                               x=xcal, y=ycal, traces={})
+        for suffix, (data, stroke) in zip(names, traces):
+            stem = name if suffix is None else f"{name}-{suffix}"
+            write_csv(sources / f"{stem}.csv",
+                      [spec["x_label"], spec["y_label"], "pdf_x_pt", "pdf_y_pt"], data)
+            spec["derived"]["traces"][stem] = dict(
+                points=len(data),
+                # How thick the printed line is in plotted units: the floor on
+                # how precisely any trace of it can be read.
+                stroke_pdf_pt=round(float(stroke), 4) if stroke else None,
+                stroke_in_y_units=(round(float(stroke) / ycal["pt_per_unit"], 5)
+                                   if stroke else None),
+                x_extent=[round(float(data[0, 0]), 6), round(float(data[-1, 0]), 6)],
+                y_extent=[round(float(data[:, 1].min()), 6),
+                          round(float(data[:, 1].max()), 6)],
+                peak_x=round(float(data[int(np.argmax(data[:, 1])), 0]), 3))
+            written[stem] = len(data)
 
     (sources / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n")
-    for name, count in written.items():
-        d = recipe["graphs"][name]["derived"]
-        print(f"{name}: {count} points, x {d['x_extent'][0]:.3f}..{d['x_extent'][1]:.3f}, "
-              f"worst label error x {d['x']['worst_label_error']:.4f} "
-              f"y {d['y']['worst_label_error']:.4f}")
+    for spec in recipe["graphs"].values():
+        d = spec["derived"]
+        for stem, t in d["traces"].items():
+            print(f"{stem}: {t['points']} points, "
+                  f"x {t['x_extent'][0]:.3f}..{t['x_extent'][1]:.3f}, "
+                  f"peak at {t['peak_x']:.2f}, "
+                  f"worst label error x {d['x']['worst_label_error']:.4f} "
+                  f"y {d['y']['worst_label_error']:.4f}")
 
 
 if __name__ == "__main__":

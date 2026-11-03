@@ -1,0 +1,60 @@
+{
+  "stock": "kodak_ektachrome64_epr",
+  "source_exposure_anchor": [
+    -0.5855332757349145,
+    -0.6098137425994252,
+    -0.6343413305213212
+  ],
+  "crosstalk_matrix": [
+    [
+      0.9999999999998707,
+      0.1401073739169918,
+      0.03971629194224659
+    ],
+    [
+      0.16116614922420264,
+      0.9999999999999999,
+      0.0735919129973001
+    ],
+    [
+      0.06642374633392212,
+      0.1795399134696548,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.2948440541825081,
+    1.2044931391104396,
+    1.1583051831548017
+  ],
+  "channel_dmin": [
+    0.209920397,
+    0.189932168,
+    0.189932168
+  ],
+  "max_amount_residual": 0.01630225946044117,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    18.698264129354687,
+    16.855071534965578,
+    28.843199730464217
+  ],
+  "dye_amount_max": [
+    2.4990571290250836,
+    2.697895440969737,
+    2.8451037121657756
+  ],
+  "source_points_sha256": {
+    "epr-characteristic-b.csv": "0a1f091d7a232993eb50d04deaca2c7ed0a7fcf3389237d3e0230cf998a209c3",
+    "epr-characteristic-g.csv": "45545cd48b8dbaad28d26089a243f92b11ecc4ee6c521f580d338de41c1f93f6",
+    "epr-characteristic-r.csv": "e4c1cc31f013d0a57fb024d4c207877147baade51b40e6fb968f95ede668ef85",
+    "epr-dye-c.csv": "efb29bb2613af9e6fe4f314464b01a9b8a5c14de37c99ba6f10d299a5a8bd6ae",
+    "epr-dye-m.csv": "4f6cfbdd44fe8ac952af592cb2338e46e88bf99db3de9d698b5c64b0ba2d2e99",
+    "epr-dye-neutral.csv": "72da3329ce891c695e07ba3678b2b87fc68490f24c19704a17acc81943a7f447",
+    "epr-dye-y.csv": "d16c91e3c40a4eb5013a6c612595b1da8757c232bcf23adffd533ba8c621ada4",
+    "epr-sensitivity-b.csv": "bbcdd216e29221bb9a227729bf536936f5dd4ce2b7cd0ced3462d2ca0f082556",
+    "epr-sensitivity-g.csv": "5e1517ac7c971055b7e218298d55868d900cebdacf604512762eef2cb2ba7594",
+    "epr-sensitivity-r.csv": "4198dab5cc7c343d809e15b1adaab1346b503ed6e16221daa79e6a94accc41d6"
+  },
+  "profile_sha256": "31707b92d7d7824abd505895f5dcb35280dbe00067d3115e122abe4a702f2a21"
+}
