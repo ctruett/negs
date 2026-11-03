@@ -1,0 +1,62 @@
+{
+  "stock": "fujifilm_t64",
+  "source_exposure_anchor": [
+    -1.0541884965776696,
+    -1.0537745020914457,
+    -1.0530262824252845
+  ],
+  "dye_source": "this sheet, with no plotted neutral to rescale against",
+  "neutral_mix": null,
+  "neutral_fit_residual": null,
+  "crosstalk_matrix": [
+    [
+      0.9999999999997778,
+      0.09982964141513224,
+      0.0015788921232880527
+    ],
+    [
+      0.1042770249391605,
+      0.9999999999999954,
+      0.04131193837829097
+    ],
+    [
+      0.03993402932365364,
+      0.05556598491213948,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.271279029373289,
+    1.1876917329051033,
+    1.0596693931254009
+  ],
+  "channel_dmin": [
+    0.12261969100000002,
+    0.122619691,
+    0.122619691
+  ],
+  "max_amount_residual": 0.014473111383577653,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    3.0037632344448695,
+    3.8451059686873026,
+    5.28666673062465
+  ],
+  "dye_amount_max": [
+    3.0915977387533338,
+    3.000263298908311,
+    3.2812242934159412
+  ],
+  "source_points_sha256": {
+    "rtp-characteristic-b.csv": "c102d4124cdc167a1aa2f939e49ec81321267bc2d758607505ee37aefcea3b7b",
+    "rtp-characteristic-g.csv": "8d0343fb1f9abb005ad187d6c133f4538cf35824749046ed3a171360e89cf16d",
+    "rtp-characteristic-r.csv": "ecbcd3a29584ca1fee7c8338caaa8da3f8cb24af0405ee0db1726c53b59e9f33",
+    "rtp-dye-c.csv": "9f1490ee86fa8f6456eb1c6ce2b19f97131114f6e76515260149541ff01d2775",
+    "rtp-dye-m.csv": "c7b78a6c19d7fcad948ed10e406e469479544893b4fa99a071c6a43ab091157a",
+    "rtp-dye-y.csv": "80fcca89e8ee51d4bcc87d53f6de3735f188425afa26baf36a3c1730145acb43",
+    "rtp-sensitivity-b.csv": "a6b5a5452ccae3fdeb344dd5c9360dd165c94efa0bee998063bd1c3533f7128e",
+    "rtp-sensitivity-g.csv": "3e0cdf9d8a75ee56775e9822cef3122168afea8837b6253fe62f46d95bcbca99",
+    "rtp-sensitivity-r.csv": "7154d10aa85b9d806f41dc14d732f1fc33c359e2850ecb6b3b487ad5394fcf3f"
+  },
+  "profile_sha256": "211250624c2e05f1724d7475cb79b844c15e412adee8d28a395ae0c6c95c9038"
+}

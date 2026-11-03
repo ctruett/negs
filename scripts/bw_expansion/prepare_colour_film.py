@@ -155,22 +155,49 @@ def main():
     graphs = recipe["graphs"]
     char = next(k for k, v in graphs.items() if v["role"] == "characteristic")
     sens = next(k for k, v in graphs.items() if v["role"] == "sensitivity")
-    dye = next(k for k, v in graphs.items() if v["role"] == "dye")
-
-    # --- dye spectra: profile channels r, g, b are the c, m, y dyes ---
-    dye_raw = np.column_stack([on_grid(read_points(sources, f"{dye}-{c}"))
-                               for c in ("c", "m", "y")])
+    dye = next((k for k, v in graphs.items() if v["role"] == "dye"), None)
     responsivity = densitometer(args.data_dir, cfg["densitometer"].replace("status_", ""))
 
-    # The sheet plots a visual neutral alongside the three dyes. Solve for the
-    # dye mixture that reproduces it and rescale by that, normalised to green:
-    # factory.py's find_midscale_neutral_coefficients / rescale_dye_density_using_neutral.
-    neutral = on_grid(read_points(sources, f"{dye}-neutral"))
-    usable = np.all(np.isfinite(np.column_stack([dye_raw, neutral])), axis=1)
-    mix = np.linalg.lstsq(dye_raw[usable], neutral[usable], rcond=None)[0]
-    mix = mix / mix[1]
-    neutral_residual = float(np.max(np.abs(dye_raw[usable] @ mix * mix[1] - neutral[usable])))
-    dye_raw = dye_raw * mix
+    if dye is not None:
+        # --- dye spectra from the sheet: channels r, g, b are the c, m, y dyes ---
+        dye_raw = np.column_stack([on_grid(read_points(sources, f"{dye}-{c}"))
+                                   for c in ("c", "m", "y")])
+        if "neutral" in (graphs[dye].get("curve_names") or []):
+            # The sheet plots a visual neutral alongside the three dyes. Solve
+            # for the dye mixture that reproduces it and rescale by that,
+            # normalised to green: factory.py's
+            # find_midscale_neutral_coefficients / rescale_dye_density_using_neutral.
+            neutral = on_grid(read_points(sources, f"{dye}-neutral"))
+            usable = np.all(np.isfinite(np.column_stack([dye_raw, neutral])), axis=1)
+            mix = np.linalg.lstsq(dye_raw[usable], neutral[usable], rcond=None)[0]
+            mix = mix / mix[1]
+            neutral_residual = float(np.max(np.abs(dye_raw[usable] @ mix * mix[1]
+                                                   - neutral[usable])))
+            dye_raw = dye_raw * mix
+            dye_source = "this sheet, rescaled against its own visual neutral"
+        else:
+            # Three dyes and no neutral: nothing on the sheet fixes their
+            # relative strengths, so the densitometer normalisation below is
+            # the only thing setting them. One fewer constraint than a sheet
+            # with a neutral, and more than a borrowed set.
+            mix, neutral_residual = None, None
+            dye_source = "this sheet, with no plotted neutral to rescale against"
+    else:
+        # --- no dye panel: borrow the shapes whole ---
+        # Many sheets publish sensitivity and characteristic curves but plot no
+        # dye densities at all. There is then nothing on the sheet to scale a
+        # donor against - unlike a D-min/midscale pair, which at least anchors
+        # it - so the dye spectra are entirely another stock's. That is a large
+        # borrow and the profile's datasource says so plainly.
+        donor = recipe["dye_donor"]
+        loaded = json.loads((args.data_dir / "profiles" /
+                             f"{donor['stock']}.json").read_text())
+        dye_raw = np.array([[np.nan if v is None else v for v in row]
+                            for row in loaded["data"]["channel_density"]], dtype=float)
+        if dye_raw.shape != (len(WAVELENGTHS), 3):
+            raise ValueError(f"donor {donor['stock']} has no usable channel_density")
+        mix, neutral_residual = None, None
+        dye_source = f"{donor['stock']} (borrowed whole: this sheet plots no dyes)"
 
     # Put the dyes on a scale where one unit of a dye reads one density in its
     # own channel, so unmixed amounts and dye spectra share a scale.
@@ -229,6 +256,7 @@ def main():
                         "calibration derived from the page by "
                         "scripts/bw_expansion/extract_graphs.py; source points, assumptions "
                         f"and conditions: data/profile-sources/{args.source}/recipe.json. "
+                    f"Dye spectra: {dye_source}. "
                         + cfg["sensitivity_note"] + " " + cfg["base_density_note"])),
         info=dict(stock=cfg["id"], name=cfg["name"], type=cfg["type"], support="film",
                   stage="filming", use="still", antihalation=cfg["antihalation"],
@@ -297,7 +325,9 @@ def main():
     write_json(path, profile)
     report = dict(
         stock=cfg["id"], source_exposure_anchor=anchor.tolist(),
-        neutral_mix=mix.tolist(), neutral_fit_residual=neutral_residual,
+        dye_source=dye_source,
+        neutral_mix=None if mix is None else mix.tolist(),
+        neutral_fit_residual=neutral_residual,
         crosstalk_matrix=matrix.tolist(), dye_scale=scale.tolist(),
         channel_dmin=dmin.tolist(),
         max_amount_residual=float(residual.max()),

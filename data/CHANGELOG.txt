@@ -110,3 +110,10 @@ Negs-only data, not from spektrafilm:
   each graph in the recipe names its own page. Tungsten-balanced like 64T.
   Fit residual 0.0109 against the 0.02 gate, 2.9% off neutral at upstream's
   default balance bias.
+- profiles/fujifilm_provia_400x.json and profiles/fujifilm_t64.json are the
+  first Fujifilm preparations here, from Fujifilm AF3-0213E and AF3-178E.
+  Both plot their own C, M and Y dye densities, but no visual neutral, so the
+  dyes' relative strengths are set only by the densitometer normalisation -
+  one constraint fewer than the Kodak sheets. T64 is tungsten-type. Fit
+  residuals 0.0049 and 0.0145; 3.3% and 1.3% off neutral. Adaptation
+  parameters borrowed from fujifilm_provia_100f.

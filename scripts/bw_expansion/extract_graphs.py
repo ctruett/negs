@@ -298,9 +298,26 @@ def main():
         page_number = spec.get("page_1based", default_page)
         page, kept = scan(page_number)
         wanted = spec["x_range"]
-        match = [(f, xc, yc) for f, xc, yc in kept
-                 if abs((f[0]-xc["zero_pdf_pt"])/xc["pt_per_unit"] - wanted[0]) < spec["x_tolerance"]
-                 and abs((f[2]-xc["zero_pdf_pt"])/xc["pt_per_unit"] - wanted[1]) < spec["x_tolerance"]]
+
+        def fits(frame, xc, yc, wanted=wanted, spec=spec):
+            lo = (frame[0] - xc["zero_pdf_pt"]) / xc["pt_per_unit"]
+            hi = (frame[2] - xc["zero_pdf_pt"]) / xc["pt_per_unit"]
+            if (abs(lo - wanted[0]) > spec["x_tolerance"]
+                    or abs(hi - wanted[1]) > spec["x_tolerance"]):
+                return False
+            # Some sheets put two panels on the same wavelength axis - a
+            # sensitivity panel and a dye panel both running 380 to 720 - so
+            # the x range alone cannot tell them apart. Their y axes differ,
+            # and a recipe can say so.
+            span = spec.get("y_range")
+            if span is None:
+                return True
+            ylo = (yc["zero_pdf_pt"] - frame[3]) / yc["pt_per_unit"]
+            yhi = (yc["zero_pdf_pt"] - frame[1]) / yc["pt_per_unit"]
+            tol = spec.get("y_tolerance", 0.2)
+            return abs(ylo - span[0]) <= tol and abs(yhi - span[1]) <= tol
+
+        match = [(f, xc, yc) for f, xc, yc in kept if fits(f, xc, yc)]
         if len(match) != 1:
             raise ValueError(f"{name}: matched {len(match)} frames, expected 1")
         frame, xcal, ycal = match[0]

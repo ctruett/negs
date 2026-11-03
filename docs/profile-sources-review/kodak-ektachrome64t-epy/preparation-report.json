@@ -5,6 +5,7 @@
     -0.6247889156895353,
     -0.7041403398030525
   ],
+  "dye_source": "this sheet, rescaled against its own visual neutral",
   "neutral_mix": [
     1.0123722341353087,
     1.0,
@@ -62,5 +63,5 @@
     "epy-sensitivity-g.csv": "3057b7e75a64dbd2ffc0dc709a064a4551cdea3c94613100b27ec9643794844c",
     "epy-sensitivity-r.csv": "15230865641d4ab6f65f5e09fd8c9e802695280e3a9861e02766abe4049de307"
   },
-  "profile_sha256": "038e79895fb0988cfa1af45654ae00e69c8c9a18fd9b5202e07be1c8b3f09be5"
+  "profile_sha256": "74911a9f8725328be8d13bd02ee12e83517bb5c705e6ccc7b9f4db24ef754032"
 }

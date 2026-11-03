@@ -1,0 +1,62 @@
+{
+  "stock": "fujifilm_provia_400x",
+  "source_exposure_anchor": [
+    -1.5302249577250038,
+    -1.5302249577250038,
+    -1.5293533390166827
+  ],
+  "dye_source": "this sheet, with no plotted neutral to rescale against",
+  "neutral_mix": null,
+  "neutral_fit_residual": null,
+  "crosstalk_matrix": [
+    [
+      0.9999999999997723,
+      0.10034178446209531,
+      0.0016278219827501133
+    ],
+    [
+      0.10404972037093031,
+      0.999999999999995,
+      0.04164866656457585
+    ],
+    [
+      0.04017190341994742,
+      0.05538073855167093,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.272343980479248,
+    1.189337684717329,
+    1.059603660958656
+  ],
+  "channel_dmin": [
+    0.137183114,
+    0.137183114,
+    0.137183114
+  ],
+  "max_amount_residual": 0.004948889645707659,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    49.69791183395641,
+    101.76043323773708,
+    159.37675628813747
+  ],
+  "dye_amount_max": [
+    2.78533051629655,
+    2.7799670142296184,
+    3.0804515468993476
+  ],
+  "source_points_sha256": {
+    "rxp-characteristic-b.csv": "a9e9c7146d456c11c5e74d37bb4ddea5192a3861355e49c44bbaf15974411c22",
+    "rxp-characteristic-g.csv": "42f9a1dfef3b2fabdab18cd999402bffa970df52475d36e998b92231b21b7ca6",
+    "rxp-characteristic-r.csv": "be1a3734db8c4d39e35a662f691fd355fc07eb46297e7b6ab0ce0506fb745bce",
+    "rxp-dye-c.csv": "0a5204b57a80ac7424efe2aa2caf8ec93a7283aedb7269b14c614a77395e2b73",
+    "rxp-dye-m.csv": "f74264a202b38582d6a7358e943a4af29e900554609f720e6ce08445d580864f",
+    "rxp-dye-y.csv": "479c78309db11844f2294faef33715372ebba5c2ec1ffdb8d0df283348883ef1",
+    "rxp-sensitivity-b.csv": "863e6339c546fa0ea302866e832ffc1e2c0ba0dcb386989aa80627a5cb6ff603",
+    "rxp-sensitivity-g.csv": "10e2b102114a4ea8d33667343f997f7da4e8686466cb7402cf19472310837056",
+    "rxp-sensitivity-r.csv": "fcdda9495d5109e284cf02d78d680795bfed8278e4e96522ff52394c3e89fd7e"
+  },
+  "profile_sha256": "4395e9c94b77221c7f0d22a6dbd5c81b7036dd4e1bb00a5c13758cc7d7ef3535"
+}

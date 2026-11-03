@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspector</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#3b9bff}a:hover{color:#6fb5ff}
+</style>
+</helmet>
+<div style="width: 360px; height: 1040px; box-sizing: border-box; background: #262626; color: #ececec; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; font-size: 13px; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden">
+
+<div style="display: flex; justify-content: flex-end; gap: 6px; padding: 10px 12px 6px">
+<button aria-label="Export image" style="width: 44px; height: 36px; background: none; border: 0; color: #a3a3a3; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"></path></svg></button>
+<button aria-label="Copy adjustments" style="width: 44px; height: 36px; background: none; border: 0; color: #a3a3a3; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="7" width="12" height="14" rx="2"></rect><path d="M8 4h8"></path></svg></button>
+<button aria-label="Adjustments" aria-pressed="true" style="width: 44px; height: 36px; background: none; border: 0; color: #3b9bff; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"></path><circle cx="9" cy="6" r="2" fill="#262626"></circle><circle cx="15" cy="12" r="2" fill="#262626"></circle><circle cx="8" cy="18" r="2" fill="#262626"></circle></svg></button>
+</div>
+
+<div style="margin: 0 16px; height: 96px; background: #1a1a1a; border-radius: 8px; overflow: hidden">
+<svg aria-hidden="true" width="328" height="96" viewBox="0 0 328 96" preserveAspectRatio="none"><path d="M14 96 L16 60 L20 70 L24 96 Z" fill="#d92d2d"></path><path d="M22 96 L25 55 L30 80 L36 96 Z" fill="#30c04a"></path><path d="M26 96 L30 40 L32 8 L36 50 L44 82 L60 90 L120 94 L328 96 Z" fill="#2f50e6"></path><path d="M30 96 L40 88 L80 92 L160 92 L200 88 L240 92 L300 95 L328 96 Z" fill="#45d1e0"></path><path d="M150 96 L180 90 L210 88 L240 92 L280 96 Z" fill="#d9a42d"></path><path d="M160 96 L190 89 L215 86 L235 92 L260 96 Z" fill="#d93a2d"></path><path d="M14 96 L328 96 L328 92 L14 92 Z" fill="#f2f2f2"></path></svg>
+</div>
+
+<nav aria-label="Workflow steps" style="margin: 12px 16px 4px; padding: 3px; background: #1c1c1c; border-radius: 10px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px">
+<button onClick="{{pick.camera}}" style="{{tabStyle.camera}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg><span>Camera</span></button>
+<button onClick="{{pick.film}}" style="{{tabStyle.film}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1.5"></rect><path d="M8 3v18M16 3v18M5 7h3M5 11h3M5 15h3M16 7h3M16 11h3M16 15h3"></path></svg><span>Film</span></button>
+<button onClick="{{pick.print}}" style="{{tabStyle.print}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="1.5"></rect><path d="M4 16l5-5 4 4 3-3 4 4"></path></svg><span>Print</span></button>
+<button onClick="{{pick.scan}}" style="{{tabStyle.scan}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M4 13h16v5H4z"></path><path d="M6 13l10-7M7 16h4"></path></svg><span>Scan</span></button>
+<button onClick="{{pick.finish}}" style="{{tabStyle.finish}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 4v16M12 4v16M18 4v16"></path><circle cx="6" cy="9" r="2" fill="#1c1c1c"></circle><circle cx="12" cy="15" r="2" fill="#1c1c1c"></circle><circle cx="18" cy="8" r="2" fill="#1c1c1c"></circle></svg><span>Finish</span></button>
+<button onClick="{{pick.export}}" style="{{tabStyle.export}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"></path></svg><span>Export</span></button>
+</nav>
+
+<div style="flex: 1; overflow-y: auto; padding: 0 16px 16px">
+
+<sc-if value="{{is.camera}}" hint-placeholder-val="{{ true }}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Input</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Size</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer">Longest side<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><label for="ls">Longest side</label><span style="display: flex; align-items: center; gap: 8px"><input id="ls" value="2048" style="width: 72px; height: 26px; box-sizing: border-box; background: #3a3a3a; border: 1px solid #484848; border-radius: 6px; color: #ececec; font: inherit; text-align: right; padding: 0 8px"><span style="color: #a3a3a3">px</span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Photograph</span><span style="color: #a3a3a3">2048 × 1365 · 2.8 MP</span></div>
+</div>
+<p style="margin: 6px 4px 0; font-size: 11px; color: #a3a3a3">Resized first, before film simulation, halation and grain.</p>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">White Balance</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>RAW white balance</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer">As Shot<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Exposure</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Auto exposure</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Metering</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer">Center-Weighted<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Exposure (EV)</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Lens</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="padding: 12px 0 14px"><div style="display: flex; justify-content: space-between"><span>Film format (mm)</span><span style="color: #a3a3a3">35</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 28%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(28% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Lens blur (µm)</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg>Lens diffusion</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+</div>
+</sc-if>
+
+<sc-if value="{{is.film}}" hint-placeholder-val="{{ false }}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Film Stock</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Film</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer">Fujifilm Pro 400H<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-top: 1px solid #3a3a3a"><span style="display: flex; flex-direction: column; gap: 2px"><span>Scan film directly</span><span style="font-size: 11px; color: #a3a3a3">Skips the Print step</span></span><button role="switch" aria-checked="{{scanChecked}}" aria-label="Scan film directly" onClick="{{toggleScan}}" style="{{scanTrack}}"><span style="{{scanThumb}}"></span></button></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Emulsion</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="13" r="3"></circle><path d="M12 4v2M5 8l1.5 1.5M19 8l-1.5 1.5M3 19h18M6 16h12"></path></svg>Halation</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5"><path d="M4 4v16h16"></path><path d="M6 17c4 0 5-9 13-10"></path></svg>Film curves</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #4a4a4a; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #d8d8d8"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5"><circle cx="8" cy="8" r="3"></circle><circle cx="16" cy="8" r="3"></circle><circle cx="8" cy="16" r="3"></circle><circle cx="16" cy="16" r="3"></circle></svg>DIR couplers</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5" stroke-dasharray="2 2.5"><circle cx="12" cy="12" r="8"></circle></svg>Grain</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5" stroke-linejoin="round"><path d="M5 8l7-4 7 4-7 4z"></path><path d="M5 12l7 4 7-4M5 16l7 4 7-4"></path></svg>Film base</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+</div>
+<p style="margin: 6px 4px 0; font-size: 11px; color: #a3a3a3">Listed in the order light reaches the emulsion: halation, response, development, grain, base.</p>
+</sc-if>
+
+<sc-if value="{{is.print}}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{scanDirect}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top: 18px; padding: 12px 14px; background: #33302a; border: 1px solid #5a4d2e; border-radius: 10px; display: flex; flex-direction: column; gap: 8px"><span style="font-weight: 600">Print step is skipped</span><span style="color: #c9c1ae; font-size: 12px">“Scan film directly” is on in Film, so the negative goes straight to the scanner.</span><button onClick="{{toggleScan}}" style="align-self: flex-start; min-height: 32px; padding: 0 12px; background: #4a4438; border: 0; border-radius: 6px; color: #ececec; font: inherit; cursor: pointer">Use print instead</button></div>
+</sc-if>
+<div style="{{printBody}}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Paper</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px"><span>Paper</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer; text-align: right">Fujifilm Crystal Archive Type II<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Enlarger</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span style="color: #a3a3a3">[Enlarger option]</span><span style="color: #a3a3a3">[value]</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="color: #a3a3a3">[Enlarger option]</span><span style="color: #a3a3a3">[value]</span></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Darkroom</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5"><path d="M4 4v16h16"></path><path d="M6 17c4 0 5-9 13-10"></path></svg>Print curves</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #4a4a4a; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #d8d8d8"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5" stroke-linejoin="round"><path d="M5 8l7-4 7 4-7 4z"></path><path d="M5 12l7 4 7-4M5 16l7 4 7-4"></path></svg>Print base</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5" stroke-linecap="round"><path d="M12 9v-4M7 11 5 9M17 11l2-2M4 15h3M17 15h3M9 15h6"></path></svg>Glare</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{is.scan}}" hint-placeholder-val="{{ false }}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Scanner</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span style="color: #a3a3a3">[Scanner option]</span><span style="color: #a3a3a3">[value]</span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span style="color: #a3a3a3">[Scanner option]</span><span style="color: #a3a3a3">[value]</span></div>
+</div>
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Color</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span style="display: flex; align-items: center; gap: 10px"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#a3a3a3" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5 7 5l-3.5 3.5"></path></svg><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c8c8c8" stroke-width="1.5"><path d="M12 4a8 8 0 1 0 0 16c1.5 0 2-1 1.5-2s0-2 1.5-2h2a3 3 0 0 0 3-3c0-5-3.6-9-8-9z"></path><circle cx="8" cy="11" r="1"></circle><circle cx="11" cy="8" r="1"></circle><circle cx="15" cy="8.5" r="1"></circle></svg>Color management</span></div>
+</div>
+<p style="margin: 6px 4px 0; font-size: 11px; color: #a3a3a3">Digitizes the print — or the negative, when Scan film directly is on.</p>
+</sc-if>
+
+<sc-if value="{{is.finish}}" hint-placeholder-val="{{ false }}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Tone</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="padding: 12px 0 14px"><div style="display: flex; justify-content: space-between"><span>Brightness</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Contrast</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Whites</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Blacks</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Saturation</span><span style="color: #a3a3a3">0</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 50%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(50% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+</div>
+<p style="margin: 6px 4px 0; font-size: 11px; color: #a3a3a3">Adjusts the finished scan. To recover a clipped highlight, use Exposure in Camera.</p>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Border</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Add border</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 0; border-top: 1px solid #3a3a3a">
+<button aria-pressed="true" style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #3b9bff; font: inherit; font-size: 11px; cursor: pointer"><span style="width: 56px; height: 42px; box-sizing: border-box; border: 2px solid #0a84ff; border-radius: 6px; padding: 4px; background: #f2f2f2; display: block"><span style="display: block; height: 100%; background: #b9a58a; border-top: 12px solid #9fb1c4"></span></span>Solid</button>
+<button aria-pressed="false" style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #a3a3a3; font: inherit; font-size: 11px; cursor: pointer"><span style="width: 56px; height: 42px; box-sizing: border-box; border: 1px solid #4a4a4a; border-radius: 6px; padding: 4px; background: #111111; display: block"><span style="display: block; height: 100%; border-radius: 3px; background: #b9a58a; border-top: 12px solid #9fb1c4"></span></span>Film</button>
+<button aria-pressed="false" style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #a3a3a3; font: inherit; font-size: 11px; cursor: pointer"><span style="width: 56px; height: 42px; box-sizing: border-box; border: 1px solid #4a4a4a; border-radius: 6px; padding: 5px; background: #f2f2f2; display: block"><span style="display: block; height: 100%; box-sizing: border-box; outline: 1px solid #111111; background: #b9a58a; border-top: 11px solid #9fb1c4"></span></span>Keyline</button>
+<button aria-pressed="false" style="display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #a3a3a3; font: inherit; font-size: 11px; cursor: pointer"><span style="width: 56px; height: 42px; box-sizing: border-box; border: 1px solid #4a4a4a; border-radius: 6px; padding: 9px 2px; background: #111111; display: block; border-top: 6px dotted #f2f2f2; border-bottom: 6px dotted #f2f2f2"><span style="display: block; height: 100%; background: #b9a58a; border-top: 6px solid #9fb1c4"></span></span>35mm</button>
+</div>
+<div style="padding: 12px 0 14px; border-top: 1px solid #3a3a3a"><div style="display: flex; justify-content: space-between"><span>Width</span><span style="color: #a3a3a3">3%</span></div><div style="position: relative; height: 16px; margin-top: 8px"><div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: #4a4a4a"></div><div style="position: absolute; left: 0; width: 21%; top: 7px; height: 3px; border-radius: 2px; background: #0a84ff"></div><div style="position: absolute; left: calc(21% - 8px); top: 0; width: 16px; height: 16px; border-radius: 8px; background: #c8c8c8"></div></div></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Color</span><button aria-label="Border color: white" style="width: 44px; height: 24px; border-radius: 6px; border: 1px solid #5a5a5a; background: #ffffff; cursor: pointer"></button></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Extend to 3:4 for Instagram</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #4a4a4a; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #d8d8d8"></span></span></div>
+</div>
+</sc-if>
+
+<sc-if value="{{is.export}}" hint-placeholder-val="{{ false }}">
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Output</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Colour space</span><button style="display: flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: #ececec; font: inherit; cursor: pointer">sRGB<svg aria-hidden="true" width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="#a3a3a3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3-3 3 3M2 9l3 3 3-3"></path></svg></button></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Encode with the colour space’s curve</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Include border</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #0a84ff; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 16px; width: 18px; height: 18px; border-radius: 9px; background: #f2f2f2"></span></span></div>
+</div>
+
+<h2 style="margin: 18px 2px 8px; font-size: 13px; font-weight: 600">Performance</h2>
+<div style="background: #2f2f2f; border: 1px solid #3a3a3a; border-radius: 10px; padding: 0 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px"><span>Limit preview to 12 MP</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #4a4a4a; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #d8d8d8"></span></span></div>
+<div style="display: flex; align-items: center; justify-content: space-between; min-height: 44px; border-top: 1px solid #3a3a3a"><span>Use less memory for export</span><span aria-hidden="true" style="width: 36px; height: 22px; border-radius: 11px; background: #4a4a4a; position: relative; display: inline-block"><span style="position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #d8d8d8"></span></span></div>
+</div>
+
+<button style="margin-top: 20px; width: 100%; min-height: 40px; background: #0a84ff; border: 0; border-radius: 8px; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer">Export Image…</button>
+</sc-if>
+
+</div>
+
+<div style="padding: 12px 16px 16px; border-top: 1px solid #333333; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; gap: 8px">
+<sc-if value="{{hasPrev}}" hint-placeholder-val="{{ false }}"><button onClick="{{goPrev}}" style="min-height: 36px; padding: 0 12px; background: none; border: 1px solid #444444; border-radius: 8px; color: #ececec; font: inherit; cursor: pointer">‹ {{prevLabel}}</button></sc-if>
+<span style="flex: 1"></span>
+<sc-if value="{{hasNext}}" hint-placeholder-val="{{ true }}"><button onClick="{{goNext}}" style="min-height: 36px; padding: 0 12px; background: #3a3a3a; border: 0; border-radius: 8px; color: #ececec; font: inherit; cursor: pointer">Next: {{nextLabel}} ›</button></sc-if>
+</div>
+<button style="width: 100%; min-height: 34px; background: #4a4a4a; border: 0; border-radius: 8px; color: #ececec; font: inherit; cursor: pointer">Reset Adjustments</button>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["camera","film","print","scan","finish","export"],"default":"camera"},"scanDirect":{"editor":"boolean","default":false},"$preview":{"width":360,"height":1040}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = this.state || {};
+    const ids = ['camera', 'film', 'print', 'scan', 'finish', 'export'];
+    const names = { camera: 'Camera', film: 'Film', print: 'Print', scan: 'Scan', finish: 'Finish', export: 'Export' };
+    const tab = s.tab || this.props.tab || 'camera';
+    const scanDirect = s.scanDirect !== undefined ? s.scanDirect : !!this.props.scanDirect;
+    const flow = ids.filter((id) => !(scanDirect && id === 'print'));
+    const pos = flow.indexOf(tab);
+    const base = 'display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 48px; padding: 0; border: 0; border-radius: 8px; font: inherit; font-size: 11px; cursor: pointer;';
+    const pick = {}, tabStyle = {}, is = {};
+    ids.forEach((id) => {
+      pick[id] = () => this.setState({ tab: id });
+      is[id] = tab === id;
+      const skipped = scanDirect && id === 'print';
+      tabStyle[id] = base + (tab === id ? ' background: #3d3d3d; color: #ececec; font-weight: 600;' : ' background: transparent; color: #a3a3a3;') + (skipped ? ' opacity: 0.45; text-decoration: line-through;' : '');
+    });
+    const prev = pos > 0 ? flow[pos - 1] : null;
+    const next = pos >= 0 && pos < flow.length - 1 ? flow[pos + 1] : null;
+    return {
+      pick, tabStyle, is, scanDirect,
+      scanChecked: scanDirect ? 'true' : 'false',
+      toggleScan: () => this.setState({ scanDirect: !scanDirect }),
+      scanTrack: 'width: 36px; height: 22px; border-radius: 11px; border: 0; padding: 0; position: relative; cursor: pointer; background: ' + (scanDirect ? '#0a84ff' : '#4a4a4a'),
+      scanThumb: 'position: absolute; top: 2px; width: 18px; height: 18px; border-radius: 9px; left: ' + (scanDirect ? '16px; background: #f2f2f2' : '2px; background: #d8d8d8'),
+      printBody: scanDirect ? 'opacity: 0.4; pointer-events: none' : '',
+      hasPrev: !!prev, hasNext: !!next,
+      prevLabel: prev ? names[prev] : '', nextLabel: next ? names[next] : '',
+      goPrev: () => prev && this.setState({ tab: prev }),
+      goNext: () => next && this.setState({ tab: next })
+    };
+  }
+}
+</script>
+</body>
+</html>
