@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel 'Characteristic Curves'. Exposure daylight 1/50 second, Process E-6, Densitometry Status A, per the panel's own caption. Curves labelled B, G, R top to bottom at the left; sorted here by maximum density, which reproduces that order.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           86.612,
           128.853,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel 'Spectral-Sensitivity Curves'. Effective exposure 1.4 seconds, Process E-6, Density 1.0, Densitometry E.N.D. Traces labelled Yellow-, Magenta- and Cyan-Forming Layer; sorted by peak wavelength, which reproduces that order as b, g, r.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.663,
           135.94,
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel 'Spectral-Dye-Density Curves', captioned 'Normalized dyes to form a visual neutral density of 1.0 for a viewing illuminant of 5000 K. Process E-6'. Four traces: the three dyes plus the visual neutral. Sorted by peak wavelength; the neutral peaks between magenta and cyan, which the preparation checks.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           358.981,
           391.756,

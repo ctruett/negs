@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel 'CHARACTERISTIC CURVES'; the page states Process K-14 and Status A densitometry.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           84.075,
           117.49,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel 'SPECTRAL-SENSITIVITY CURVES'; the page states Density 1.00 as the criterion. Relative shape only.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           86.652,
           386.813,
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel 'SPECTRAL-DYE-DENSITY CURVES'; three dyes plus the visual neutral.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.781,
           119.603,

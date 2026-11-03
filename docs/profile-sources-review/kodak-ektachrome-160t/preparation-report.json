@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_ektachrome_160t_ept",
+  "source_exposure_anchor": [
+    -1.1439863254407932,
+    -1.1501289147370775,
+    -1.221819133053835
+  ],
+  "neutral_mix": [
+    1.0594957739879465,
+    1.0,
+    1.0258274208701574
+  ],
+  "neutral_fit_residual": 0.06091624113084426,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999233,
+      0.147417229894745,
+      0.008431792694213736
+    ],
+    [
+      0.16559785907502925,
+      0.9999999999999999,
+      0.0802195677646793
+    ],
+    [
+      0.07042696011551412,
+      0.17326705128122713,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.1504837461192503,
+    1.2457843414263827,
+    1.1320386115161143
+  ],
+  "channel_dmin": [
+    0.209964067,
+    0.22949711605957024,
+    0.229973467
+  ],
+  "max_amount_residual": 0.01091527650067503,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    11.89772745871188,
+    18.24085742585679,
+    6.487265560359913
+  ],
+  "dye_amount_max": [
+    2.352721669624775,
+    2.28119086227776,
+    2.4890424086938827
+  ],
+  "source_points_sha256": {
+    "ept-characteristic-b.csv": "c7cc87c1d84ef270b79cf668f08da376f7364edf3ef0f8a7302b1ccc7717545f",
+    "ept-characteristic-g.csv": "e57a9bc12d56741319bfbb39b1f7715c050c6a836377a62d048fb6f8ab1d347d",
+    "ept-characteristic-r.csv": "4d07fcf6b02eac768aa1bdc4aeca62788bdc1a4e7e8c602084baa55aa35843f3",
+    "ept-dye-c.csv": "34a204e1d275aad39d9e7f6bfebdf1380369e87148772a80fb0728aa10df2145",
+    "ept-dye-m.csv": "bbd1ba0aa0f750329c02269e22592f6beca40448edcddb27b964ed73cb217b79",
+    "ept-dye-neutral.csv": "7e9bceed299a0abc59f2397d993b8450a7f3220144bcc7471534f6cf8dc51d77",
+    "ept-dye-y.csv": "95ffbe21e168e39075579b51ef1abfb1d0ec5dca3ed84d287ff2cfa6496e6817",
+    "ept-sensitivity-b.csv": "25840bf7d112f983384658158e2689d66a7e02e665678caee04977e031b85572",
+    "ept-sensitivity-g.csv": "3c333b425609b20b24f21a6e43d7beee5143c7a66ff3b76dda0a0217ade6e0b6",
+    "ept-sensitivity-r.csv": "38a0c48138695c887df80ff69bb50b65df07d9926636a324b16100411a62bbc7"
+  },
+  "profile_sha256": "eff8d32bdeb989a2ea62b2922255e5cba84197bfa846d7d2624e3a3be0a7cb60"
+}

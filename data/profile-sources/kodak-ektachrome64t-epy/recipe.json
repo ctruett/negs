@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel 'Characteristic Curves'. The page states Exposure: Tungsten 1/10 second, Process: E-6, Densitometry: Status A.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           86.612,
           124.852,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel 'Spectral-Sensitivity Curves'. Tungsten exposure, Process E-6. Relative shape only.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.663,
           52.01,
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel 'Spectral-Dye-Density Curves': three dyes plus the visual neutral.",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.781,
           286.855,

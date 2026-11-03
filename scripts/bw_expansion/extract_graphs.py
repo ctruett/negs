@@ -263,27 +263,40 @@ def main():
     if actual != source["sha256"]:
         raise ValueError(f"PDF revision mismatch: {actual}")
 
-    page = pymupdf.open(args.pdf)[recipe["page_1based"] - 1]
-    segs = segments(page)
-    rules = minus_rules(segs)
-    calibrated = []
-    for frame in frames(segs):
-        xt, yt = ticks(frame, segs)
-        xlab, ylab = labels(page, frame, xt, yt, rules)
-        xcal, ycal = calibrate(xt, xlab, "x"), calibrate(yt, ylab, "y")
-        if xcal and ycal:
-            calibrated.append((frame, xcal, ycal))
-    # Gridlines make boxes of their own; keep the largest in each region.
-    calibrated.sort(key=lambda f: (f[0][2]-f[0][0])*(f[0][3]-f[0][1]), reverse=True)
-    kept = []
-    for frame, xcal, ycal in calibrated:
-        if any(frame[0] < k[0][2] and k[0][0] < frame[2]
-               and frame[1] < k[0][3] and k[0][1] < frame[3] for k in kept):
-            continue
-        kept.append((frame, xcal, ycal))
+    doc = pymupdf.open(args.pdf)
+    scanned = {}
+
+    def scan(page_number):
+        """Calibrated frames on one page. Sheets often spread a stock's panels
+        over several pages, so each graph may name its own."""
+        if page_number in scanned:
+            return scanned[page_number]
+        page = doc[page_number - 1]
+        segs = segments(page)
+        rules = minus_rules(segs)
+        calibrated = []
+        for frame in frames(segs):
+            xt, yt = ticks(frame, segs)
+            xlab, ylab = labels(page, frame, xt, yt, rules)
+            xcal, ycal = calibrate(xt, xlab, "x"), calibrate(yt, ylab, "y")
+            if xcal and ycal:
+                calibrated.append((frame, xcal, ycal))
+        # Gridlines make boxes of their own; keep the largest in each region.
+        calibrated.sort(key=lambda f: (f[0][2]-f[0][0])*(f[0][3]-f[0][1]), reverse=True)
+        kept = []
+        for frame, xcal, ycal in calibrated:
+            if any(frame[0] < k[0][2] and k[0][0] < frame[2]
+                   and frame[1] < k[0][3] and k[0][1] < frame[3] for k in kept):
+                continue
+            kept.append((frame, xcal, ycal))
+        scanned[page_number] = (page, kept)
+        return scanned[page_number]
 
     written = {}
+    default_page = recipe["page_1based"]
     for name, spec in recipe["graphs"].items():
+        page_number = spec.get("page_1based", default_page)
+        page, kept = scan(page_number)
         wanted = spec["x_range"]
         match = [(f, xc, yc) for f, xc, yc in kept
                  if abs((f[0]-xc["zero_pdf_pt"])/xc["pt_per_unit"] - wanted[0]) < spec["x_tolerance"]
@@ -314,7 +327,8 @@ def main():
                     traces.append(neutral if name_i == "neutral" else rest.pop(0))
             else:
                 traces.sort(key=key)
-        spec["derived"] = dict(frame_pdf_pt=[round(v, 3) for v in frame],
+        spec["derived"] = dict(page_1based=page_number,
+                               frame_pdf_pt=[round(v, 3) for v in frame],
                                x=xcal, y=ycal, traces={})
         for suffix, (data, stroke) in zip(names, traces):
             stem = name if suffix is None else f"{name}-{suffix}"

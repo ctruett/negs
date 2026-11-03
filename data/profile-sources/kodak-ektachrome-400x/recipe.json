@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Status A Exposure: Process: E-6 Densitometry: Exposure: Process:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           86.612,
           128.853,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Status A Exposure: Process: E-6 Densitometry: Exposure: Process:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.663,
           126.939,
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Status A Exposure: Process: E-6 Densitometry: Exposure: Process:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.781,
           375.962,

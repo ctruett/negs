@@ -21,6 +21,7 @@
       "curves": 1,
       "conditions": "Panel captioned 'Dichtekurve; Density curve' with no developer, time or densitometry stated. See film.development_note for what the sheet does let us conclude.",
       "derived": {
+        "page_1based": 2,
         "frame_pdf_pt": [
           66.106,
           523.885,
@@ -71,6 +72,7 @@
       "curves": 1,
       "conditions": "Panel captioned 'Spektrale Empfindlichkeit; Spectral sensitivity'. No density criterion, exposure time or processing is stated, unlike Kodak's sheets. Relative shape only.",
       "derived": {
+        "page_1based": 2,
         "frame_pdf_pt": [
           65.471,
           93.264,
