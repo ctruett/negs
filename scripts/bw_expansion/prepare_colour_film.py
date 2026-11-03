@@ -250,6 +250,11 @@ def main():
 
     residual = np.abs(np.column_stack([f(source_x - anchor[ch])
                                        for ch, f in enumerate(fitted)]) - amounts)
+    # Gate before writing: a profile that fails its own tolerance must not be
+    # left on disk, where a later step can pick it up as if it had passed.
+    if cfg["density_tolerance"] and residual.max() > cfg["density_tolerance"]:
+        raise ValueError(f"fit exceeds tolerance: {residual.max()} > "
+                         f"{cfg['density_tolerance']}")
     path = args.output_dir / (cfg["id"] + ".json")
     write_json(path, profile)
     report = dict(
@@ -264,8 +269,6 @@ def main():
         source_points_sha256={p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                               for p in sorted(sources.glob("*.csv"))},
         profile_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
-    if cfg["density_tolerance"] and residual.max() > cfg["density_tolerance"]:
-        raise ValueError(f"fit exceeds tolerance: {residual.max()}")
     write_json(figures / "preparation-report.json", report)
     print(json.dumps(report, indent=2))
 

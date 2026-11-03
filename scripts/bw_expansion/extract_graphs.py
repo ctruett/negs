@@ -145,10 +145,15 @@ def calibrate(tickpos, found, axis_name):
     if len(tickpos) < 2 or len(found) < 3:
         return None
     pos = np.array(sorted(tickpos))
+    # Judge the snap against the typical tick spacing, not the smallest: one
+    # spurious tick collapses the minimum and then every real label looks far
+    # away. A label whose nearest tick is a third of a step off is a label
+    # whose own tick was missed, so drop it rather than pair it wrongly.
+    step = float(np.median(np.diff(pos))) if len(pos) > 2 else float(np.diff(pos)[0])
     pairs = {}
     for at, value in found:
         tick = pos[np.argmin(np.abs(pos - at))]
-        if abs(tick - at) > 0.5 * np.min(np.diff(pos)) + 6:
+        if abs(tick - at) > 0.3 * step:
             continue
         if pairs.setdefault(tick, value) != value:
             return None

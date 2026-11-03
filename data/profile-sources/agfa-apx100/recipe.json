@@ -29,10 +29,10 @@
         ],
         "x": {
           "axis": "x",
-          "pt_per_unit": 34.74945504679292,
-          "zero_pdf_pt": 204.81374076107866,
-          "labels": 7,
-          "worst_label_error": 0.008462850012957102
+          "pt_per_unit": 34.72192704990428,
+          "zero_pdf_pt": 204.7495572415231,
+          "labels": 6,
+          "worst_label_error": 0.0071468083478598565
         },
         "y": {
           "axis": "y",
@@ -41,17 +41,22 @@
           "labels": 4,
           "worst_label_error": 0.005718400927488432
         },
-        "points": 193,
-        "stroke_pdf_pt": 0.997,
-        "stroke_in_y_units": 0.02839,
-        "x_extent": [
-          -3.968918,
-          2.009047
-        ],
-        "y_extent": [
-          0.30241,
-          2.588714
-        ]
+        "traces": {
+          "apx100-density": {
+            "points": 193,
+            "stroke_pdf_pt": 0.997,
+            "stroke_in_y_units": 0.02839,
+            "x_extent": [
+              -3.970216,
+              2.012488
+            ],
+            "y_extent": [
+              0.30241,
+              2.588714
+            ],
+            "peak_x": 2.012
+          }
+        }
       }
     },
     "apx100-sensitivity": {
@@ -86,17 +91,22 @@
           "labels": 4,
           "worst_label_error": 0.0008490613588976181
         },
-        "points": 417,
-        "stroke_pdf_pt": 0.998,
-        "stroke_in_y_units": 0.01766,
-        "x_extent": [
-          380.415151,
-          662.449833
-        ],
-        "y_extent": [
-          -1.00299,
-          1.21743
-        ]
+        "traces": {
+          "apx100-sensitivity": {
+            "points": 417,
+            "stroke_pdf_pt": 0.998,
+            "stroke_in_y_units": 0.01766,
+            "x_extent": [
+              380.415151,
+              662.449833
+            ],
+            "y_extent": [
+              -1.00299,
+              1.21743
+            ],
+            "peak_x": 380.415
+          }
+        }
       }
     }
   },
