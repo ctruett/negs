@@ -194,7 +194,7 @@ def main():
                         f"and conditions: data/profile-sources/{args.source}/recipe.json. "
                         + cfg["sensitivity_note"] + " " + cfg["base_density_note"])),
         info=dict(stock=cfg["id"], name=cfg["name"], type=cfg["type"], support="film",
-                  stage="filming", use="still", antihalation="weak",
+                  stage="filming", use="still", antihalation=cfg["antihalation"],
                   target_print=recipe["print"]["target_print"], channel_model="color",
                   densitometer=cfg["densitometer"],
                   log_sensitivity_density_over_min=1.0,

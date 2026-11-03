@@ -75,10 +75,17 @@ binding uncertainty is the unmixing, not the tracing.
 colour profiles have and this does not, all recorded in `recipe.json` under
 `known_gaps`:
 
-- **No iterated neutral balance.** Channels are scaled so the reference grey
-  gives unit raw exposure and each layer is anchored to mid-grey, but neither
-  iterates on a *rendered* neutral the way upstream's `balance_sensitivity`
-  does. A rendered grey still comes out about 8% green.
+- ~~No iterated neutral balance.~~ **Fixed.** Source curves alone render a
+  grey 38% off neutral at the ends of a five-stop ramp. Against shipped
+  profiles on the same ramp — Ektachrome 100 at 2.0%, Kodachrome 64 at 6.5%,
+  Velvia 100 at 13.3% — it is clear the shipped profiles are ramp-corrected
+  and datasheet curves alone are not enough.
+  `scripts/bw_expansion/balance_against_ramp.py` fits a per-channel density
+  scale and R/B exposure shift with the engine in the loop, which is upstream's
+  `correct_positive_curves_with_gray_ramp` against this implementation. It
+  takes this stock to 2.6%, with density scale [0.922, 0.977, 1.071] and
+  shifts under 0.0002. **The correction is fitted, not measured**, and the
+  profile's `datasource` records how far it moved.
 - **Unexplained saturation.** It renders at mean chroma 88 against 71 for
   Ektachrome 100 and 83 for Velvia 100 on the same frame, and being more
   saturated than Velvia is not credible. Four causes were measured and ruled
