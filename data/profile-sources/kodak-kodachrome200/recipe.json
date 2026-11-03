@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_kodachrome_200",
-    "name": "Kodachrome 200 Professional (experimental)",
+    "name": "*Kodachrome 200",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,

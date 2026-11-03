@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_ektachrome_e200",
-    "name": "Kodak Ektachrome E200 Professional (experimental)",
+    "name": "*Kodak Ektachrome E200",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,

@@ -1,19 +1,19 @@
 {
   "stock": "agfa_apx25",
-  "source_exposure_origin": -0.6211181387166596,
+  "source_exposure_origin": -0.619763550499257,
   "sensitivity_log_shift": -0.45266384589517644,
   "midgray_raw": 1.0,
   "measured_nm": [
     385,
     660
   ],
-  "max_source_density_error": 0.01131361282578558,
+  "max_source_density_error": 0.011318453269960838,
   "tolerance": 0.018,
-  "minimum_sampled_net_density": 0.001639951,
-  "maximum_sampled_net_density": 2.330690283,
+  "minimum_sampled_net_density": 0.0016448052,
+  "maximum_sampled_net_density": 2.3303266562,
   "source_points_sha256": {
-    "apx25-density.csv": "22ef8d1a183282fa7186901dd0253aa1196838b979c38e4b6a2c280c08b1d33e",
+    "apx25-density.csv": "1fe550dab07c5684c1ec3c05f3210949f214d0d3d7eb4924ff4c3269b9c2fa24",
     "apx25-sensitivity.csv": "c0b4807266151e4084c96b1d2a349d027a88ab4be5d09a725cf2a0ce66140f7e"
   },
-  "profile_sha256": "307c28cbea4f4109812003f3b42255b4f1697bafffc6f8c926ed52909288efa5"
+  "profile_sha256": "632ed1c1fcf605796202b95dcab99bf0981713f0d87ffc3da2f1bcb9c023d739"
 }

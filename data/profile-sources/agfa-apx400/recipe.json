@@ -112,7 +112,7 @@
   },
   "film": {
     "id": "agfa_apx400",
-    "name": "Agfapan APX 400 (experimental)",
+    "name": "*Agfapan APX 400",
     "development_time_minutes": 6,
     "development_note": "The sheet does not label the density curve with a developer or time, and the sheet cannot place it. Measured average gradient is 0.530 over 1.3 decades and 0.548 over 1.5, from the point 0.1 above base. Every curve on the sheet's own gamma-time panel lies at or above about 0.55 across its whole plotted time range, so no developer and time on this datasheet produces the contrast the density panel shows. The conditions are therefore unknown and not inferable; 6 minutes, Refinal's recommended time, is recorded as a nominal label only.",
     "base_density": 0.153,

@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_ektachrome_400x_epl",
-    "name": "Kodak Ektachrome 400X Professional EPL (experimental)",
+    "name": "*Kodak Ektachrome 400X EPL",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,

@@ -112,7 +112,7 @@ colour profiles have and this does not, all recorded in `recipe.json` under
   Velvia 100 78.2, and Portra 400 — a negative — 79.6, against 88.0 for none.
 
 So this profile is honest about its curves and incomplete about its chemistry.
-It is labelled experimental for that reason.
+Its catalogue name carries a leading asterisk for that reason.
 
 ```sh
 python scripts/bw_expansion/prepare_colour_film.py --source kodak-ektachrome64-epr --output-dir target/colour-profiles

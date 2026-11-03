@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_ektachrome64_epr",
-    "name": "Kodak Ektachrome 64 Professional EPR (experimental)",
+    "name": "*Kodak Ektachrome 64 EPR",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,

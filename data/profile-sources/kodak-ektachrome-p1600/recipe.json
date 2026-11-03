@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_ektachrome_p1600_eph",
-    "name": "Kodak Ektachrome P1600 Professional EPH (experimental)",
+    "name": "*Kodak Ektachrome P1600 EPH",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,

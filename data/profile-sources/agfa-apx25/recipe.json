@@ -112,7 +112,7 @@
   },
   "film": {
     "id": "agfa_apx25",
-    "name": "Agfapan APX 25 (experimental)",
+    "name": "*Agfapan APX 25",
     "development_time_minutes": 6,
     "development_note": "The sheet does not label the density curve with a developer or time. Its average gradient is 0.632 over 1.3 decades and 0.648 over 1.5 decades, measured from the point 0.1 above base. The sheet's own gamma-time curves read 0.644 to 0.651 for all five listed developers at their recommended 20 C times (Refinal 6, Rodinal 1+25 6, Rodinal 1+50 10, Rodinal Special 4, Studional Liquid 4). The curve therefore represents Agfa's recommended development rather than one developer, and 6 minutes is recorded as a representative time, not a measured condition.",
     "base_density": 0.225,

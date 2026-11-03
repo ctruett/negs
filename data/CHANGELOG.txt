@@ -93,3 +93,14 @@ Negs-only data, not from spektrafilm:
   five stops. Adaptation parameters are borrowed from kodak_ektachrome_100.
   A third sheet from the same survey, Ektachrome P1600 (E-147), was prepared and
   held back: it fails its fit tolerance at 0.0353 for reasons not yet diagnosed.
+
+2026-11: naming convention for source-based preparations
+
+- Every profile prepared here from a datasheet, rather than copied from
+  spektrafilm, now carries a leading asterisk on its catalogue name instead of
+  a trailing "(experimental)". Ten profiles are affected, including the two
+  from the 2026-10 B&W expansion, so the picker does not mix two conventions.
+  Asterisks sort ahead of letters, which groups them at the top of the film
+  list. "Professional" is also dropped from the Kodak slide names, which were
+  running long; the four upstream Endura paper profiles keep theirs, since
+  they are verbatim copies and were not part of this change.

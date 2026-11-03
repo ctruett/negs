@@ -279,7 +279,7 @@
   },
   "film": {
     "id": "kodak_ektachrome_64t_epy",
-    "name": "Kodak Ektachrome 64T Professional EPY (experimental)",
+    "name": "*Kodak Ektachrome 64T EPY",
     "type": "positive",
     "densitometer": "status_A",
     "base_density": 0.1,
