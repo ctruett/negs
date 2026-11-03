@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "page_1based": 2,
+  "sources": {
+    "agfa": {
+      "document": "Agfa Datenblatt APX 25, status 08/1995, 1st edition",
+      "sha256": "50d77e7ca6c1dfd69803e28d34fd11c622affcf87a1362155d3c0c9ad2046d81",
+      "credit": "AGFA-GEVAERT AG; original manufacturer measurements and graph content"
+    }
+  },
+  "graphs": {
+    "apx25-density": {
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "total_diffuse_density",
+      "x_range": [
+        -4.0,
+        2.0
+      ],
+      "x_tolerance": 0.1,
+      "curves": 1,
+      "conditions": "Panel captioned 'Dichtekurve; Density curve' with no developer, time or densitometry stated. See film.development_note for what the sheet does let us conclude.",
+      "derived": {
+        "frame_pdf_pt": [
+          66.106,
+          523.813,
+          274.447,
+          629.113
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 34.74945504679292,
+          "zero_pdf_pt": 204.81374076107866,
+          "labels": 7,
+          "worst_label_error": 0.008462850012957102
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 35.13735079830378,
+          "zero_pdf_pt": 629.1635261974556,
+          "labels": 4,
+          "worst_label_error": 0.004804704879916244
+        },
+        "points": 193,
+        "stroke_pdf_pt": 0.997,
+        "stroke_in_y_units": 0.02837,
+        "x_extent": [
+          -3.96581,
+          2.00801
+        ],
+        "y_extent": [
+          0.228889,
+          2.35688
+        ]
+      }
+    },
+    "apx25-sensitivity": {
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        365.0,
+        735.0
+      ],
+      "x_tolerance": 3.0,
+      "curves": 1,
+      "conditions": "Panel captioned 'Spektrale Empfindlichkeit; Spectral sensitivity'. No density criterion, exposure time or processing is stated, unlike Kodak's sheets. Relative shape only.",
+      "derived": {
+        "frame_pdf_pt": [
+          65.471,
+          93.264,
+          274.89,
+          262.941
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.5655900095475523,
+          "zero_pdf_pt": -140.95700525115387,
+          "labels": 4,
+          "worst_label_error": 0.02121762615172429
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 56.35052173913042,
+          "zero_pdf_pt": 150.09973913043473,
+          "labels": 4,
+          "worst_label_error": 0.004964268684676032
+        },
+        "points": 353,
+        "stroke_pdf_pt": 0.998,
+        "stroke_in_y_units": 0.01771,
+        "x_extent": [
+          380.604324,
+          664.608629
+        ],
+        "y_extent": [
+          -2.003127,
+          0.056534
+        ]
+      }
+    }
+  },
+  "film": {
+    "id": "agfa_apx25",
+    "name": "Agfapan APX 25 (experimental)",
+    "development_time_minutes": 6,
+    "development_note": "The sheet does not label the density curve with a developer or time. Its average gradient is 0.632 over 1.3 decades and 0.648 over 1.5 decades, measured from the point 0.1 above base. The sheet's own gamma-time curves read 0.644 to 0.651 for all five listed developers at their recommended 20 C times (Refinal 6, Rodinal 1+25 6, Rodinal 1+50 10, Rodinal Special 4, Studional Liquid 4). The curve therefore represents Agfa's recommended development rather than one developer, and 6 minutes is recorded as a representative time, not a measured condition.",
+    "base_density": 0.225,
+    "base_density_note": "Estimated asymptote just below the lowest plotted total density. The plotted left plateau averages 0.231 and the lowest plotted point is 0.2299.",
+    "assumed_total_density_ceiling": 3.5,
+    "ceiling_note": "Not measured. The plot stops at total density 2.36 at log exposure 2.0, still rising. 3.5 matches the ceiling assumed for the existing B&W preparations; the source does not measure this shoulder.",
+    "midgray_net_density": 0.75,
+    "exposure_origin_note": "Rendering convention: shift source exposure so net density 0.75 occurs at engine log exposure zero, matching the Double-X and Tri-X anchor. Not absolute ISO metering.",
+    "sensitivity_first_nm": 385,
+    "sensitivity_last_nm": 660,
+    "sensitivity_note": "PCHIP of the single plotted log-sensitivity trace; engine covers 380-780 nm. The trace spans 380.6-664.6 nm and meets the panel's -2.0 floor at its red end, so it is truncated at 660 nm; 380 nm is left unmeasured because the trace begins above it. Both are explicit unmeasured-tail approximations, not proof of zero sensitivity.",
+    "density_tolerance": 0.018,
+    "density_tolerance_note": "Set from the printed line, not borrowed: the density curve is stroked at 0.997 pt, which is 0.0284 D on this panel's scale, against 0.0156 D for the Kodak sheet behind the Tri-X preparation. 0.018 keeps the same fraction of the stroke width that preparation's 0.01 gate did. This is a graph-fitting tolerance, not an empirical accuracy claim."
+  },
+  "print": {
+    "target_print": "ilford_mgrc_deluxe_grade2",
+    "note": "Paired with the existing B&W paper preparation. Agfa published no paper pairing for this film; this is a rendering choice, not a manufacturer recommendation."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four mathematical components, fitting source points plus a 0.3-weight PCHIP/continuation prior. Shares scripts/bw_expansion/prepare.py's fit; components are mathematical, not measured emulsion layers."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-03. Axis calibration derived from the page by scripts/bw_expansion/extract_apx25.py rather than measured by hand. No donor stock curves copied. Spektrafilm schema and pipeline by Andrea Volpato and contributors; see repository attribution. New profile preparation and profile data released under CC BY-SA 4.0."
+}
