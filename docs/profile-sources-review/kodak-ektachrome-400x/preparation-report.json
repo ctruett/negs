@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_ektachrome_400x_epl",
+  "source_exposure_anchor": [
+    -1.296287791751384,
+    -1.2977322455861449,
+    -1.3299716837409796
+  ],
+  "neutral_mix": [
+    1.0102063096047076,
+    1.0,
+    0.9990420974355565
+  ],
+  "neutral_fit_residual": 0.007495318420979613,
+  "crosstalk_matrix": [
+    [
+      0.9999999999998261,
+      0.17076370255679488,
+      4.303714482180933e-05
+    ],
+    [
+      0.17108693300864772,
+      0.9999999999999999,
+      0.07671274592665747
+    ],
+    [
+      0.07348730624229724,
+      0.17409630676915533,
+      0.9999999999922141
+    ]
+  ],
+  "dye_scale": [
+    1.263901811712574,
+    1.2346088144620855,
+    1.188207334083438
+  ],
+  "channel_dmin": [
+    0.339996058,
+    0.33002377599999994,
+    0.3280678646273312
+  ],
+  "max_amount_residual": 0.01661201670830475,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    74.7688510808428,
+    74.42208767453906,
+    130.93952626614848
+  ],
+  "dye_amount_max": [
+    2.3511303969519197,
+    2.334979366981982,
+    2.645348392155712
+  ],
+  "source_points_sha256": {
+    "epl-characteristic-b.csv": "042e3dc441ae57662f04a08d6c35f1682e9c939511bfe323988164b8d99456a1",
+    "epl-characteristic-g.csv": "069a247409239b2fbb984ab7fa9c1dc50989688388fcb59969c9099d0e691d43",
+    "epl-characteristic-r.csv": "c93c2ded5938f9894c4d8c345944498164f1350f42fa207d9796bca3ea80f80d",
+    "epl-dye-c.csv": "2195c4aec60c477ed70be12bd0ff2c87f70e5b9668b9c412deaf636dbe29986c",
+    "epl-dye-m.csv": "30a231c10f809283deb961fce59a1862655b26bf02fda9ae6b5cc826a0f4f5a8",
+    "epl-dye-neutral.csv": "7226b8b624dd56dd39d5c7998953686fecf0ef16f635bc6d196a9add936176d6",
+    "epl-dye-y.csv": "22338c7c32435cfa02e70fcafde28be68900d7ee5c81b427e6852680e02ff12b",
+    "epl-sensitivity-b.csv": "3b3e663abac903c197f12794763f97321942836fd871b737bc96d3b092759370",
+    "epl-sensitivity-g.csv": "d5dbd3aa6a2fb1ed314c38c5d105e30f3ad0472eaf27227aa10ff81c49d2e96f",
+    "epl-sensitivity-r.csv": "63dc602fc13fd02c550445cafa0802a7174249a894ee5b21e8206826d706b54e"
+  },
+  "profile_sha256": "82d2b87914cecc70ce528e89f267bff07b147cd1ba2cc728c0a266ba6c00c4d2"
+}

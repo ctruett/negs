@@ -86,3 +86,10 @@ Negs-only data, not from spektrafilm:
   neutral across five stops at upstream's default balance bias. Its spectral
   adaptation parameters are borrowed from kodak_ektachrome_100, which is a
   daylight stock - a known imperfection recorded in its recipe.
+- profiles/kodak_ektachrome_400x_epl.json and profiles/kodak_ektachrome_e200.json
+  are two further colour preparations, from Kodak publications E-161 and E-28,
+  both reversal films with the full panel set and no donor dye curves. Each is
+  balanced at upstream's default bias, reaching 3.5% and 1.3% off neutral across
+  five stops. Adaptation parameters are borrowed from kodak_ektachrome_100.
+  A third sheet from the same survey, Ektachrome P1600 (E-147), was prepared and
+  held back: it fails its fit tolerance at 0.0353 for reasons not yet diagnosed.

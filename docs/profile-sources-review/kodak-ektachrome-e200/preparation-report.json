@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_ektachrome_e200",
+  "source_exposure_anchor": [
+    -1.1083315455386402,
+    -1.0897525560508132,
+    -1.1627603919660425
+  ],
+  "neutral_mix": [
+    0.9901895393916954,
+    1.0,
+    0.9987911064952684
+  ],
+  "neutral_fit_residual": 0.008623529137554153,
+  "crosstalk_matrix": [
+    [
+      0.9999999999996291,
+      0.1539088060543622,
+      0.005196361937298482
+    ],
+    [
+      0.1718848637483157,
+      0.9999999999999994,
+      0.08252692736324765
+    ],
+    [
+      0.08017508030292893,
+      0.18405085730071608,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.276426305403071,
+    1.2922267507867753,
+    1.200948095875405
+  ],
+  "channel_dmin": [
+    0.111076678,
+    0.135163589,
+    0.104564618
+  ],
+  "max_amount_residual": 0.01690399266528564,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    53.67612193830772,
+    52.64768498908408,
+    69.94211824559078
+  ],
+  "dye_amount_max": [
+    2.667772470862673,
+    2.732595977943074,
+    2.853957234521731
+  ],
+  "source_points_sha256": {
+    "e200-characteristic-b.csv": "fb885b192b70cace3498feae2b5a3b6b22b92a8dc1cd55e0445f4e14bad897a6",
+    "e200-characteristic-g.csv": "59dca753745d0087681ac8416172b44f258ddee629be4498dc718375c1c11e6c",
+    "e200-characteristic-r.csv": "a74688bb7fbf966383efe554518aa2a4953389217b92ac432cc349886ad1f7e2",
+    "e200-dye-c.csv": "b0ea13c28936c1aa7c2d93c8a0a163d79050c95263f5c79a58696bc3eef7556d",
+    "e200-dye-m.csv": "057ced7cc099b79313541def74cc262799e23d449e86d7b48d1f91746ef7d34b",
+    "e200-dye-neutral.csv": "7a75a1614f0696003557af6f7873f7c627fc59ad03efdf98c131042d6007983a",
+    "e200-dye-y.csv": "a33857e502890198baed23fd49c854ceb9bcc41bf25fcf2eb6e0940cb4313dc8",
+    "e200-sensitivity-b.csv": "20446a84275dbb98e07be192627d8e8b2a23663a0098fb2788c8cf4e7803870a",
+    "e200-sensitivity-g.csv": "93c410b595396956f82dadf8e36e5baf89124c4cafcdda180537263cbfd6fe71",
+    "e200-sensitivity-r.csv": "2d44686c0d2f7bfee12ff1f63ea7e06d604d63e4e84eb3641a29e0b627921334"
+  },
+  "profile_sha256": "46be3cd0546ba030f1279ceb98048fe5531b857d21f19faffb95c14569cb5962"
+}
