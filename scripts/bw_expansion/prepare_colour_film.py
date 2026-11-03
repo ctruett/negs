@@ -125,6 +125,16 @@ def main():
                                for c in ("c", "m", "y")])
     responsivity = densitometer(args.data_dir, cfg["densitometer"].replace("status_", ""))
 
+    # The sheet plots a visual neutral alongside the three dyes. Solve for the
+    # dye mixture that reproduces it and rescale by that, normalised to green:
+    # factory.py's find_midscale_neutral_coefficients / rescale_dye_density_using_neutral.
+    neutral = on_grid(read_points(sources, f"{dye}-neutral"))
+    usable = np.all(np.isfinite(np.column_stack([dye_raw, neutral])), axis=1)
+    mix = np.linalg.lstsq(dye_raw[usable], neutral[usable], rcond=None)[0]
+    mix = mix / mix[1]
+    neutral_residual = float(np.max(np.abs(dye_raw[usable] @ mix * mix[1] - neutral[usable])))
+    dye_raw = dye_raw * mix
+
     # Put the dyes on a scale where one unit of a dye reads one density in its
     # own channel, so unmixed amounts and dye spectra share a scale.
     scale = np.ones(3)
@@ -229,6 +239,7 @@ def main():
     write_json(path, profile)
     report = dict(
         stock=cfg["id"], source_exposure_anchor=anchor.tolist(),
+        neutral_mix=mix.tolist(), neutral_fit_residual=neutral_residual,
         crosstalk_matrix=matrix.tolist(), dye_scale=scale.tolist(),
         channel_dmin=dmin.tolist(),
         max_amount_residual=float(residual.max()),

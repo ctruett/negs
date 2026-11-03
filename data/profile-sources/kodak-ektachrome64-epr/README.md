@@ -59,6 +59,13 @@ repository's 18.4% reference grey. The panel's own "Density: 1.0" is a
 sensitivity criterion, not a mid-tone, and anchoring there renders about half
 a stop dark.
 
+**An independent check that passes.** The sheet plots a visual neutral beside
+its three dyes. Solving for the dye mixture that reproduces it gives
+[0.987, 1.000, 0.998] normalised to green — within 1.3% of unity, residual
+0.031 D, about the thickness of the plotted line. The rescale is applied
+because it is `factory.py`'s `rescale_dye_density_using_neutral`, and it
+changes the render not at all; its value is as a check on the extraction.
+
 **Agreement.** Maximum residual on the unmixed dye amounts is 0.0163 against a
 0.02 gate, about 0.8% of the 2.5–2.8 unit range. The gate is on amounts rather
 than plotted density because this sheet's panels calibrate to 0.0001 — the
@@ -72,10 +79,18 @@ colour profiles have and this does not, all recorded in `recipe.json` under
   gives unit raw exposure and each layer is anchored to mid-grey, but neither
   iterates on a *rendered* neutral the way upstream's `balance_sensitivity`
   does. A rendered grey still comes out about 8% green.
-- **No couplers.** Masking and DIR couplers are what upstream's README calls
-  the difference between datasheet curves and a convincing look. Without them
-  this renders more saturated than the shipped slides: mean chroma 88 against
-  71 for Ektachrome 100 and 66 for Kodachrome 64 on the same frame.
+- **Unexplained saturation.** It renders at mean chroma 88 against 71 for
+  Ektachrome 100 and 83 for Velvia 100 on the same frame, and being more
+  saturated than Velvia is not credible. Four causes were measured and ruled
+  out: DIR couplers (this stock already resolves to the same
+  `defaults.color.positive` gammas as Ektachrome 100 — couplers are runtime
+  params by class, not profile data, and masking couplers are a colour-negative
+  feature a reversal film does not have), the dye spectra (peaks within 10 nm
+  of the shipped profile, purity 0.773 against 0.782), truncated sensitivity
+  spans (truncating a shipped profile to this one's spans moved its chroma only
+  71.1 → 72.2), and the neutral rescale (below). The cause is **not
+  established**; the untested candidate is upstream's hand-correction step,
+  `correct.py`'s `correct_positive_curves_with_gray_ramp`.
 - **No `hanatos2025` adaptation parameters.** Stripping them from a shipped
   profile changes its render by 5.4/255 mean, 30/255 at the 99th percentile,
   so this is a quality gap rather than a blocker. Nothing in any repository's
