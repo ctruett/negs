@@ -1,0 +1,321 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-03",
+  "page_1based": 5,
+  "source": {
+    "document": "Kodak Kodachrome 25, 64 and 200 Professional Film, publication E-55, June 2009 (page 5)",
+    "sha256": "89ef8788a2a830e84e342d9f6f200336f31b0327adbc4ae5396517b3cfc0d2aa",
+    "credit": "Eastman Kodak Company; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "k200-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_A_density",
+      "x_range": [
+        -3.0,
+        1.0
+      ],
+      "x_tolerance": 0.15,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "conditions": "Panel 'CHARACTERISTIC CURVES'; the page states Process K-14 and Status A densitometry.",
+      "derived": {
+        "frame_pdf_pt": [
+          84.075,
+          117.49,
+          268.582,
+          301.998
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 46.12800008671526,
+          "zero_pdf_pt": 222.45600008671516,
+          "labels": 5,
+          "worst_label_error": 8.671898679590839e-05
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 46.12700006503786,
+          "zero_pdf_pt": 301.99800013007564,
+          "labels": 5,
+          "worst_label_error": 8.671710699381663e-05
+        },
+        "traces": {
+          "k200-characteristic-r": {
+            "points": 143,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.809942,
+              -0.149952
+            ],
+            "y_extent": [
+              0.200078,
+              3.140005
+            ],
+            "peak_x": -2.81
+          },
+          "k200-characteristic-g": {
+            "points": 143,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.809942,
+              -0.149952
+            ],
+            "y_extent": [
+              0.199991,
+              3.220001
+            ],
+            "peak_x": -2.81
+          },
+          "k200-characteristic-b": {
+            "points": 107,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.809942,
+              -0.149952
+            ],
+            "y_extent": [
+              0.209964,
+              3.510005
+            ],
+            "peak_x": -2.81
+          }
+        }
+      }
+    },
+    "k200-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        250.0,
+        750.0
+      ],
+      "x_tolerance": 3.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "conditions": "Panel 'SPECTRAL-SENSITIVITY CURVES'; the page states Density 1.00 as the criterion. Relative shape only.",
+      "derived": {
+        "frame_pdf_pt": [
+          86.652,
+          386.813,
+          287.18,
+          538.286
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.40248731860258186,
+          "zero_pdf_pt": -14.000540779770253,
+          "labels": 7,
+          "worst_label_error": 2.085575667023022
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 37.84114445971302,
+          "zero_pdf_pt": 462.62249999999983,
+          "labels": 4,
+          "worst_label_error": 0.004985167927836542
+        },
+        "traces": {
+          "k200-sensitivity-b": {
+            "points": 107,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02854,
+            "x_extent": [
+              409.845314,
+              556.647451
+            ],
+            "y_extent": [
+              -1.999504,
+              1.798304
+            ],
+            "peak_x": 438.922
+          },
+          "k200-sensitivity-g": {
+            "points": 251,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02854,
+            "x_extent": [
+              409.852783,
+              639.537018
+            ],
+            "y_extent": [
+              -1.999583,
+              1.450374
+            ],
+            "peak_x": 554.648
+          },
+          "k200-sensitivity-r": {
+            "points": 359,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02854,
+            "x_extent": [
+              439.811487,
+              729.405663
+            ],
+            "y_extent": [
+              -1.569283,
+              1.299128
+            ],
+            "peak_x": 660.228
+          }
+        }
+      }
+    },
+    "k200-dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        400.0,
+        700.0
+      ],
+      "x_tolerance": 2.0,
+      "curves": 4,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "y",
+        "m",
+        "neutral",
+        "c"
+      ],
+      "conditions": "Panel 'SPECTRAL-DYE-DENSITY CURVES'; three dyes plus the visual neutral.",
+      "derived": {
+        "frame_pdf_pt": [
+          362.781,
+          119.603,
+          547.13,
+          303.952
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.6145,
+          "zero_pdf_pt": 116.97999999999985,
+          "labels": 4,
+          "worst_label_error": 2.2737367544323206e-13
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 127.01000026244638,
+          "zero_pdf_pt": 303.9516667978898,
+          "labels": 3,
+          "worst_label_error": 2.6244652598039764e-05
+        },
+        "traces": {
+          "k200-dye-y": {
+            "points": 192,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00567,
+            "x_extent": [
+              410.001619,
+              700.004875
+            ],
+            "y_extent": [
+              -0.000456,
+              0.75356
+            ],
+            "peak_x": 445.47
+          },
+          "k200-dye-m": {
+            "points": 251,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00567,
+            "x_extent": [
+              410.001619,
+              700.004875
+            ],
+            "y_extent": [
+              0.04501,
+              1.001789
+            ],
+            "peak_x": 539.769
+          },
+          "k200-dye-neutral": {
+            "points": 258,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00567,
+            "x_extent": [
+              410.001619,
+              700.004875
+            ],
+            "y_extent": [
+              0.719972,
+              1.312335
+            ],
+            "peak_x": 642.356
+          },
+          "k200-dye-c": {
+            "points": 207,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00567,
+            "x_extent": [
+              410.001619,
+              700.004875
+            ],
+            "y_extent": [
+              0.019931,
+              1.182771
+            ],
+            "peak_x": 644.875
+          }
+        }
+      }
+    }
+  },
+  "film": {
+    "id": "kodak_kodachrome_200",
+    "name": "Kodachrome 200 Professional (experimental)",
+    "type": "positive",
+    "densitometer": "status_A",
+    "base_density": 0.1,
+    "base_density_note": "Not on the sheet; the dye panel is normalised and plots no D-min. A flat 0.10 is assumed, within the range the shipped positives carry.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel's E.N.D. density criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not on plotted density. The E-8 panels are stroked finely and the characteristic panel calibrates to 0.0001, so the binding uncertainty here is the unmixing, not the tracing. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range; the fit lands at 0.0163.",
+    "midgray_total_density": 0.735182,
+    "midgray_note": "Rendering convention: engine log exposure zero is placed where the green channel's total status-A density equals 0.735342, which is -log10(0.184) - the density that transmits the 18.4% reference grey this repository uses elsewhere (paper midgray_reflectance, and the B&W preparations' grey anchor). The panel's own 'Density: 1.0' is a sensitivity criterion, not a mid-tone, and anchoring there renders about half a stop dark. Not absolute ISO metering.",
+    "known_gaps": [
+      "Spectral adaptation parameters are borrowed, not derived - see the EPR record for why that is not possible here.",
+      "Renders about 0.2 stop brighter than the shipped profiles - a consistent 11-15% across a four-stop ramp on all three colour stocks prepared here, including a control rebuilt from a shipped stock's own sheet. So it is this pipeline's mid-grey anchor convention, not a property of any film. The anchor used is -log10(0.184) on each sheet's own curves; shipped Ektachrome 100 puts 18.4% grey out at 0.233 rather than 0.184, so its convention is neither 'grey in, grey out' nor the one used here, and it is not recorded anywhere. Fixing it means fitting the anchor with the engine in the loop against a stated target, which needs that target to be decided first."
+    ],
+    "neutral_check_note": "The sheet plots a visual neutral beside its three dyes. Solving for the dye mixture that reproduces it gives [0.987, 1.000, 0.998] normalised to green, within 1.3% of unity, residual 0.031 D - about the thickness of the plotted line. The rescale is applied (it is factory.py's rescale_dye_density_using_neutral) and changes the render not at all, but it is an independent check on the dye extraction that passes.",
+    "antihalation": "weak",
+    "antihalation_note": "Taken from shipped kodak_kodachrome_64, not stated on the sheet.",
+    "ramp_balance_note": "Prepared curves are balanced against a rendered grey ramp by scripts/bw_expansion/balance_against_ramp.py, which is upstream's correct_positive_curves_with_gray_ramp done against this engine. Without it a grey renders 38% off neutral at the ends of a five-stop ramp, against 2.0% for shipped Ektachrome 100, 6.5% for Kodachrome 64 and 13.3% for Velvia 100 - so the shipped profiles are ramp-corrected and source curves alone are not enough. The correction is fitted against the engine, not measured from the datasheet.",
+    "saturation_investigation": "Localised by transplant: swapping only this pipeline's density curves into a shipped profile moved chroma 71.1 to 80.0, while its dyes, sensitivity and base each moved it down. Ruled out with measurements: DIR couplers (same class gammas), masking couplers (negative-only), dye spectra, truncated sensitivity spans, the neutral dye rescale, the grey-ramp balance (fixes neutrality, not chroma), log_sensitivity_density_over_min (never read by the engine), antihalation, uniform dye-amount scale (matching chroma needs a 30% brighter image), normalize_density_max, gamma alignment, and undoing the unmixing (which makes it worse, so the unmixing is helping). The control experiment then found the cause: see known_gaps.",
+    "ramp_balance_trust": 0.2,
+    "ramp_balance_trust_note": "Upstream's default is 0.5, which leaves this stock 11.8% off neutral across five stops. 0.2 reaches 3.7% with density corrections under 12%. 0.05 would reach 2.0% but rewrites the measured curves by up to 24%, which is more correction than the source data deserves. The tradeoff is neutrality against fidelity to the sheet and this is a judgement, not a measurement."
+  },
+  "print": {
+    "target_print": null,
+    "note": "A reversal film: scanned directly, no print stage."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure because the engine evaluates a positive's model with a negated argument (sign = -1 in refresh_density_curves_from_model)."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-03. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. No donor stock dye curves copied: E-55 plots C, M and Y separately. New preparation data under CC BY-SA 4.0.",
+  "adaptation_donor": {
+    "stock": "kodak_kodachrome_64",
+    "reason": "Nearest shipped sibling: the same process K-14 reversal family, from the same datasheet."
+  }
+}

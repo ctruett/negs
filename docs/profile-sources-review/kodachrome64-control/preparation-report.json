@@ -1,0 +1,66 @@
+{
+  "stock": "k64_control",
+  "source_exposure_anchor": [
+    -0.5869097436684678,
+    -0.5529640583620117,
+    -0.4659594686606017
+  ],
+  "neutral_mix": [
+    1.0030982258204042,
+    1.0,
+    0.9960589152831857
+  ],
+  "neutral_fit_residual": 0.026579239103690755,
+  "crosstalk_matrix": [
+    [
+      0.9999999999923782,
+      0.14833977174577534,
+      0.0029637987424550208
+    ],
+    [
+      0.0410500865867413,
+      1.0,
+      0.06390230747307823
+    ],
+    [
+      0.06307056513184114,
+      0.24714438780308026,
+      0.9999999999864531
+    ]
+  ],
+  "dye_scale": [
+    1.0142933285967406,
+    0.9919922099701803,
+    1.3990863847660153
+  ],
+  "channel_dmin": [
+    0.199948105,
+    0.19006249199999997,
+    0.180002879
+  ],
+  "max_amount_residual": 0.012590135164346261,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    12.128899335325736,
+    9.871906513899095,
+    16.17609256951242
+  ],
+  "dye_amount_max": [
+    2.679691390955693,
+    2.984204139663771,
+    2.5934723684520082
+  ],
+  "source_points_sha256": {
+    "k64-characteristic-b.csv": "37b16c8a333a0ac21b6dbd5e2813d439a48524e7991950fcf44050a1ef5ce9e3",
+    "k64-characteristic-g.csv": "15584e7bd272deb1b7233489c6a435778b9b92227e007c591e95f9b6f2deb52a",
+    "k64-characteristic-r.csv": "3235e5681c958413d8a4397fe2b07ca0390a539478460574c7cba5cfdc88ad34",
+    "k64-dye-c.csv": "f30821a4f32e39d9cadab5452575d3a8b8ae319d6a511984072c2ed2af453499",
+    "k64-dye-m.csv": "4bde7b1d1e5ba9bd5409bea8b1526ca1a91ca8596c4a11ab96c3e4d0318a7746",
+    "k64-dye-neutral.csv": "46c93291d5ce22b57a2b8e0961b87766240bed2a7eb963c6beac1efb6f0266ad",
+    "k64-dye-y.csv": "9c65204f8b4e82daed4af812053e81951121e72ca1914309f0bc176d5037a259",
+    "k64-sensitivity-b.csv": "8a0f86b215a5baaf6767c937c1a0f965ddbfa140f4afe6dc8459947408f5c03f",
+    "k64-sensitivity-g.csv": "56b9c34df13a0dd53454af73c766907b7bb31a6a883f4b78906a90d3cce61bad",
+    "k64-sensitivity-r.csv": "acec920b375eb8b77a4bf7267ca481460d0ac541605d02b5ed48a3d84eb6ff37"
+  },
+  "profile_sha256": "f108ff6aec06e941462a242edc7767856cebbd2e7d48d120b09785a0361221cb"
+}

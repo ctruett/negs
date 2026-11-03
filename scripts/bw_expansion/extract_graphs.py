@@ -297,7 +297,18 @@ def main():
         if len(names) > 1:
             key = {"peak_x": lambda t: t[0][int(np.argmax(t[0][:, 1])), 0],
                    "max_y": lambda t: t[0][:, 1].max()}[spec["curve_order"]]
-            traces.sort(key=key)
+            if "neutral" in names:
+                # A dye panel's visual neutral is the broad one: it carries
+                # density everywhere while each dye is a single band. Its peak
+                # can sit within 2 nm of the cyan's, so sorting on peak alone
+                # would be a coin toss; its mean is twice any dye's.
+                neutral = max(traces, key=lambda t: t[0][:, 1].mean())
+                rest = sorted((t for t in traces if t is not neutral), key=key)
+                traces, rest = [], list(rest)
+                for name_i in names:
+                    traces.append(neutral if name_i == "neutral" else rest.pop(0))
+            else:
+                traces.sort(key=key)
         spec["derived"] = dict(frame_pdf_pt=[round(v, 3) for v in frame],
                                x=xcal, y=ycal, traces={})
         for suffix, (data, stroke) in zip(names, traces):

@@ -66,3 +66,14 @@ Negs-only data, not from spektrafilm:
   Axis calibration for all four is derived from the page by
   scripts/bw_expansion/extract_graphs.py rather than measured by hand, which
   is the one methodological difference from the 2026-10 B&W preparations.
+
+- profiles/kodak_kodachrome_200.json is a further colour preparation, from
+  Kodak publication E-55 (June 2009) page 5. Its density curves are balanced
+  against a rendered grey ramp at data_trustability 0.2 rather than upstream's
+  0.5: at 0.5 the stock sits 11.8% off neutral across five stops, which 0.2
+  takes to 3.7% with density corrections under 12%. Spectral adaptation
+  parameters are borrowed from kodak_kodachrome_64, the same K-14 family.
+- profile-sources/kodachrome64-control rebuilds shipped kodak_kodachrome_64
+  from the same sheet, extraction included, as an end-to-end check: it renders
+  at mean chroma 67.6 against the shipped profile's 65.9. No profile from it
+  is shipped.
