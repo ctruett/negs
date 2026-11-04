@@ -2,7 +2,7 @@
 
 **Status:** implemented 3 November 2026.
 
-- Code: `feat/inspector-tabs` at `f495fd5`, worktree `/Users/christophertruett/Public/negs-inspector-tabs`.
+- Code: `feat/inspector-tabs` at `4af0414`, worktree `/Users/christophertruett/Public/negs-inspector-tabs`.
 - Base: `main` (`2caecdf`) plus the earlier nine inspector commits.
 - This document is tracked on `profile/agfa-apx25`; the feature branch does not carry `docs/panel-redesign`.
 
@@ -42,6 +42,12 @@ The selected tab persists for the session and across photographs. While *Scan fi
 - Output colour space, curve encoding, include border.
 - Export engine, export size, performance, and **Export Image…**.
 
+### Presets
+- **Settings › Presets › Save Finish parameters in presets**.
+- On: new presets carry an optional top-level `negs_finish` section with the Finish tab's `post.*` tone values; applying one replaces the photograph's Finish settings, and preset thumbnails include them.
+- Off: presets leave the photograph's Finish settings alone, as before.
+- A preset without `negs_finish` (including presets from Python spektrafilm or older Negs builds) still leaves Finish untouched, even when the setting is on.
+
 ### Toolbar
 Two native `NSToolbarItemGroup`s, expanded/momentary, so the icons share rounded capsules like a native app:
 - **View:** Open, Film Strip, Fit, Actual Size, Rotate, Crop.
@@ -61,8 +67,8 @@ Fit never enlarges past 1:1; double-click toggles fit/1:1; the fit or 1:1 settin
 
 ## Validation at handoff
 - `swift build` passes.
-- `swift test`: **127 tests, 7 skipped, 0 failures**.
-- `cargo test -p spektrafilm-core --lib`: **90 passed, 0 failed**.
+- `swift test`: **129 tests, 7 skipped, 0 failures**.
+- `cargo test -p spektrafilm-core --lib`: **91 passed, 0 failed**.
 - `cargo test -p spektrafilm-core --lib prep`: **9 passed**.
 - Release `spektrafilm-native` and `spektrafilm-f64` rebuilt for the new Prep parameter.
 - The layout test now pins `inspectorPane` to Adjustments (and restores it), because a previously open Presets pane leaves no inspector scroll view.
