@@ -36,6 +36,7 @@
     0.122619691
   ],
   "max_amount_residual": 0.014473111383577653,
+  "max_amount_residual_untrimmed": 0.014473111383577653,
   "tolerance": 0.02,
   "grey_balance_applied": [
     3.0037632344448695,
@@ -58,5 +59,5 @@
     "rtp-sensitivity-g.csv": "3e0cdf9d8a75ee56775e9822cef3122168afea8837b6253fe62f46d95bcbca99",
     "rtp-sensitivity-r.csv": "7154d10aa85b9d806f41dc14d732f1fc33c359e2850ecb6b3b487ad5394fcf3f"
   },
-  "profile_sha256": "211250624c2e05f1724d7475cb79b844c15e412adee8d28a395ae0c6c95c9038"
+  "profile_sha256": "9cc1d1484dfcf366930bff337a762a56bcb4072b916eba675a983bc3832b56b6"
 }

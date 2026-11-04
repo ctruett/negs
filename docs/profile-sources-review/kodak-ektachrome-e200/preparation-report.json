@@ -40,6 +40,7 @@
     0.104564618
   ],
   "max_amount_residual": 0.01690399266528564,
+  "max_amount_residual_untrimmed": 0.01690399266528564,
   "tolerance": 0.02,
   "grey_balance_applied": [
     53.67612193830772,
@@ -63,5 +64,5 @@
     "e200-sensitivity-g.csv": "93c410b595396956f82dadf8e36e5baf89124c4cafcdda180537263cbfd6fe71",
     "e200-sensitivity-r.csv": "2d44686c0d2f7bfee12ff1f63ea7e06d604d63e4e84eb3641a29e0b627921334"
   },
-  "profile_sha256": "8ed0a6c49f5664ab4cba408913eef1f051ace666e4e584bb1d345a031333c280"
+  "profile_sha256": "3c5806a25c21f8705061ff2aaf0314a395e33fe3756872cf96beeaae5452a187"
 }

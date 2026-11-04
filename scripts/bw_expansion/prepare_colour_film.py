@@ -332,9 +332,13 @@ def main():
                              for row in np.where(linear > 0, np.log10(np.where(linear > 0, linear, 1)), np.nan)],
             channel_density=[[None if not np.isfinite(v) else round(float(v), 10)
                               for v in row] for row in channel_density],
-            base_density=([[round(float(cfg["base_density"]), 10)]
+            # Flat, one value per wavelength: that is what every shipped colour
+            # profile carries, and what upstream's printing path expects. The
+            # nested form is for a B&W development-time family, one column per
+            # time, and broadcasts wrongly here.
+            base_density=([round(float(cfg["base_density"]), 10)
                            for _ in WAVELENGTHS] if base_spectrum is None else
-                          [[None if not np.isfinite(v) else round(float(v), 10)]
+                          [None if not np.isfinite(v) else round(float(v), 10)
                            for v in base_spectrum]),
             **({} if mid_spectrum is None else dict(
                 midscale_neutral_density=[None if not np.isfinite(v)

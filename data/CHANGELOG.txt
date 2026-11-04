@@ -117,3 +117,29 @@ Negs-only data, not from spektrafilm:
   one constraint fewer than the Kodak sheets. T64 is tungsten-type. Fit
   residuals 0.0049 and 0.0145; 3.3% and 1.3% off neutral. Adaptation
   parameters borrowed from fujifilm_provia_100f.
+
+2026-11: the first colour negatives, and their print filters
+
+- profiles/kodak_portra_160nc.json, kodak_portra_160vc.json and
+  kodak_portra_400vc.json are the first colour negatives prepared here, from
+  Kodak publication E-190 (2006), one stock per page. A negative's sheet gives
+  two things the reversal sheets do not: D-min, which is the orange mask and
+  becomes a measured spectral base density, and a midscale neutral, which puts
+  the mid-grey anchor on a measurement rather than a convention. Dye shapes
+  come from kodak_portra_400, scaled so their mixture reproduces each sheet's
+  own midscale-neutral-minus-D-min. Portra 400NC is not shipped: its channel
+  fit does not converge.
+- filters/neutral_print_filters.json gains entries for those three films on
+  every colour paper, derived with scripts/derive_neutral_print_filters.py,
+  which first re-derives upstream's own entries and agrees with them to 0.124
+  filter units. Without them the print fell back to C0 M50 Y50 and a grey ramp
+  arrived 29-41% off neutral; with them it starts at 9-10%, and after
+  balancing the three sit at 5.6% to 9.1%. For scale, the shipped references
+  score 13.0% (Portra 400), 15.9% (Portra 160) and 10.4% (Gold 200) on the
+  same ramp, so these are slightly better than all three. A negative is
+  balanced through the print, as upstream's corrector does.
+- Every colour profile here now writes base_density flat, one value per
+  wavelength, which is what the shipped colour profiles carry and what
+  upstream's printing path expects; the nested form is for a B&W
+  development-time family and broadcasts wrongly. The eight reversal profiles
+  are regenerated accordingly, with unchanged numbers.

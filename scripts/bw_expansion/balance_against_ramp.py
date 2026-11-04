@@ -52,7 +52,7 @@ def render(cli, data_dir, profile_path, ramp, work, n, scan_film=True):
                "--data-dir", str(data_dir), "--input-colour", "sRGB",
                "--input-linear"]
     if scan_film:
-        command.insert(6, "--scan-film")
+        command.append("--scan-film")
     subprocess.run(command, check=True, capture_output=True)
     return np.fromfile(raw, dtype="<f8").reshape(n, 3)
 
