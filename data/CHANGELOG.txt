@@ -143,3 +143,10 @@ Negs-only data, not from spektrafilm:
   upstream's printing path expects; the nested form is for a B&W
   development-time family and broadcasts wrongly. The eight reversal profiles
   are regenerated accordingly, with unchanged numbers.
+- profiles/kodak_bright_sun_ga.json is a further colour negative, from Kodak
+  publication E-2328 (July 2003), whose dye panel sits on its own page. Dye
+  shapes come from kodak_gold_200, a consumer negative like this one, scaled
+  against the sheet's own midscale-neutral-minus-D-min. Fit residual 0.0064.
+  Its print-filter entries are derived alongside the Portra variants, taking
+  the database to 40 Negs-only entries; 20.2% off neutral before balancing and
+  5.3% after, the best of the negatives prepared here.
