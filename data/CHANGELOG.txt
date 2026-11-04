@@ -219,3 +219,53 @@ Negs-only data, not from spektrafilm:
   midscale-neutral-minus-D-min only to 0.100 density, against 0.030-0.063 for
   the Supra sheets. Source and recipe are kept under
   profile-sources/kodak-ektapress-pj400 with the reasoning; the profile is not.
+- profiles/kodak_pro_400mc_pmc.json and kodak_pro_1000_pmz.json come from Kodak
+  publication E-182 (February 1997), which carries five colour negatives one to
+  a page. Balanced through the print until the fit stopped moving, Pro 1000 PMZ
+  reaches 4.4% off neutral and Pro 400 MC 5.0% - PMZ is the best-balanced
+  colour negative in the catalogue, ahead of Portra 160VC at 4.9% and of every
+  shipped reference (Ektar 100 7.7%, Gold 200 10.4%, Portra 400 13.0%, Portra
+  160 15.9%). Dye donors were chosen by sweeping every shipped colour negative:
+  fujifilm_pro_400h for PMC and kodak_portra_800 for PMZ. PMC has the poorest
+  donor fit of anything shipped here, 0.092, and balances best but one, which
+  is further evidence that the spectral residual does not predict neutrality.
+- extract_graphs.py gains an opt-in join_fragments. E-182 strokes every curve
+  in pieces - its dye panels hand back three polylines for two curves, its Pro
+  1000 sensitivity panel five for three - and the pieces meet end to end,
+  usually within a tenth of a point. Only endpoints are considered, so two
+  curves crossing are never merged: at a crossing neither has an end. Joining
+  also lowers the stray-stroke threshold from a tenth of the frame width to a
+  thirtieth while gathering, because a curve's steep left shoulder is often its
+  own 12-to-17-point stroke, and drops whatever is still short after joining.
+- calibrate gains a second pass for panels whose ticks are unusable. Where
+  fewer than three labels pair with a gridline, the tolerance is taken from the
+  labels' own spacing instead of the ticks' - the Pro Films characteristic
+  panels list eighteen and twenty-nine ticks over five gridlines, most of them
+  hundredths of a point apart, so the median collapses and nothing pairs. The
+  second pass must then be collinear to a tight threshold, or the panel fails:
+  the Pro 100 and Pro 100T sensitivity panels, whose only honest ticks are
+  their frame edges, calibrate 2 to 7 nm out depending on the tolerance chosen,
+  and failing is better than that. Re-extracting all 27 existing sources under
+  the new rules changes no trace at all.
+- The label-only axis fit added for Ektapress is removed. It carried a
+  systematic origin offset of about 1.7 nm - Supra 800's sensitivity frame read
+  248.3 to 747.8 nm where its gridlines are at 250 and 750 - because nothing
+  pinned the origin; only the scale was sound. Supra 800 is unaffected, having
+  always used its tick fit. Ektapress PJ400 now fails calibration outright,
+  which is recorded in its recipe alongside the dye-donor reason it was already
+  held back for.
+- prepare_colour_film.py now refuses a mid-grey anchor pinned at the edge of
+  the plotted range. Engine zero is placed where each layer reaches the density
+  read through the sheet's own midscale neutral, found by interpolating the
+  characteristic curves; np.interp clamps, so a neutral the panel never reaches
+  silently anchors a layer at the end of its data. Pro 400 PPF does this in
+  green and blue - anchors [-2.63, -3.00, -3.00] against a panel starting at
+  -3.00 - which shifts its whole exposure scale about three stops and renders a
+  washed-out frame, while still scoring 10.4% on the grey ramp. The ramp cannot
+  see a uniformly misplaced anchor. Re-preparing every colour source confirms
+  PPF is the only one the guard catches; it is not shipped.
+- balance_against_ramp.py treats a trial correction the engine cannot render as
+  an infeasible point rather than a crash. Pro 1000 PMZ drives the engine's
+  blur solve to a NaN sigma partway through its fit; the objective now returns
+  a large residual so the optimiser steps back, and the profile's datasource
+  records how many trials were refused.

@@ -29,7 +29,7 @@ TICK_MAX = 12.0      # pt, longest stroke taken for a tick
 CORNER_TOL = 2.0     # pt, corner matching when closing a frame
 LABEL_FIT = 0.02     # worst label error allowed, as a fraction of axis range
 OUTLIER_FIT = 0.002  # above this, refit without the worst-fitting pair
-SCALE_DISAGREEMENT = 0.003  # ticks and labels differing by more than this
+SNAP_FRACTION = 0.15  # of a gridline spacing: how far a label may sit from its tick
 BEZIER_STEPS = 33    # matches extract_sources.py
 
 # Agfa sets its minus signs as en dashes.
@@ -176,24 +176,56 @@ def calibrate(tickpos, found, axis_name):
     if len(tickpos) < 2 or len(found) < 3:
         return None
     pos = np.array(sorted(tickpos))
+
+    def snap(step):
+        """Pair each label with the gridline it sits on, or with nothing."""
+        out = {}
+        for at, value in found:
+            tick = pos[np.argmin(np.abs(pos - at))]
+            if abs(tick - at) > step:
+                continue
+            if out.setdefault(tick, value) != value:
+                return None
+            out[tick] = value
+        return out
+
     # Judge the snap against the typical tick spacing, not the smallest: one
     # spurious tick collapses the minimum and then every real label looks far
     # away. A label whose nearest tick is a third of a step off is a label
     # whose own tick was missed, so drop it rather than pair it wrongly.
-    step = float(np.median(np.diff(pos))) if len(pos) > 2 else float(np.diff(pos)[0])
-    pairs = {}
-    for at, value in found:
-        tick = pos[np.argmin(np.abs(pos - at))]
-        if abs(tick - at) > 0.3 * step:
-            continue
-        if pairs.setdefault(tick, value) != value:
+    tick_step = (float(np.median(np.diff(pos))) if len(pos) > 2
+                 else float(np.diff(pos)[0]))
+    pairs = snap(0.3 * tick_step)
+
+    # When that pairs almost nothing, the ticks themselves are the problem and
+    # their spacing is not a spacing: the Pro Films characteristic panels list
+    # eighteen and twenty-nine ticks over five gridlines, most of them
+    # hundredths of a point apart, so the median collapses and no label
+    # reaches its own gridline. The labels know better. Their own spacing on
+    # the page, times the step in value from one to the next, is what a
+    # gridline spacing actually is, and no stray stroke can corrupt it. A
+    # label centre is measured here to sit 0.07 to 0.9 points from its
+    # gridline, a few per cent of a spacing, so the second pass stays tight.
+    fallback = False
+    if (pairs is None or len(pairs) < 3) and len(found) >= 3:
+        ordered = sorted(found)
+        label_at = np.array([a for a, _ in ordered])
+        label_value = np.array([v for _, v in ordered])
+        value_step = float(np.median(np.abs(np.diff(label_value))))
+        label_slope = float(np.polyfit(label_at, label_value, 1)[0])
+        if value_step <= 0 or label_slope == 0:
             return None
+        pairs = snap(SNAP_FRACTION * abs(value_step / label_slope))
+        fallback = True
+    if pairs is None:
+        return None
     if len(pairs) < 3:
         return None
 
     # Same width on the page means same sign and same digit count for these
     # sheets: a label's position is its text's centre, so "-3.0" and "1.0" on
-    # one axis sit off their gridlines by different amounts. Wavelength axes,
+    # one axis sit off their gridlines by different amounts, and a residual
+    # that looks like an outlier is really that offset. Wavelength axes,
     # labelled 250 to 750, are uniform; a log-exposure axis is not.
     uniform = (all(v >= 0 for _, v in found)
                and len({len(f"{v:g}") for _, v in found}) == 1)
@@ -208,33 +240,15 @@ def calibrate(tickpos, found, axis_name):
     fit = line_through(pairs)
     if fit is None:
         return None
+    # The second pass only earns its keep when the pairing it finds is
+    # genuinely collinear. Where the ticks are so poor that even the labels'
+    # own spacing cannot pair them - the Pro 100 and Pro 100T sensitivity
+    # panels, whose only honest ticks are their frame edges - it lands several
+    # nanometres out while still inside the loose acceptance below. Hold it to
+    # the tight threshold instead, and let the panel fail.
+    if fallback and fit[2] > OUTLIER_FIT * fit[4]:
+        return None
 
-    # The printed labels are a second, redundant measurement of the same axis.
-    # Normally they agree with the ticks and the tick fit stands. When they
-    # disagree on *scale* the ticks are the suspect side - there are few of
-    # them and one may be spurious - and the labels, being many and evenly
-    # spaced, win: the Ektapress sensitivity panel draws only four gridlines
-    # the tick finder sees against eleven labels, and its tick fit lands 4 to
-    # 5 nm out. Label centres can sit a constant fraction of a point off their
-    # gridline, which moves the origin and not the scale, so this is only
-    # consulted when the two scales genuinely differ.
-    # Horizontal only. Across a row of equal-width numerals the text centres
-    # are offset from their gridlines by the same amount, so the labels'
-    # spacing carries the scale faithfully. Down a column they are not: a
-    # label's vertical centre depends on its glyph box, and fitting those
-    # stretches a y axis that the ticks already had exactly right - every
-    # sensitivity panel here reads 0.0 to 4.0 off its frame before this and
-    # -0.013 to 4.041 after.
-    if uniform and axis_name == "x" and len(found) >= 5:
-        direct = {}
-        for at_, value_ in found:
-            if direct.setdefault(round(at_, 4), value_) != value_:
-                direct = None
-                break
-        if direct and len(direct) > len(pairs):
-            alt = line_through(direct)
-            if alt and abs(alt[0] / fit[0] - 1) > SCALE_DISAGREEMENT:
-                fit = alt
     slope, intercept, worst, kept, span = fit
     if worst > LABEL_FIT * span:
         return None
@@ -303,8 +317,45 @@ def clip_to_frame(points, y0, y1, pad):
     return points[best[0]:best[1] + 1]
 
 
-def curves_in(page, frame, pad=1.5, clip=False):
-    """Every plotted trace that stays inside the frame."""
+def join_fragments(traces, tol=2.5):
+    """Reunite polylines that are one plotted curve with the pen lifted.
+
+    Several Kodak sheets stroke a curve in pieces - the Pro Films dye panels
+    hand back three polylines for two curves, and its Pro 1000 sensitivity
+    panel five for three - and the pieces meet end to end, usually within a
+    tenth of a point and at worst within two. Only endpoints are considered,
+    so two curves crossing each other are never merged: at a crossing neither
+    has an end.
+    """
+    pieces = [list(t) for t in traces]
+    joined = True
+    while joined and len(pieces) > 1:
+        joined = False
+        best = None
+        for i in range(len(pieces)):
+            for j in range(i + 1, len(pieces)):
+                for ends in ((-1, 0), (-1, -1), (0, 0), (0, -1)):
+                    gap = float(np.hypot(*(pieces[i][ends[0]][:2]
+                                           - pieces[j][ends[1]][:2])))
+                    if gap <= tol and (best is None or gap < best[0]):
+                        best = (gap, i, j, ends)
+        if best is not None:
+            _, i, j, ends = best
+            left = pieces[i] if ends[0] == -1 else pieces[i][::-1]
+            right = pieces[j] if ends[1] == 0 else pieces[j][::-1]
+            pieces[i] = left + right
+            pieces.pop(j)
+            joined = True
+    return [np.array(piece) for piece in pieces]
+
+
+def curves_in(page, frame, pad=1.5, clip=False, min_span=0.1):
+    """Every plotted trace that stays inside the frame.
+
+    `min_span`, as a fraction of the frame's width, is what separates a curve
+    from a stray stroke. Lower it only when the caller is going to rejoin
+    fragments afterwards and can drop whatever stays short.
+    """
     x0, y0, x1, y1 = frame
     out = []
     for drawing in page.get_drawings():
@@ -318,7 +369,7 @@ def curves_in(page, frame, pad=1.5, clip=False):
             elif not (np.all(points[:, 1] > y0 - pad)
                       and np.all(points[:, 1] < y1 + pad)):
                 continue
-            if np.ptp(points[:, 0]) < 0.1 * (x1 - x0):
+            if np.ptp(points[:, 0]) < min_span * (x1 - x0):
                 continue
             on_edge = (np.minimum(np.abs(points[:, 0] - x0),
                                   np.abs(points[:, 0] - x1)) < 1.0) | \
@@ -428,7 +479,21 @@ def main():
         if len(match) != 1:
             raise ValueError(f"{name}: matched {len(match)} frames, expected 1")
         frame, xcal, ycal = match[0]
-        found = curves_in(page, frame, clip=spec.get("clip_to_frame", False))
+        if spec.get("join_fragments"):
+            # Gather the short pieces too - the Pro Films dye panels draw a
+            # curve's steep left shoulder as its own 12 to 17 point stroke -
+            # then rejoin and drop whatever is still too short to be a curve.
+            found = curves_in(page, frame, clip=spec.get("clip_to_frame", False),
+                              min_span=0.03)
+            widths = [stroke for _, stroke in found if stroke]
+            width = max(widths) if widths else None
+            span = frame[2] - frame[0]
+            found = [(points, width)
+                     for points in join_fragments([points for points, _ in found],
+                                                  spec.get("join_tolerance", 2.5))
+                     if np.ptp(points[:, 0]) >= 0.1 * span]
+        else:
+            found = curves_in(page, frame, clip=spec.get("clip_to_frame", False))
         if len(found) != spec["curves"]:
             raise ValueError(f"{name}: found {len(found)} curves, expected {spec['curves']}")
         traces = [(to_data(points, xcal, ycal), stroke) for points, stroke in found]

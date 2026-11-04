@@ -45,7 +45,8 @@ ILLUMINANT = "TH-KG3"
 NEGS_FILMS = ["kodak_trix400_d76_8min", "kodak_portra_160nc",
               "kodak_portra_160vc", "kodak_portra_400vc", "kodak_portra_400nc",
               "kodak_bright_sun_ga", "kodak_supra_100", "kodak_supra_200",
-              "kodak_supra_400", "kodak_supra_800"]
+              "kodak_supra_400", "kodak_supra_800",
+              "kodak_pro_400mc_pmc", "kodak_pro_1000_pmz"]
 NEGS_PAPERS = ["ilford_mgrc_deluxe_grade2"]
 # Upstream entries re-derived to validate the method, in filter units.
 VALIDATION_FILMS = ["kodak_doublex", "kodak_portra_400", "kodak_gold_200", "kodak_vision3_500t"]

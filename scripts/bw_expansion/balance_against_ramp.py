@@ -28,6 +28,10 @@ ROOT = Path(__file__).resolve().parents[2]
 MIDGREY = 0.184
 
 
+class Unrenderable(Exception):
+    """The engine refused a trial profile the fit asked it to render."""
+
+
 def write_ramp(path, ev):
     values = MIDGREY * 2.0 ** np.asarray(ev, dtype=float)
     image = np.tile(values[None, :, None], (1, 1, 3)).astype("float32")
@@ -53,7 +57,10 @@ def render(cli, data_dir, profile_path, ramp, work, n, scan_film=True):
                "--input-linear"]
     if scan_film:
         command.append("--scan-film")
-    subprocess.run(command, check=True, capture_output=True)
+    done = subprocess.run(command, capture_output=True, text=True)
+    if done.returncode:
+        raise Unrenderable(done.stderr.strip().splitlines()[-1] if done.stderr else
+                           f"exit {done.returncode}")
     return np.fromfile(raw, dtype="<f8").reshape(n, 3)
 
 
@@ -110,13 +117,24 @@ def main():
     write_ramp(ramp, args.ev)
     live = staging / "profiles" / f"{stem}.json"
 
+    refused = []
+
     def neutrality(x):
         scale, shift = x[:3], [x[3], 0.0, x[4]]
         if live.is_symlink() or live.exists():
             live.unlink()
         live.write_text(json.dumps(corrected(source, scale, shift)))
-        rgb = render(args.cli, staging, live, ramp, work, len(args.ev),
-                     scan_film=scan_film)
+        try:
+            rgb = render(args.cli, staging, live, ramp, work, len(args.ev),
+                         scan_film=scan_film)
+        except Unrenderable as why:
+            # Some trial corrections the fit proposes are ones the engine
+            # cannot render at all - Pro 1000 PMZ drives its blur solve to a
+            # NaN sigma. That is an infeasible point, not a failure of the
+            # run: hand the optimiser a large residual so it steps back, and
+            # record it so the result can say how often it happened.
+            refused.append((np.round(np.asarray(x), 4).tolist(), str(why)))
+            return np.full(2 * len(args.ev) + 3, 10.0)
         ratios = np.column_stack([rgb[:, 0]/rgb[:, 1], rgb[:, 2]/rgb[:, 1]])
         return np.concatenate([(ratios - 1.0).ravel(),
                                args.trust * 2.0 * (np.asarray(scale) - 1.0)])
@@ -136,7 +154,10 @@ def main():
         f"{np.round(shift, 4).tolist()}, data_trustability {args.trust}. Worst "
         f"channel deviation from neutral across the ramp {before*100:.1f}% before, "
         f"{after*100:.1f}% after. This correction is fitted against the engine, "
-        f"not measured from the datasheet.")
+        f"not measured from the datasheet."
+        + (f" The engine refused {len(refused)} trial correction(s) during the fit "
+           f"({refused[0][1]}); those points were treated as infeasible."
+           if refused else ""))
     out = args.output or args.profile
     out.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
     print(json.dumps(dict(profile=str(out), density_scale=scale.tolist(),

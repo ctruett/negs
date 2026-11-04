@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-04",
+  "page_1based": 11,
+  "source": {
+    "document": "Kodak Pro 100 / PRN, Pro 100T / PRT, Pro 400 / PPF, Pro 400 MC / PMC and Pro 1000 / PMZ colour negative films, publication E-182, February 1997",
+    "sha256": "43f9be571f731356d868993dce6760c1f0254d04c50bf09b761027c5d0bd60cc",
+    "credit": "Eastman Kodak Company; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "pro_400mc_pmc-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_A_density",
+      "x_range": [
+        -3.0,
+        1.0
+      ],
+      "x_tolerance": 0.15,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "conditions": "Panel 'Characteristic Curves' on page 11, which this sheet gives over to this one stock; located by frame position because the page also carries an outer box on the same axes. The page states: Process: Densitometry: Status M; Log H Ref = -1.20 Effective Exposure: Densitometry: Density:",
+      "frame_near": [
+        87,
+        79
+      ],
+      "frame_near_tolerance": 12.0,
+      "page_1based": 11,
+      "derived": {
+        "page_1based": 11,
+        "frame_pdf_pt": [
+          86.612,
+          79.352,
+          271.119,
+          263.859
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 46.12700006503785,
+          "zero_pdf_pt": 224.99300006503785,
+          "labels": 5,
+          "worst_label_error": 8.67171069951489e-05
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 46.127000065037784,
+          "zero_pdf_pt": 263.85800013007554,
+          "labels": 5,
+          "worst_label_error": 8.671710699426072e-05
+        },
+        "traces": {
+          "pro_400mc_pmc-characteristic-r": {
+            "points": 110,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -3.0,
+              0.569948
+            ],
+            "y_extent": [
+              0.268455,
+              1.909012
+            ],
+            "peak_x": 0.57
+          },
+          "pro_400mc_pmc-characteristic-g": {
+            "points": 108,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -2.999957,
+              0.569992
+            ],
+            "y_extent": [
+              0.664492,
+              2.303965
+            ],
+            "peak_x": 0.57
+          },
+          "pro_400mc_pmc-characteristic-b": {
+            "points": 96,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -2.999957,
+              0.569992
+            ],
+            "y_extent": [
+              0.877208,
+              2.706961
+            ],
+            "peak_x": 0.57
+          }
+        }
+      }
+    },
+    "pro_400mc_pmc-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        250.0,
+        750.0
+      ],
+      "x_tolerance": 3.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "conditions": "Panel 'Spectral-Sensitivity Curves' on page 11, which this sheet gives over to this one stock; located by frame position because the page also carries an outer box on the same axes. The page states: Process: Densitometry: Status M; Log H Ref = -1.20 Effective Exposure: Densitometry: Density: Relative shape only. Stroked in pieces and rejoined, as the dye panel is.",
+      "frame_near": [
+        363,
+        80
+      ],
+      "frame_near_tolerance": 12.0,
+      "page_1based": 11,
+      "join_fragments": true,
+      "derived": {
+        "page_1based": 11,
+        "frame_pdf_pt": [
+          362.662,
+          79.687,
+          563.19,
+          231.159
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.4013841233385658,
+          "zero_pdf_pt": 262.3760929559134,
+          "labels": 8,
+          "worst_label_error": 0.5585309602507778
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 37.86742862316653,
+          "zero_pdf_pt": 193.29057146737492,
+          "labels": 4,
+          "worst_label_error": 8.299597629601863e-05
+        },
+        "traces": {
+          "pro_400mc_pmc-sensitivity-b": {
+            "points": 93,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              380.0223,
+              520.212172
+            ],
+            "y_extent": [
+              0.539952,
+              2.561768
+            ],
+            "peak_x": 428.833
+          },
+          "pro_400mc_pmc-sensitivity-g": {
+            "points": 873,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              470.135438,
+              590.29962
+            ],
+            "y_extent": [
+              0.22031,
+              2.563906
+            ],
+            "peak_x": 551.82
+          },
+          "pro_400mc_pmc-sensitivity-r": {
+            "points": 757,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              550.245729,
+              680.427812
+            ],
+            "y_extent": [
+              0.579881,
+              2.529683
+            ],
+            "peak_x": 653.252
+          }
+        }
+      }
+    },
+    "pro_400mc_pmc-dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        400.0,
+        700.0
+      ],
+      "x_tolerance": 2.0,
+      "curves": 2,
+      "curve_order": "max_y",
+      "curve_names": [
+        "min",
+        "mid"
+      ],
+      "conditions": "Panel 'Spectral-Dye-Density Curves' on page 11, which this sheet gives over to this one stock; located by frame position because the page also carries an outer box on the same axes. The page states: Process: Densitometry: Status M; Log H Ref = -1.20 Effective Exposure: Densitometry: Density: Minimum density - the orange mask - and a midscale neutral, sorted by height. This sheet strokes each curve in pieces, so the fragments are rejoined end to end; the steepest few nanometres at the blue end are drawn too near vertical to recover and the traces start 5 to 8 nm inside the panel.",
+      "page_1based": 11,
+      "frame_near": [
+        225,
+        327
+      ],
+      "frame_near_tolerance": 12.0,
+      "join_fragments": true,
+      "derived": {
+        "page_1based": 11,
+        "frame_pdf_pt": [
+          224.775,
+          327.356,
+          409.124,
+          511.705
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.6144900022783122,
+          "zero_pdf_pt": -21.02200125307186,
+          "labels": 4,
+          "worst_label_error": 0.011391745821470067
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 73.7371430047531,
+          "zero_pdf_pt": 511.70476208927465,
+          "labels": 6,
+          "worst_label_error": 6.458196074099476e-05
+        },
+        "traces": {
+          "pro_400mc_pmc-dye-min": {
+            "points": 208,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00976,
+            "x_extent": [
+              400.001618,
+              700.00487
+            ],
+            "y_extent": [
+              0.180625,
+              1.620049
+            ],
+            "peak_x": 400.002
+          },
+          "pro_400mc_pmc-dye-mid": {
+            "points": 215,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00976,
+            "x_extent": [
+              400.2734,
+              700.008148
+            ],
+            "y_extent": [
+              0.957736,
+              2.395899
+            ],
+            "peak_x": 400.273
+          }
+        }
+      }
+    }
+  },
+  "film": {
+    "id": "kodak_pro_400mc_pmc",
+    "name": "*Kodak Pro 400 MC PMC",
+    "type": "negative",
+    "densitometer": "status_M",
+    "base_density": 0.1,
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel's E.N.D. density criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not on plotted density. The E-8 panels are stroked finely and the characteristic panel calibrates to 0.0001, so the binding uncertainty here is the unmixing, not the tracing. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range; the fit lands at 0.0163.",
+    "known_gaps": [
+      "Dye shapes are fujifilm_pro_400h's, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min. The shapes are a donor's; their strengths are this stock's.",
+      "No masking-coupler modelling, as with the Portra variants prepared here.",
+      "Spectral adaptation parameters are borrowed - see the Ektachrome 64 EPR record for why deriving them is not possible here.",
+      "The dye traces start 5 to 8 nm inside the panel's 400 nm edge, where the printed curves are too steep to trace; the base and mid spectra are unmeasured below that and the engine's grid starts at 380 nm regardless."
+    ],
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektachrome_100, the nearest sibling, rather than guessed; it drives the halation preset only, and moving it weak-to-strong changed a rendered frame's mean chroma by 0.6.",
+    "ramp_balance_note": "Prepared curves are balanced against a rendered grey ramp by scripts/bw_expansion/balance_against_ramp.py, which is upstream's correct_positive_curves_with_gray_ramp done against this engine. Without it a grey renders 38% off neutral at the ends of a five-stop ramp, against 2.0% for shipped Ektachrome 100, 6.5% for Kodachrome 64 and 13.3% for Velvia 100 - so the shipped profiles are ramp-corrected and source curves alone are not enough. The correction is fitted against the engine, not measured from the datasheet.",
+    "saturation_investigation": "Localised by transplant: swapping only this pipeline's density curves into a shipped profile moved chroma 71.1 to 80.0, while its dyes, sensitivity and base each moved it down. Ruled out with measurements: DIR couplers (same class gammas), masking couplers (negative-only), dye spectra, truncated sensitivity spans, the neutral dye rescale, the grey-ramp balance (fixes neutrality, not chroma), log_sensitivity_density_over_min (never read by the engine), antihalation, uniform dye-amount scale (matching chroma needs a 30% brighter image), normalize_density_max, gamma alignment, and undoing the unmixing (which makes it worse, so the unmixing is helping). The control experiment then found the cause: see known_gaps.",
+    "dmin_investigation": "D-min extrapolation attempted 2026-11-03 and backed out. The principle holds: no panel here reaches D-min, so reading the curve end overstates it. Tying D-min to the assumed base density instead - subtracting what the densitometer would read through a flat 0.10 - made every stock pass its amount gate including Kodachrome 25, and on the Kodachrome 64 control it cut the mean RGB error against the shipped profile from about 20 to 6.5, which is the brightness systematic recorded above. But it cost 2.5 chroma points on that same control (1.7 off to 4.2 off), and it destabilised Kodachrome 200's neutrality fit: where that stock previously balanced to 3.7% with density corrections under 12%, it then needed scales of 0.71/0.64/0.63 to reach 3.8%, and 0.37/0.34/0.33 to reach 2.4%. A 35% uniform scale-down is a replacement, not a correction. Nothing about the curve ends distinguishes Kodachrome 200 - all four stocks sit within 0.167 to 0.203 last-plotted density with tail slopes of -0.037 to -0.067 - so the instability comes from somewhere else and is not understood. Sweeping the base across 0.10/0.14/0.16 on the control made 0.10 the best of the three, so there is no better flat value to pick either. The next attempt should estimate each curve's own asymptote per stock rather than share one assumed base; an exponential tail fit was prototyped and is not yet trustworthy, returning unphysical zero asymptotes on several channels.",
+    "dmin_asymptote_finding": "Per-stock asymptote fitting attempted 2026-11-03 and not adopted, because the asymptote turns out not to be identifiable from a truncated curve. Fitting D(x) = D_inf + sum(a_i * Phi(-(x-c_i)/s_i)) over the whole plotted range with D_inf free, from five different starting points: on Ektachrome 64 EPR the answer moves 0.072 to 0.086 depending where the search starts, which is as large as the quantity being estimated, and on Kodachrome 25 it runs to the 0.01 physical floor on all three channels. Only Kodachrome 200 and the Kodachrome 64 control pin it down. What the fits agree on is more useful than the fit itself: where D_inf is determined it lands at 0.128 to 0.183, against last-plotted values of 0.180 to 0.210 - close to the curve end, and nowhere near the flat 0.10 that the previous attempt tied D-min to. That is why tying it to the base over-subtracted and broke Kodachrome 200's balance. So reading D-min off the curve end, which is what this pipeline does, is approximately right: it overstates D-min by roughly 0.02 to 0.05 density rather than the 0.07 to 0.10 the flat-base assumption implied. Forcing the end to be the asymptote costs 1.1x to 2.9x the best achievable RMS, on a best RMS of 0.0007 to 0.0024 density - inside the printed stroke width. The bias is real and small. Resolving it properly needs a sheet that publishes D-min, or a characteristic panel plotted far enough for its curves to flatten; neither is available here.",
+    "log_sensitivity_density_over_min": 0.2,
+    "base_density_note": "Measured, not assumed: the sheet's D-min trace is the spectral base density, and what the Status M densitometer reads through it is subtracted from the characteristic curves.",
+    "midgray_note": "Measured: engine zero is placed where each layer reaches the density the densitometer reads through the sheet's own midscale-neutral trace."
+  },
+  "print": {
+    "target_print": "kodak_portra_endura",
+    "note": "The sheet predates the Endura papers and names none that ships here. Paired with Kodak's portrait-negative paper as a rendering choice, not a manufacturer recommendation."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure because the engine evaluates a positive's model with a negated argument (sign = -1 in refresh_density_curves_from_model)."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-04. Panels located by frame position; traces rejoined from the pieces the sheet strokes them in. CC BY-SA 4.0.",
+  "adaptation_donor": {
+    "stock": "fujifilm_pro_400h",
+    "reason": "The same stock whose dye shapes this sheet is prepared with."
+  },
+  "dye_donor": {
+    "stock": "fujifilm_pro_400h",
+    "reason": "Chosen by sweeping every shipped colour negative against this sheet's own midscale-neutral-minus-D-min: residual 0.0921 against 0.1627 for Portra 400 and 0.1517 for Gold 200 - the best available and still poor."
+  }
+}

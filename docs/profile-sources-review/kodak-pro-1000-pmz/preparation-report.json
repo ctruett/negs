@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_pro_1000_pmz",
+  "source_exposure_anchor": [
+    -2.260077084152451,
+    -2.144103506559914,
+    -2.1327344416201623
+  ],
+  "dye_source": "kodak_portra_800 shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.5197368327056117,
+    0.5470093338371013,
+    0.6929368098214868
+  ],
+  "neutral_fit_residual": 0.0383876746862557,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999175,
+      0.014923815543123815,
+      0.0018843576706060814
+    ],
+    [
+      -0.006591576147454066,
+      0.9999999999895348,
+      -0.0031376327336154917
+    ],
+    [
+      -0.00751965130778201,
+      -0.005550483826529686,
+      0.9999999999998237
+    ]
+  ],
+  "dye_scale": [
+    1.9180889335317775,
+    1.6532737297476952,
+    1.3445723713833255
+  ],
+  "channel_dmin": [
+    0.2538407147752807,
+    0.6833460833526498,
+    0.8752837784160322
+  ],
+  "max_amount_residual": 0.015296924562984593,
+  "max_amount_residual_untrimmed": 0.030913100235690383,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    1634.9611883096263,
+    1352.7281970117347,
+    2389.2146968715374
+  ],
+  "dye_amount_max": [
+    1.655577414110514,
+    1.7840898727396328,
+    2.087086359833945
+  ],
+  "source_points_sha256": {
+    "pro_1000_pmz-characteristic-b.csv": "55e687a9c886a899a2920efb7324b619e1098dcdce4364289b2026a4ad34e9ca",
+    "pro_1000_pmz-characteristic-g.csv": "90042d389ab3a2a2a387576d8e07062723746e1f6249427bce495391c94630e8",
+    "pro_1000_pmz-characteristic-r.csv": "c95792f74d6f1b3a95d96f6b5d2fd7ce481feb21b151b71a4291dc5d2af89397",
+    "pro_1000_pmz-dye-mid.csv": "5707cb5167d779650ebfe0312bacde1c8510b5680022a3b7a710629bb431272e",
+    "pro_1000_pmz-dye-min.csv": "f3f75678c53337c68b278966e4c1d9118873b958f93ac18c94cc4fe9d6885831",
+    "pro_1000_pmz-sensitivity-b.csv": "0e0a9cd7cb2c1e8994e19042fde4dfddcf6f34deefd494b6863b1adc1bd10d43",
+    "pro_1000_pmz-sensitivity-g.csv": "27aaf5182b1848116d0112177575a48b35c2a7f71a3d864601dcf2dfd328a777",
+    "pro_1000_pmz-sensitivity-r.csv": "cf9d9108b3fe783461fdac8136474bfa5eee3aaff9d2a791bf3d95068b5271ad"
+  },
+  "profile_sha256": "53c0d0c8c9bb944610145705b3711b1255d151241a85c29127bed163e8f3c506"
+}

@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_pro_400mc_pmc",
+  "source_exposure_anchor": [
+    -0.8547058375902673,
+    -0.709728277100418,
+    -0.7183975260218801
+  ],
+  "dye_source": "fujifilm_pro_400h shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.9941869033963405,
+    0.9813683809909223,
+    1.216926998092917
+  ],
+  "neutral_fit_residual": 0.0920584698321224,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999993,
+      0.03230960525699353,
+      0.002205421289976118
+    ],
+    [
+      -0.0038162350018143307,
+      1.0000000000060147,
+      -0.004284581376556991
+    ],
+    [
+      0.0008262463530776996,
+      -0.015275000354462512,
+      1.0000000000000884
+    ]
+  ],
+  "dye_scale": [
+    1.008649296369235,
+    0.873466471275751,
+    0.766988578565398
+  ],
+  "channel_dmin": [
+    0.1880445149060741,
+    0.5150860321573335,
+    0.7329651560843955
+  ],
+  "max_amount_residual": 0.010792886660627277,
+  "max_amount_residual_untrimmed": 0.02629373022378112,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    558.2862645291885,
+    710.7403972008964,
+    891.5026545535072
+  ],
+  "dye_amount_max": [
+    1.6582769850645318,
+    1.803761719143858,
+    2.0001602080429004
+  ],
+  "source_points_sha256": {
+    "pro_400mc_pmc-characteristic-b.csv": "13c7f946e1f99a6c869ecf43adca76ead12159b68cb5e3e95790ba9b4d309c0c",
+    "pro_400mc_pmc-characteristic-g.csv": "c90f23e96967cb2e87768196ab6f463af8af98d735fc70560754814fcb5c646b",
+    "pro_400mc_pmc-characteristic-r.csv": "ce3ffe28228e87733a1cc04c0f72669406adcf0b184c7bfcc73140eb0204024f",
+    "pro_400mc_pmc-dye-mid.csv": "04bc02f659b3205d1f2a1503ef78353ba48f162cf3f752bb41efc920e6f82691",
+    "pro_400mc_pmc-dye-min.csv": "b810b954e2e88f5ae94aa8422ea1ba9140ed0d01d865068f3ead0ab885243265",
+    "pro_400mc_pmc-sensitivity-b.csv": "e9ffd32db0bb73ed9f292d5010e01c60e06f603719b83d726b66cda21eebbabd",
+    "pro_400mc_pmc-sensitivity-g.csv": "f95f3e75eedae022987e83da3a26530cfaa7c59b919662547ddb20b3cc6ca248",
+    "pro_400mc_pmc-sensitivity-r.csv": "8f1ad629c463ae08bf05f850431cd8137bed072a775753ea61a25abedc09c6d6"
+  },
+  "profile_sha256": "6a6392c5d86f487081301f8706cb8ee0b389dc00bdb99f66d006421badd44a0e"
+}

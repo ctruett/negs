@@ -275,6 +275,23 @@ def main():
         target = reads_as(np.nan_to_num(mid_spectrum, nan=0.0))
         anchor = np.array([float(np.interp(target[ch], read[:, ch], source_x))
                            for ch in range(3)])
+        # np.interp clamps, so a midscale neutral the characteristic panel
+        # never reaches silently anchors a layer at the end of the plotted
+        # range. Pro 400 PPF does exactly that in green and blue and renders
+        # a washed-out, flat frame while still scoring 10% on the grey ramp,
+        # so the ramp alone will not catch it. Fail here instead.
+        edge = 0.02 * (source_x[-1] - source_x[0])
+        pinned = [ch for ch in range(3)
+                  if min(abs(anchor[ch] - source_x[0]),
+                         abs(anchor[ch] - source_x[-1])) < edge]
+        if pinned:
+            raise ValueError(
+                "mid-grey anchor is pinned at the edge of the plotted range in "
+                f"channel(s) {pinned}: the sheet's midscale neutral reads "
+                f"{np.round(target, 3).tolist()} but its characteristic curves "
+                f"span {np.round(read.min(axis=0), 3).tolist()} to "
+                f"{np.round(read.max(axis=0), 3).tolist()}, so the anchor is "
+                "extrapolated rather than measured")
     else:
         # Anchoring each layer separately is what balancing a reversal film to
         # neutral means: a grey subject must read the same density in all three.
