@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_supra_100",
+  "source_exposure_anchor": [
+    -0.768875551276839,
+    -0.6935570762403299,
+    -0.7038488055555068
+  ],
+  "dye_source": "kodak_portra_400 shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.7257559051282038,
+    0.7164052191130986,
+    0.9070915525802358
+  ],
+  "neutral_fit_residual": 0.03856894004883871,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999521,
+      0.011492125143672767,
+      0.0017319958914388935
+    ],
+    [
+      -0.007224154883328451,
+      0.999999999994124,
+      0.002536614228669713
+    ],
+    [
+      0.004732689062302573,
+      0.002605684936641515,
+      0.9999999999999474
+    ]
+  ],
+  "dye_scale": [
+    1.3766437748715867,
+    1.2289232785819768,
+    1.0546174311890781
+  ],
+  "channel_dmin": [
+    0.279986472,
+    0.6974647213397847,
+    0.8894815876254781
+  ],
+  "max_amount_residual": 0.01697019622737539,
+  "max_amount_residual_untrimmed": 0.03683200382841534,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    186.59813442346424,
+    280.9879107192832,
+    321.40213575058823
+  ],
+  "dye_amount_max": [
+    1.7181601774321045,
+    1.8396122411215339,
+    2.121623668589665
+  ],
+  "source_points_sha256": {
+    "supra_100-characteristic-b.csv": "fd8f745a7c2e61794e7ce295447cab68deed591b6adc5b7cd35fccc5c78c07e2",
+    "supra_100-characteristic-g.csv": "08d6db98c57ae312c476002a5b76aea4093ead58b23f048047cc59d8902a7c4c",
+    "supra_100-characteristic-r.csv": "9392d2e93762235f26c179ed4eea18abd98650b74dc1788eddcd7ba4b16e1aef",
+    "supra_100-dye-mid.csv": "d2c653b66e6b473c32e578dcce11b71f181e5b7070d4aec984d8855210228560",
+    "supra_100-dye-min.csv": "133c38e495302c934acaebc6d9df484fa1ecef9eeaa7e2112961a34ef173f815",
+    "supra_100-sensitivity-b.csv": "42c7e071cf2ebb27e39553c1d48837ed9dd2871aa8aa16989576a61d1c8defb1",
+    "supra_100-sensitivity-g.csv": "12ab74b9cb64168302144f3e87a1453bf2c58e5ffc5cc17e71bc0ff035d6005a",
+    "supra_100-sensitivity-r.csv": "f5e072ba8ea5855b4a473405798adc0a3b0e8001540a970c47488bb6f7fdb9ef"
+  },
+  "profile_sha256": "7c96a23f85802c082042366621d6468688e2bb3065318a7846ad641301117c2d"
+}

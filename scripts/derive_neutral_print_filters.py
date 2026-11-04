@@ -43,7 +43,9 @@ COMMIT = "28bf883e1672e884307edc75852549376e13644e"
 DATABASE = ROOT / "data/filters/neutral_print_filters.json"
 ILLUMINANT = "TH-KG3"
 NEGS_FILMS = ["kodak_trix400_d76_8min", "kodak_portra_160nc",
-              "kodak_portra_160vc", "kodak_portra_400vc", "kodak_bright_sun_ga"]
+              "kodak_portra_160vc", "kodak_portra_400vc", "kodak_portra_400nc",
+              "kodak_bright_sun_ga", "kodak_supra_100", "kodak_supra_200",
+              "kodak_supra_400", "kodak_supra_800"]
 NEGS_PAPERS = ["ilford_mgrc_deluxe_grade2"]
 # Upstream entries re-derived to validate the method, in filter units.
 VALIDATION_FILMS = ["kodak_doublex", "kodak_portra_400", "kodak_gold_200", "kodak_vision3_500t"]

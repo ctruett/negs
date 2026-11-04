@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_portra_400nc",
+  "source_exposure_anchor": [
+    -1.7641950901546015,
+    -1.7374426220894135,
+    -1.8781042315677494
+  ],
+  "dye_source": "kodak_portra_400 shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.474814833187007,
+    0.5125139545895886,
+    0.551671122069879
+  ],
+  "neutral_fit_residual": 0.03219371630862061,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999085,
+      0.011492125143597858,
+      0.0017319958914383126
+    ],
+    [
+      -0.007224154883328072,
+      0.9999999999876793,
+      0.0025366142286696648
+    ],
+    [
+      0.004732689062302329,
+      0.0026056849366455407,
+      0.9999999999996139
+    ]
+  ],
+  "dye_scale": [
+    2.1042041634733217,
+    1.7178206422979319,
+    1.7340667741422513
+  ],
+  "channel_dmin": [
+    0.250005359,
+    0.6222699179015028,
+    0.856006245
+  ],
+  "max_amount_residual": 0.016882389748943405,
+  "max_amount_residual_untrimmed": 0.04011926669115207,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    639.5911093712796,
+    1006.3182403903256,
+    1111.9265773890843
+  ],
+  "dye_amount_max": [
+    1.7109045438482453,
+    1.8668639865176244,
+    2.084053207411056
+  ],
+  "source_points_sha256": {
+    "p400nc-characteristic-b.csv": "e9b6c0d29edef3f5e9d445b362e94475a7afc359f67d40c501c9ee98f1cefa32",
+    "p400nc-characteristic-g.csv": "21c0db5efa0848bca4bc30ca01ba88d907de9c8581fbaa91ec67dfd83eda7e56",
+    "p400nc-characteristic-r.csv": "01fae701d45e49059879b4dc1c8747529d9638ad081454cbc81b3655ec5782be",
+    "p400nc-dye-mid.csv": "9d768955c83a4f709f8d534f569d7b184e625d92735659bce7be8b6c685177a3",
+    "p400nc-dye-min.csv": "adc96e3b05e39ca32dee1c9dfc330459e1b8e8a73fce921d2a0b2acb674d424b",
+    "p400nc-sensitivity-b.csv": "37b75f81f54e1e199d5292ddbda3c41c2ab0b6d6291a53ee9b0f3b72ba780803",
+    "p400nc-sensitivity-g.csv": "c25b98b5128541639ad84508b2ad5fd77434b9e3ed337357883f0502c5ca526d",
+    "p400nc-sensitivity-r.csv": "7528a2745cbbbff1a91c6ab459dd3b3615d104c3632d7e2f8ce4a69ede02425c"
+  },
+  "profile_sha256": "b4bbc9702f9d23d3687be20c79a561e1cf6ec8acca6ea8512203007c19317718"
+}

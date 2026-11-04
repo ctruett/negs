@@ -209,15 +209,43 @@ def flatten(items):
     return [np.array(p) for p in polylines if len(p) >= 8]
 
 
-def curves_in(page, frame, pad=1.5):
+def clip_to_frame(points, y0, y1, pad):
+    """The longest run of a trace that stays within the frame's y range.
+
+    A curve sometimes climbs off the top of its own panel - the Supra 100 dye
+    sheet plots a midscale neutral that passes 2.5 D at the left edge of a box
+    that stops there - and the containment test below would throw the whole
+    trace away. Trimming is opt-in per graph, because a trace that leaves the
+    frame is also what a mis-identified frame looks like.
+    """
+    inside = (points[:, 1] > y0 - pad) & (points[:, 1] < y1 + pad)
+    best, run = None, None
+    for i, ok in enumerate(inside):
+        if ok:
+            run = i if run is None else run
+            if best is None or (i - run) >= (best[1] - best[0]):
+                best = (run, i)
+        else:
+            run = None
+    if best is None:
+        return points[:0]
+    return points[best[0]:best[1] + 1]
+
+
+def curves_in(page, frame, pad=1.5, clip=False):
     """Every plotted trace that stays inside the frame."""
     x0, y0, x1, y1 = frame
     out = []
     for drawing in page.get_drawings():
         for points in flatten(drawing["items"]):
-            if not (np.all(points[:, 0] > x0 - pad) and np.all(points[:, 0] < x1 + pad)
-                    and np.all(points[:, 1] > y0 - pad)
-                    and np.all(points[:, 1] < y1 + pad)):
+            if not (np.all(points[:, 0] > x0 - pad) and np.all(points[:, 0] < x1 + pad)):
+                continue
+            if clip:
+                points = clip_to_frame(points, y0, y1, pad)
+                if len(points) < 8:
+                    continue
+            elif not (np.all(points[:, 1] > y0 - pad)
+                      and np.all(points[:, 1] < y1 + pad)):
                 continue
             if np.ptp(points[:, 0]) < 0.1 * (x1 - x0):
                 continue
@@ -329,7 +357,7 @@ def main():
         if len(match) != 1:
             raise ValueError(f"{name}: matched {len(match)} frames, expected 1")
         frame, xcal, ycal = match[0]
-        found = curves_in(page, frame)
+        found = curves_in(page, frame, clip=spec.get("clip_to_frame", False))
         if len(found) != spec["curves"]:
             raise ValueError(f"{name}: found {len(found)} curves, expected {spec['curves']}")
         traces = [(to_data(points, xcal, ycal), stroke) for points, stroke in found]

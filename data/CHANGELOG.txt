@@ -150,3 +150,42 @@ Negs-only data, not from spektrafilm:
   Its print-filter entries are derived alongside the Portra variants, taking
   the database to 40 Negs-only entries; 20.2% off neutral before balancing and
   5.3% after, the best of the negatives prepared here.
+- profiles/kodak_supra_100.json, kodak_supra_200.json, kodak_supra_400.json and
+  kodak_supra_800.json are the first stocks prepared from multi-stock sheets:
+  Kodak publications E-2519 and E-4029 (both May 2003) each carry three or four
+  films whose panels interleave across pages, alongside push-processed variants
+  on identical axes. Panels are located by frame position in PDF points, within
+  12 pt, because the x range alone cannot tell them apart. Only the normal
+  process is prepared. Dye shapes come from kodak_portra_400 (Supra 100, 200,
+  400) and kodak_ektar_100 (Supra 800), scaled against each sheet's own
+  midscale-neutral-minus-D-min; the donor was chosen on the balanced ramp, not
+  on spectral residual, because the two disagree - see the family record at
+  profile-sources/kodak-supra-200/README.md. Fit residuals 0.0150 to 0.0171
+  against a 0.02 gate; 44.7-76.4% off neutral before balancing and 14.5-17.0%
+  after, which is the bad end of the shipped band (Portra 160 15.9%, Portra 400
+  13.0%, Gold 200 10.4% on the same ramp) rather than outside it.
+- Kodak publication E-4026 (June 2002) plots Royal Supra 200, 400 and 800.
+  Extracted beside E-4029's Supra panels they agree to 0.0001 density on every
+  characteristic curve and 0.006 log units on sensitivity, so they are one set
+  of measurements under two names and Royal Supra is not shipped separately.
+  The agreement doubles as the strongest available check on the extractor.
+- profiles/kodak_portra_400nc.json now ships. It had been held back because its
+  channel fit "did not converge"; the cause was found while preparing the Supra
+  sheets, which failed the same way. The solver was running out of evaluations,
+  not out of accuracy - at the old cap of 4000 it stops on budget, and at 50000
+  it converges on xtol at the residual it had already reached by evaluation
+  4000. Re-preparing Bright Sun GA, Portra 160NC, Ektachrome 64 EPR and
+  Kodachrome 200 under both caps gives byte-identical profiles, so nothing
+  already shipped moved. 11.8% off neutral before balancing and 7.5% after.
+  Ektachrome P1600, shelved alongside it, still fails - but on fit quality
+  (0.0353 against a 0.02 gate), not on budget.
+- scripts/bw_expansion/extract_graphs.py gains an opt-in clip_to_frame: a trace
+  that climbs out of its own panel, as Supra 100's midscale neutral does, is
+  clipped to the frame instead of being rejected whole. Opt-in, because a trace
+  that leaves its frame is also what a misidentified frame looks like.
+- filters/neutral_print_filters.json gains entries for the four Supra stocks
+  and Portra 400NC on every colour paper, taking the database to 80 Negs-only
+  entries. Recorded procedure: derive filters from the prepared profile, then
+  balance once, then stop. Re-deriving the filters from a balanced profile
+  invalidates the balance - measured, it took Supra 200 from 15.0% to 22.2% -
+  and iterating the two diverges rather than converging.

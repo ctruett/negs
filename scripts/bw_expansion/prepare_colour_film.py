@@ -140,7 +140,7 @@ def fit_channel(log_exposure, amounts, positive=True, n=4):
 
     result = least_squares(lambda v: np.r_[evaluate(v, x)-y,
                                            10*(sum(v[n:2*n])-ceiling)],
-                           initial, bounds=(lower, upper), max_nfev=4000,
+                           initial, bounds=(lower, upper), max_nfev=50000,
                            ftol=1e-12, xtol=1e-12, gtol=1e-12)
     if not result.success:
         raise ValueError(f"channel fit did not converge: {result.message}")
