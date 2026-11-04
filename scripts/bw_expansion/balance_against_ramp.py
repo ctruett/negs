@@ -38,14 +38,22 @@ def write_ramp(path, ev):
     out.close()
 
 
-def render(cli, data_dir, profile_path, ramp, work, n):
-    """Render the ramp through one profile; return linear RGB per step."""
+def render(cli, data_dir, profile_path, ramp, work, n, scan_film=True):
+    """Render the ramp through one profile; return linear RGB per step.
+
+    A positive is scanned directly. A negative is printed first, as upstream's
+    correct_negative_curves_with_gray_ramp does: what has to come out neutral
+    is the print, not the negative, and the orange mask guarantees the
+    negative itself never will.
+    """
     raw = work / "ramp.bin"
-    subprocess.run(
-        [str(cli), "process", str(ramp), "-o", str(work / "ramp_out.tiff"),
-         "--film", profile_path.stem, "--scan-film", "--raw-out", str(raw),
-         "--data-dir", str(data_dir), "--input-colour", "sRGB", "--input-linear"],
-        check=True, capture_output=True)
+    command = [str(cli), "process", str(ramp), "-o", str(work / "ramp_out.tiff"),
+               "--film", profile_path.stem, "--raw-out", str(raw),
+               "--data-dir", str(data_dir), "--input-colour", "sRGB",
+               "--input-linear"]
+    if scan_film:
+        command.insert(6, "--scan-film")
+    subprocess.run(command, check=True, capture_output=True)
     return np.fromfile(raw, dtype="<f8").reshape(n, 3)
 
 
@@ -87,6 +95,7 @@ def main():
     args = parser.parse_args()
 
     source = json.loads(args.profile.read_text())
+    scan_film = source["info"].get("type") == "positive"
     stem = args.profile.stem
     work = Path(tempfile.mkdtemp(prefix="ramp-"))
     staging = work / "data"
@@ -106,7 +115,8 @@ def main():
         if live.is_symlink() or live.exists():
             live.unlink()
         live.write_text(json.dumps(corrected(source, scale, shift)))
-        rgb = render(args.cli, staging, live, ramp, work, len(args.ev))
+        rgb = render(args.cli, staging, live, ramp, work, len(args.ev),
+                     scan_film=scan_film)
         ratios = np.column_stack([rgb[:, 0]/rgb[:, 1], rgb[:, 2]/rgb[:, 1]])
         return np.concatenate([(ratios - 1.0).ravel(),
                                args.trust * 2.0 * (np.asarray(scale) - 1.0)])

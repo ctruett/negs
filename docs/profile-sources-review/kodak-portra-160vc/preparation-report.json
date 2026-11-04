@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_portra_160vc",
+  "source_exposure_anchor": [
+    -1.3139981123424005,
+    -1.2638727200648554,
+    -1.4081323308811182
+  ],
+  "dye_source": "kodak_portra_400 shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.5403285444817617,
+    0.5330323233691502,
+    0.636999880762751
+  ],
+  "neutral_fit_residual": 0.029334689981214024,
+  "crosstalk_matrix": [
+    [
+      0.99999999999992,
+      0.011492125143604889,
+      0.0017319958914384093
+    ],
+    [
+      -0.007224154883328261,
+      0.9999999999882885,
+      0.002536614228669713
+    ],
+    [
+      0.004732689062302378,
+      0.002605684936645153,
+      0.9999999999996876
+    ]
+  ],
+  "dye_scale": [
+    1.8490737886691946,
+    1.651695426452742,
+    1.5017813847778727
+  ],
+  "channel_dmin": [
+    0.200013613,
+    0.604005824,
+    0.806013177
+  ],
+  "max_amount_residual": 0.007195354689269351,
+  "max_amount_residual_untrimmed": 0.0292543667305476,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    258.0352122376779,
+    356.6783670938242,
+    491.5922942547028
+  ],
+  "dye_amount_max": [
+    1.8107922710446758,
+    1.9435748320059045,
+    2.206389044562414
+  ],
+  "source_points_sha256": {
+    "p160vc-characteristic-b.csv": "0e5d3589bf60c2addd4588a6fba81c1bc8e8513d46a10accb38ed5f99d3aac54",
+    "p160vc-characteristic-g.csv": "84525d301385f24511cf8e36d1ea0ed682330cea129275da9e531283e5d42138",
+    "p160vc-characteristic-r.csv": "1028f3b9160247d1907baa30adebefb9c6e8054dc4c4aee81c5341f631643f50",
+    "p160vc-dye-mid.csv": "d38f94f72433d48cdf6c2295d871303329ca9f3f2376c9554164c204e604e4e1",
+    "p160vc-dye-min.csv": "1ac428e00db49d616e289ed91af0de1eaf3a7dad76abcb410be1f5f4046424fb",
+    "p160vc-sensitivity-b.csv": "68815a8e1a882c7e6d43b4886c0ada0f1c6c7d38eb0e5f71b3d0cd4974d63545",
+    "p160vc-sensitivity-g.csv": "92b5dcd7b4ed2cccca44d489142c8ede0f9c2b1dd7c5f0576bb78aaba2420348",
+    "p160vc-sensitivity-r.csv": "915cb6b8d7e606ce54beaac79ab57be4a6a13bb542ee27c385ec419e66289ad8"
+  },
+  "profile_sha256": "1704586fd36199ee9727bf8300386389435fe116eaa7765ff973ef1df9c8a16a"
+}
