@@ -2,7 +2,7 @@
 
 **Status:** implemented 3 November 2026.
 
-- Code: `feat/inspector-tabs` at `4af0414`, worktree `/Users/christophertruett/Public/negs-inspector-tabs`.
+- Code: `feat/inspector-tabs` at `1a8b9ae`, worktree `/Users/christophertruett/Public/negs-inspector-tabs`.
 - Base: `main` (`2caecdf`) plus the earlier nine inspector commits.
 - This document is tracked on `profile/agfa-apx25`; the feature branch does not carry `docs/panel-redesign`.
 
@@ -59,9 +59,9 @@ Fit never enlarges past 1:1; double-click toggles fit/1:1; the fit or 1:1 settin
 
 ## Engine work for Detail
 - Ported the upstream scene-prep filter (`crates/spektrafilm-core/src/prep.rs` and `prep/guided.rs`).
-- Added `prep: PrepParams` to `RuntimeParams`; Prep is applied in `stages::filming::expose` after input decoding and exposure compensation.
+- Added `prep: PrepParams` to `RuntimeParams`; Prep is applied in `stages::filming::expose` after input decoding and exposure compensation, and in the GPU path via `prepare_input_from`.
 - Added `prep` to the preset KEPT list.
-- The GPU-resident fast path falls back to the CPU chain when Prep is non-identity; fast export with Detail is therefore CPU-only for now.
+- GPU rendering does **not** fall back to the CPU when Prep is active. The helper caches the prepared photograph and interactive frames (`Pipeline::with_prepared_frame`) keyed by everything Prep reads; after the first Prep, Lab/Finish edits reuse the prepared frame and stay on the GPU chain. Measured at 2048 px on a 24 MP NEF: first Detail=100 render ~1.0–1.3 s (RAW decode + Prep), same-parameter rerender ~3 ms, changed Lab parameter ~80 ms, changing Detail recomputes Prep.
 - Only `prep.midtone_detail` is exposed in the app; the other Prep controls remain at their defaults.
 - Film format already had engine support; the menu writes `camera.film_format_mm` (Custom long edge range 4…120).
 
@@ -69,8 +69,9 @@ Fit never enlarges past 1:1; double-click toggles fit/1:1; the fit or 1:1 settin
 - `swift build` passes.
 - `swift test`: **129 tests, 7 skipped, 0 failures**.
 - `cargo test -p spektrafilm-core --lib`: **91 passed, 0 failed**.
-- `cargo test -p spektrafilm-core --lib prep`: **9 passed**.
-- Release `spektrafilm-native` and `spektrafilm-f64` rebuilt for the new Prep parameter.
+- `cargo test -p spektrafilm-core --lib prep`: **10 passed** (includes the prepared-frame key/cache test).
+- Release `spektrafilm-native` and `spektrafilm-f64` rebuilt for the new Prep parameter and cache.
+- Cache validation: cached and fresh renders are byte-identical; a changed `enlarger.print_exposure` rerender matches a fresh render while reusing the prepared frame.
 - The layout test now pins `inspectorPane` to Adjustments (and restores it), because a previously open Presets pane leaves no inspector scroll view.
 
 ## Known issue at handoff
