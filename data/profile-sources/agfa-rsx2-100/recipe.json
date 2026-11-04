@@ -43,51 +43,51 @@
         },
         "y": {
           "axis": "y",
-          "pt_per_unit": 24.94283629365303,
-          "zero_pdf_pt": 575.6356725873059,
-          "labels": 5,
-          "worst_label_error": 0.01735313051639409
+          "pt_per_unit": 25.003451873521612,
+          "zero_pdf_pt": 575.8802667154233,
+          "labels": 4,
+          "worst_label_error": 0.013332677826500827
         },
         "traces": {
           "rsx100-characteristic-r": {
             "points": 514,
             "stroke_pdf_pt": 0.789,
-            "stroke_in_y_units": 0.03163,
+            "stroke_in_y_units": 0.03156,
             "x_extent": [
               -3.013534,
               1.969044
             ],
             "y_extent": [
-              0.143109,
-              3.391181
+              0.152545,
+              3.392743
             ],
             "peak_x": -3.014
           },
           "rsx100-characteristic-g": {
             "points": 546,
             "stroke_pdf_pt": 0.789,
-            "stroke_in_y_units": 0.03163,
+            "stroke_in_y_units": 0.03156,
             "x_extent": [
               -3.006812,
               1.969044
             ],
             "y_extent": [
-              0.142352,
-              3.44342
+              0.151789,
+              3.444855
             ],
             "peak_x": -3.007
           },
           "rsx100-characteristic-b": {
             "points": 482,
             "stroke_pdf_pt": 0.789,
-            "stroke_in_y_units": 0.03163,
+            "stroke_in_y_units": 0.03156,
             "x_extent": [
               -3.00013,
               1.975767
             ],
             "y_extent": [
-              0.152469,
-              3.951181
+              0.161882,
+              3.951385
             ],
             "peak_x": -3.0
           }

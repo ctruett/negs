@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Exposure: Process: E-6P / Push 2 Densitometry: Process: Exposure:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           86.612,
           128.853,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Exposure: Process: E-6P / Push 2 Densitometry: Process: Exposure:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.284,
           56.337,
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel read from page 5. The page states: Densitometry: Exposure: Process: E-6P / Push 2 Densitometry: Process: Exposure:",
       "derived": {
+        "page_1based": 5,
         "frame_pdf_pt": [
           362.781,
           301.36,

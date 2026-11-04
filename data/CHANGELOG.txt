@@ -189,3 +189,33 @@ Negs-only data, not from spektrafilm:
   balance once, then stop. Re-deriving the filters from a balanced profile
   invalidates the balance - measured, it took Supra 200 from 15.0% to 22.2% -
   and iterating the two diverges rather than converging.
+- Axis calibration is now robust to two things these multi-stock sheets
+  exposed, and extract_graphs.py's `calibrate` carries both: a spurious tick
+  that steals a label, which is handled by dropping the worst-fitting pair and
+  refitting while that keeps paying, and a panel that draws fewer gridlines
+  than it prints labels, where the labels are a second measurement of the same
+  axis and win when the two disagree on scale. Both rules apply only to axes
+  whose labels are the same width on the page, and the second only to x axes,
+  because a label's position is its text's centre and that centre sits off its
+  gridline by an amount that depends on the glyph box. Fitting the Fuji T64
+  characteristic axis, labelled -3.0 to 1.0, moved its right-hand gridline
+  from 0.018 to 0.045 off where it belongs; fitting any sensitivity panel's y
+  axis took it from exactly 0.0-4.0 to -0.013-4.041. Both are excluded.
+- Re-extracting all 27 sources under the new rules moves six axes and no
+  others. Four were wrong: Supra 100's sensitivity axis (5.05 to 0.51 nm worst
+  label error, traces move 1.9 nm), Ektachrome 400X EPL's (6.87 to 0.51, 2.4
+  nm), Kodachrome 200's and the Kodachrome 64 control's (2.09 to 0.34, 1.4
+  nm). Two are Agfa RSX characteristic y axes whose frame foot moves from
+  -0.017 to -0.007. profiles/kodak_supra_100.json,
+  kodak_ektachrome_400x_epl.json and kodak_kodachrome_200.json are rebuilt
+  accordingly; the Ektachrome now balances to 3.5% off neutral and the
+  Kodachrome to 9.2%, and Supra 100 to 14.1%.
+- Kodak publication E-116 (Ektapress PJ100, PJ400, PJ800) is worked and not
+  shipped. PJ400 is the one stock on it whose three panels all extract, and it
+  fits cleanly - 0.0144 against a 0.02 gate - then will not balance: 20.3% off
+  neutral before and 20.5% after, the only stock prepared here that the ramp
+  fit makes worse. Every shipped colour negative was tried as its dye donor
+  and the best, fujifilm_pro_400h, reproduces the sheet's own
+  midscale-neutral-minus-D-min only to 0.100 density, against 0.030-0.063 for
+  the Supra sheets. Source and recipe are kept under
+  profile-sources/kodak-ektapress-pj400 with the reasoning; the profile is not.

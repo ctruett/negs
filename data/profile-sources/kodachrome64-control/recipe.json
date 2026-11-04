@@ -27,6 +27,7 @@
       ],
       "conditions": "Panel 'CHARACTERISTIC CURVES'; the page states Process K-14 and Status A densitometry.",
       "derived": {
+        "page_1based": 4,
         "frame_pdf_pt": [
           72.074,
           117.49,
@@ -111,6 +112,7 @@
       ],
       "conditions": "Panel 'SPECTRAL-SENSITIVITY CURVES'; the page states Density 1.00 as the criterion. Relative shape only.",
       "derived": {
+        "page_1based": 4,
         "frame_pdf_pt": [
           74.651,
           386.813,
@@ -119,10 +121,10 @@
         ],
         "x": {
           "axis": "x",
-          "pt_per_unit": 0.40249232398554574,
-          "zero_pdf_pt": -26.00429327900342,
-          "labels": 7,
-          "worst_label_error": 2.086167708260632
+          "pt_per_unit": 0.4010646509096028,
+          "zero_pdf_pt": -25.537476636581353,
+          "labels": 6,
+          "worst_label_error": 0.3369810365321655
         },
         "y": {
           "axis": "y",
@@ -137,42 +139,42 @@
             "stroke_pdf_pt": 0.72,
             "stroke_in_y_units": 0.01903,
             "x_extent": [
-              409.859473,
-              529.682868
+              410.15451,
+              530.404441
             ],
             "y_extent": [
               -1.699274,
               1.001146
             ],
-            "peak_x": 423.117
+            "peak_x": 423.459
           },
           "k64-sensitivity-g": {
             "points": 251,
             "stroke_pdf_pt": 0.72,
             "stroke_in_y_units": 0.01903,
             "x_extent": [
-              439.810337,
-              609.562655
+              440.211989,
+              610.568576
             ],
             "y_extent": [
               -1.969431,
               0.728599
             ],
-            "peak_x": 551.528
+            "peak_x": 552.327
           },
           "k64-sensitivity-r": {
             "points": 297,
             "stroke_pdf_pt": 0.72,
             "stroke_in_y_units": 0.01903,
             "x_extent": [
-              479.753945,
-              699.435149
+              480.297786,
+              700.76099
             ],
             "y_extent": [
               -1.859392,
               0.932727
             ],
-            "peak_x": 648.145
+            "peak_x": 649.288
           }
         }
       }
@@ -196,6 +198,7 @@
       ],
       "conditions": "Panel 'SPECTRAL-DYE-DENSITY CURVES'; three dyes plus the visual neutral.",
       "derived": {
+        "page_1based": 4,
         "frame_pdf_pt": [
           350.781,
           119.603,

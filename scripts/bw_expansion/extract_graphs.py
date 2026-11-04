@@ -28,6 +28,8 @@ MIN_AXIS = 80.0      # pt, shortest stroke taken for an axis
 TICK_MAX = 12.0      # pt, longest stroke taken for a tick
 CORNER_TOL = 2.0     # pt, corner matching when closing a frame
 LABEL_FIT = 0.02     # worst label error allowed, as a fraction of axis range
+OUTLIER_FIT = 0.002  # above this, refit without the worst-fitting pair
+SCALE_DISAGREEMENT = 0.003  # ticks and labels differing by more than this
 BEZIER_STEPS = 33    # matches extract_sources.py
 
 # Agfa sets its minus signs as en dashes.
@@ -140,6 +142,35 @@ def labels(page, frame, xticks, yticks, rules):
     return xlab, ylab
 
 
+def robust_line(at, value, drop_outliers=True):
+    """Least squares through position -> value, dropping outlying pairs.
+
+    One mis-paired label tilts a least-squares fit across the whole axis, so
+    drop the worst-fitting pair and refit while that keeps paying, as long as
+    four pairs remain. A clean axis is untouched: every pair already lies on
+    the line.
+
+    Only where the labels are the same width on the page. Where they are not,
+    a label's own centring offset looks exactly like an outlier - the Fuji T64
+    characteristic axis runs "-3.0" to "1.0" - and dropping one tilts the fit
+    rather than straightening it.
+    """
+    span = float(value.max() - value.min())
+    slope, intercept = np.polyfit(at, value, 1)
+    worst = float(np.max(np.abs(np.polyval([slope, intercept], at) - value)))
+    while drop_outliers and len(at) > 4 and worst > OUTLIER_FIT * span:
+        drop = int(np.argmax(np.abs(np.polyval([slope, intercept], at) - value)))
+        trial_at, trial_value = np.delete(at, drop), np.delete(value, drop)
+        trial_slope, trial_intercept = np.polyfit(trial_at, trial_value, 1)
+        trial_worst = float(np.max(np.abs(
+            np.polyval([trial_slope, trial_intercept], trial_at) - trial_value)))
+        if trial_worst >= worst:
+            break
+        at, value = trial_at, trial_value
+        slope, intercept, worst = trial_slope, trial_intercept, trial_worst
+    return slope, intercept, worst, len(at), span
+
+
 def calibrate(tickpos, found, axis_name):
     """Snap each label to its nearest tick and fit position -> value."""
     if len(tickpos) < 2 or len(found) < 3:
@@ -159,19 +190,59 @@ def calibrate(tickpos, found, axis_name):
             return None
     if len(pairs) < 3:
         return None
-    at = np.array(sorted(pairs))
-    value = np.array([pairs[p] for p in at])
-    if not (np.all(np.diff(value) > 0) or np.all(np.diff(value) < 0)):
+
+    # Same width on the page means same sign and same digit count for these
+    # sheets: a label's position is its text's centre, so "-3.0" and "1.0" on
+    # one axis sit off their gridlines by different amounts. Wavelength axes,
+    # labelled 250 to 750, are uniform; a log-exposure axis is not.
+    uniform = (all(v >= 0 for _, v in found)
+               and len({len(f"{v:g}") for _, v in found}) == 1)
+
+    def line_through(mapping):
+        at = np.array(sorted(mapping))
+        value = np.array([mapping[p] for p in at])
+        if not (np.all(np.diff(value) > 0) or np.all(np.diff(value) < 0)):
+            return None
+        return robust_line(at, value, drop_outliers=uniform)
+
+    fit = line_through(pairs)
+    if fit is None:
         return None
-    slope, intercept = np.polyfit(at, value, 1)
-    worst = float(np.max(np.abs(np.polyval([slope, intercept], at) - value)))
-    if worst > LABEL_FIT * (value.max() - value.min()):
+
+    # The printed labels are a second, redundant measurement of the same axis.
+    # Normally they agree with the ticks and the tick fit stands. When they
+    # disagree on *scale* the ticks are the suspect side - there are few of
+    # them and one may be spurious - and the labels, being many and evenly
+    # spaced, win: the Ektapress sensitivity panel draws only four gridlines
+    # the tick finder sees against eleven labels, and its tick fit lands 4 to
+    # 5 nm out. Label centres can sit a constant fraction of a point off their
+    # gridline, which moves the origin and not the scale, so this is only
+    # consulted when the two scales genuinely differ.
+    # Horizontal only. Across a row of equal-width numerals the text centres
+    # are offset from their gridlines by the same amount, so the labels'
+    # spacing carries the scale faithfully. Down a column they are not: a
+    # label's vertical centre depends on its glyph box, and fitting those
+    # stretches a y axis that the ticks already had exactly right - every
+    # sensitivity panel here reads 0.0 to 4.0 off its frame before this and
+    # -0.013 to 4.041 after.
+    if uniform and axis_name == "x" and len(found) >= 5:
+        direct = {}
+        for at_, value_ in found:
+            if direct.setdefault(round(at_, 4), value_) != value_:
+                direct = None
+                break
+        if direct and len(direct) > len(pairs):
+            alt = line_through(direct)
+            if alt and abs(alt[0] / fit[0] - 1) > SCALE_DISAGREEMENT:
+                fit = alt
+    slope, intercept, worst, kept, span = fit
+    if worst > LABEL_FIT * span:
         return None
     # Same convention as extract_sources.py's hand-measured entries: points
     # per unit is positive on both axes, and PDF y grows downward.
     return dict(axis=axis_name, pt_per_unit=float(abs(1 / slope)),
                 zero_pdf_pt=float(-intercept / slope),
-                labels=len(pairs), worst_label_error=worst)
+                labels=kept, worst_label_error=worst)
 
 
 def flatten(items):

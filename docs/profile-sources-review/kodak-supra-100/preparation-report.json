@@ -43,9 +43,9 @@
   "max_amount_residual_untrimmed": 0.03683200382841534,
   "tolerance": 0.02,
   "grey_balance_applied": [
-    186.59813442346424,
-    280.9879107192832,
-    321.40213575058823
+    187.76878719192584,
+    282.28490541344985,
+    320.4384193576327
   ],
   "dye_amount_max": [
     1.7181601774321045,
@@ -58,9 +58,9 @@
     "supra_100-characteristic-r.csv": "9392d2e93762235f26c179ed4eea18abd98650b74dc1788eddcd7ba4b16e1aef",
     "supra_100-dye-mid.csv": "d2c653b66e6b473c32e578dcce11b71f181e5b7070d4aec984d8855210228560",
     "supra_100-dye-min.csv": "133c38e495302c934acaebc6d9df484fa1ecef9eeaa7e2112961a34ef173f815",
-    "supra_100-sensitivity-b.csv": "42c7e071cf2ebb27e39553c1d48837ed9dd2871aa8aa16989576a61d1c8defb1",
-    "supra_100-sensitivity-g.csv": "12ab74b9cb64168302144f3e87a1453bf2c58e5ffc5cc17e71bc0ff035d6005a",
-    "supra_100-sensitivity-r.csv": "f5e072ba8ea5855b4a473405798adc0a3b0e8001540a970c47488bb6f7fdb9ef"
+    "supra_100-sensitivity-b.csv": "18c34d7b5ef2b357c9f94d76d1868e0c67d81fe7cf8fc5cfcf2c7ad27d2d73f6",
+    "supra_100-sensitivity-g.csv": "f781414e5f7e84d7f05511bf3fcc9566faea6d1d18e02643e0bd17a8a93c1dc3",
+    "supra_100-sensitivity-r.csv": "d9fa72cf288651563fdcc8d881072c45e33bc05220bab1f3c1576190c2d4f1f1"
   },
-  "profile_sha256": "7c96a23f85802c082042366621d6468688e2bb3065318a7846ad641301117c2d"
+  "profile_sha256": "9f648385d5a9b2951210a131132f8b01a1e1ec2369771e2c9763d98bfe29c39c"
 }
