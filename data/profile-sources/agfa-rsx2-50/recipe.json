@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-03",
+  "page_1based": 8,
+  "source": {
+    "document": "Agfa professional film data, AGFACHROME RSX II (page 8 of the combined Agfa film datasheet)",
+    "sha256": "982d920110a598a910e7f31f7fa2d7446f4238d84408ae83bfa32e92d1188d79",
+    "credit": "AGFA-GEVAERT AG; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "rsx50-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_A_density",
+      "x_range": [
+        -3.0,
+        2.0
+      ],
+      "x_tolerance": 0.15,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "conditions": "Panel 'Colour density curves'. Several stocks share this page, so the panel is identified by position; the sensitivity panel above it carries the stock name.",
+      "derived": {
+        "page_1based": 8,
+        "frame_pdf_pt": [
+          407.05,
+          476.013,
+          532.008,
+          575.995
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 24.98346576987745,
+          "zero_pdf_pt": 482.3014657698776,
+          "labels": 5,
+          "worst_label_error": 0.04170758411173736
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 24.78003362927091,
+          "zero_pdf_pt": 575.0967339252082,
+          "labels": 3,
+          "worst_label_error": 0.0013451690111629944
+        },
+        "traces": {
+          "rsx50-characteristic-r": {
+            "points": 482,
+            "stroke_pdf_pt": 0.789,
+            "stroke_in_y_units": 0.03184,
+            "x_extent": [
+              -3.014732,
+              1.969525
+            ],
+            "y_extent": [
+              0.122832,
+              3.425408
+            ],
+            "peak_x": -3.015
+          },
+          "rsx50-characteristic-g": {
+            "points": 546,
+            "stroke_pdf_pt": 0.789,
+            "stroke_in_y_units": 0.03184,
+            "x_extent": [
+              -3.014732,
+              1.989577
+            ],
+            "y_extent": [
+              0.139092,
+              3.479363
+            ],
+            "peak_x": -3.015
+          },
+          "rsx50-characteristic-b": {
+            "points": 449,
+            "stroke_pdf_pt": 0.789,
+            "stroke_in_y_units": 0.03184,
+            "x_extent": [
+              -3.014732,
+              1.976209
+            ],
+            "y_extent": [
+              0.13639,
+              3.966166
+            ],
+            "peak_x": -3.015
+          }
+        }
+      },
+      "frame_near": [
+        407,
+        476
+      ]
+    },
+    "rsx50-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        350.0,
+        750.0
+      ],
+      "x_tolerance": 4.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "conditions": "Panel 'Spectral sensitivity', captioned with the stock name. Relative shape only.",
+      "derived": {
+        "page_1based": 8,
+        "frame_pdf_pt": [
+          405.833,
+          80.237,
+          532.222,
+          175.002
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.31585715061058317,
+          "zero_pdf_pt": 295.31285300768894,
+          "labels": 3,
+          "worst_label_error": 0.02713785963965165
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 31.58800303912881,
+          "zero_pdf_pt": 143.40400151956433,
+          "labels": 4,
+          "worst_label_error": 0.0005064733093669282
+        },
+        "traces": {
+          "rsx50-sensitivity-b": {
+            "points": 117,
+            "stroke_pdf_pt": 0.79,
+            "stroke_in_y_units": 0.02501,
+            "x_extent": [
+              391.930787,
+              530.499774
+            ],
+            "y_extent": [
+              -0.969641,
+              1.388882
+            ],
+            "peak_x": 418.607
+          },
+          "rsx50-sensitivity-g": {
+            "points": 119,
+            "stroke_pdf_pt": 0.79,
+            "stroke_in_y_units": 0.02501,
+            "x_extent": [
+              461.269097,
+              609.788802
+            ],
+            "y_extent": [
+              -0.969641,
+              1.362448
+            ],
+            "peak_x": 559.19
+          },
+          "rsx50-sensitivity-r": {
+            "points": 154,
+            "stroke_pdf_pt": 0.79,
+            "stroke_in_y_units": 0.02501,
+            "x_extent": [
+              510.601527,
+              693.947005
+            ],
+            "y_extent": [
+              -0.968596,
+              1.3942
+            ],
+            "peak_x": 644.406
+          }
+        }
+      },
+      "frame_near": [
+        406,
+        80
+      ]
+    }
+  },
+  "film": {
+    "id": "agfa_rsx2_50",
+    "name": "*Agfachrome RSX II 50",
+    "type": "positive",
+    "densitometer": "status_A",
+    "base_density": 0.1,
+    "base_density_note": "Not on the sheet. The dye panel is normalised to a visual neutral of 1.0 and plots no D-min, and the characteristic panel's minimum is a status-A reading, not a spectral curve. A flat 0.10 is assumed, within the 0.09-0.13 range the shipped positives carry. This is an assumption, not a measurement.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel's E.N.D. density criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not on plotted density. The E-8 panels are stroked finely and the characteristic panel calibrates to 0.0001, so the binding uncertainty here is the unmixing, not the tracing. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range; the fit lands at 0.0163.",
+    "midgray_total_density": 0.735182,
+    "midgray_note": "Rendering convention: engine log exposure zero is placed where the green channel's total status-A density equals 0.735342, which is -log10(0.184) - the density that transmits the 18.4% reference grey this repository uses elsewhere (paper midgray_reflectance, and the B&W preparations' grey anchor). The panel's own 'Density: 1.0' is a sensitivity criterion, not a mid-tone, and anchoring there renders about half a stop dark. Not absolute ISO metering.",
+    "known_gaps": [
+      "This stock has NO dye data of its own. The sheet plots no spectral dye densities for any of its films, so the dye spectra are borrowed whole from fujifilm_provia_100f - a different manufacturer's E-6 reversal film. That is the largest borrow in any profile here: the colour of this stock is Fuji's dyes driven by Agfa's curves. Treat its hue rendering as indicative only.",
+      "Spectral adaptation parameters are also borrowed - see the Ektachrome 64 EPR record for why deriving them is not possible here."
+    ],
+    "neutral_check_note": "The sheet plots a visual neutral beside its three dyes. Solving for the dye mixture that reproduces it gives [0.987, 1.000, 0.998] normalised to green, within 1.3% of unity, residual 0.031 D - about the thickness of the plotted line. The rescale is applied (it is factory.py's rescale_dye_density_using_neutral) and changes the render not at all, but it is an independent check on the dye extraction that passes.",
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektachrome_100, the nearest sibling, rather than guessed; it drives the halation preset only, and moving it weak-to-strong changed a rendered frame's mean chroma by 0.6.",
+    "ramp_balance_note": "Prepared curves are balanced against a rendered grey ramp by scripts/bw_expansion/balance_against_ramp.py, which is upstream's correct_positive_curves_with_gray_ramp done against this engine. Without it a grey renders 38% off neutral at the ends of a five-stop ramp, against 2.0% for shipped Ektachrome 100, 6.5% for Kodachrome 64 and 13.3% for Velvia 100 - so the shipped profiles are ramp-corrected and source curves alone are not enough. The correction is fitted against the engine, not measured from the datasheet.",
+    "saturation_investigation": "Localised by transplant: swapping only this pipeline's density curves into a shipped profile moved chroma 71.1 to 80.0, while its dyes, sensitivity and base each moved it down. Ruled out with measurements: DIR couplers (same class gammas), masking couplers (negative-only), dye spectra, truncated sensitivity spans, the neutral dye rescale, the grey-ramp balance (fixes neutrality, not chroma), log_sensitivity_density_over_min (never read by the engine), antihalation, uniform dye-amount scale (matching chroma needs a 30% brighter image), normalize_density_max, gamma alignment, and undoing the unmixing (which makes it worse, so the unmixing is helping). The control experiment then found the cause: see known_gaps.",
+    "dmin_investigation": "D-min extrapolation attempted 2026-11-03 and backed out. The principle holds: no panel here reaches D-min, so reading the curve end overstates it. Tying D-min to the assumed base density instead - subtracting what the densitometer would read through a flat 0.10 - made every stock pass its amount gate including Kodachrome 25, and on the Kodachrome 64 control it cut the mean RGB error against the shipped profile from about 20 to 6.5, which is the brightness systematic recorded above. But it cost 2.5 chroma points on that same control (1.7 off to 4.2 off), and it destabilised Kodachrome 200's neutrality fit: where that stock previously balanced to 3.7% with density corrections under 12%, it then needed scales of 0.71/0.64/0.63 to reach 3.8%, and 0.37/0.34/0.33 to reach 2.4%. A 35% uniform scale-down is a replacement, not a correction. Nothing about the curve ends distinguishes Kodachrome 200 - all four stocks sit within 0.167 to 0.203 last-plotted density with tail slopes of -0.037 to -0.067 - so the instability comes from somewhere else and is not understood. Sweeping the base across 0.10/0.14/0.16 on the control made 0.10 the best of the three, so there is no better flat value to pick either. The next attempt should estimate each curve's own asymptote per stock rather than share one assumed base; an exponential tail fit was prototyped and is not yet trustworthy, returning unphysical zero asymptotes on several channels.",
+    "dmin_asymptote_finding": "Per-stock asymptote fitting attempted 2026-11-03 and not adopted, because the asymptote turns out not to be identifiable from a truncated curve. Fitting D(x) = D_inf + sum(a_i * Phi(-(x-c_i)/s_i)) over the whole plotted range with D_inf free, from five different starting points: on Ektachrome 64 EPR the answer moves 0.072 to 0.086 depending where the search starts, which is as large as the quantity being estimated, and on Kodachrome 25 it runs to the 0.01 physical floor on all three channels. Only Kodachrome 200 and the Kodachrome 64 control pin it down. What the fits agree on is more useful than the fit itself: where D_inf is determined it lands at 0.128 to 0.183, against last-plotted values of 0.180 to 0.210 - close to the curve end, and nowhere near the flat 0.10 that the previous attempt tied D-min to. That is why tying it to the base over-subtracted and broke Kodachrome 200's balance. So reading D-min off the curve end, which is what this pipeline does, is approximately right: it overstates D-min by roughly 0.02 to 0.05 density rather than the 0.07 to 0.10 the flat-base assumption implied. Forcing the end to be the asymptote costs 1.1x to 2.9x the best achievable RMS, on a best RMS of 0.0007 to 0.0024 density - inside the printed stroke width. The bias is real and small. Resolving it properly needs a sheet that publishes D-min, or a characteristic panel plotted far enough for its curves to flatten; neither is available here.",
+    "status": "not shipped",
+    "not_shipped_reason": "Not shipped. The sheet plots no dye densities for any of its films, so the dye spectra would be borrowed whole from fujifilm_provia_100f, and a measurement shows what that costs: rendered on the same frame, RSX II 50 and RSX II 100 differ by a mean 1.47/255. For comparison, two stocks carrying their own dyes differ far more - Fujichrome T64 against Provia 400X by 6.04, Ektachrome E200 against 400X by 25.22. Two Agfa slide films a stop apart in speed would arrive in the catalogue rendering four to seventeen times more alike than stocks whose dye data is real, because everything that most distinguishes a slide film's colour would be Fuji's and only the curves and sensitivity would be Agfa's. They pass their fit gates (0.0177 and 0.0170 against 0.02) and balance to 4.0% and 5.2% off neutral, which is itself worse than every stock here with real dye data, so the mismatch shows up in the neutrality fit too. The extraction, recipes and source points are kept so this is one command away if the borrow is judged acceptable."
+  },
+  "print": {
+    "target_print": null,
+    "note": "A reversal film: scanned directly, no print stage."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure because the engine evaluates a positive's model with a negated argument (sign = -1 in refresh_density_curves_from_model)."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-03. Curves are Agfa's; dye spectra are not. CC BY-SA 4.0.",
+  "adaptation_donor": {
+    "stock": "fujifilm_provia_100f",
+    "reason": "Same E-6 reversal family as the dye donor."
+  },
+  "dye_donor": {
+    "stock": "fujifilm_provia_100f",
+    "reason": "No Agfa colour profile exists anywhere to borrow from, so the nearest available is another E-6 reversal film of similar speed."
+  }
+}

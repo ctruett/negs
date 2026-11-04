@@ -309,6 +309,14 @@ def main():
             # sensitivity panel and a dye panel both running 380 to 720 - so
             # the x range alone cannot tell them apart. Their y axes differ,
             # and a recipe can say so.
+            # A sheet can carry several stocks side by side, each with the
+            # same panels on the same axes. Then only position separates them,
+            # and the recipe gives the frame's top-left corner.
+            near = spec.get("frame_near")
+            if near is not None:
+                reach = spec.get("frame_near_tolerance", 20.0)
+                if abs(frame[0] - near[0]) > reach or abs(frame[1] - near[1]) > reach:
+                    return False
             span = spec.get("y_range")
             if span is None:
                 return True

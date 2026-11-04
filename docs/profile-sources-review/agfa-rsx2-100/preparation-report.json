@@ -1,0 +1,59 @@
+{
+  "stock": "agfa_rsx2_100",
+  "source_exposure_anchor": [
+    -0.8284170925811147,
+    -0.8134756539000634,
+    -0.8323340210389718
+  ],
+  "dye_source": "fujifilm_provia_100f (borrowed whole: this sheet plots no dyes)",
+  "neutral_mix": null,
+  "neutral_fit_residual": null,
+  "crosstalk_matrix": [
+    [
+      1.0,
+      0.16023213189800528,
+      0.028494040088517806
+    ],
+    [
+      0.21203478043211152,
+      1.0,
+      0.07839723204226753
+    ],
+    [
+      0.17457471497881455,
+      0.22489397290694424,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    0.9778699522253194,
+    0.9732824294629563,
+    0.9079027465529955
+  ],
+  "channel_dmin": [
+    0.14310923823394456,
+    0.142351518,
+    0.15246931746004497
+  ],
+  "max_amount_residual": 0.0170371788587369,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    41.162517207356785,
+    45.219355360670804,
+    48.31699629426092
+  ],
+  "dye_amount_max": [
+    2.766640398493087,
+    2.498206365287946,
+    2.753895109893128
+  ],
+  "source_points_sha256": {
+    "rsx100-characteristic-b.csv": "74dec4ea9e525073050eed1f3efb78567ba82ff9ae41897967c3898dccffce3a",
+    "rsx100-characteristic-g.csv": "d230d5a46d6a9a6b082fda220f334c2290958055e5c166dcad1eed4c9a6436b1",
+    "rsx100-characteristic-r.csv": "95a4dd358b95b1c60970ab77c04adc6d86c977d03b4bf329a0b407c0413fbff4",
+    "rsx100-sensitivity-b.csv": "a22b6f0632b3e229166d6f9e2aa1afc1d888b18db391fa2f07f41eaaae3f944a",
+    "rsx100-sensitivity-g.csv": "e17887b45d9e395098e89068f1b682081eb8569ebb9d4809991f0867a2c2c782",
+    "rsx100-sensitivity-r.csv": "1c1543ff45ed6ee10a67763c816a2585047a26331d59505f0aae4a00814a0a22"
+  },
+  "profile_sha256": "a7b2d4fb3cec60f12beac81da5f992cb2357583de8e464bd3011d0b1beab6f86"
+}
