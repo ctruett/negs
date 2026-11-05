@@ -498,6 +498,46 @@ extension ZoneModelTests {
         XCTAssertEqual(start.y, bar.minY, accuracy: 0.5)
     }
 
+    /// Real mouse events through the bar's window: pressing a tile, dragging out
+    /// of the panel onto the photograph and letting go places a pin there.
+    func testRealMouseEventsDragAZoneOutOfTheBar() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let controller = EditorWindowController(model: model)
+        let window = try XCTUnwrap(controller.window)
+        controller.showWindow(nil)
+        defer { window.orderOut(nil) }
+        window.setFrame(NSRect(x: 80, y: 80, width: 1200, height: 800), display: true)
+        try await waitUntil { model.previewCurrent }
+        try await Task.sleep(for: .milliseconds(400))
+        let panel = controller.zoneBar
+        func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
+        let scroll = try XCTUnwrap(all(try XCTUnwrap(window.contentView)).compactMap { $0 as? ImageScrollView }.first)
+        let photo = try XCTUnwrap(scroll.documentView as? PhotographView)
+        let target = window.convertPoint(toScreen: photo.convert(CGPoint(x: photo.frame.width * 0.25, y: photo.frame.height * 0.25), to: nil))
+        func send(_ type: NSEvent.EventType, _ location: CGPoint) throws {
+            panel.sendEvent(try XCTUnwrap(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber, context: nil,
+                eventNumber: 0, clickCount: 1, pressure: 1)))
+        }
+        // Panel coordinates are y-up from its bottom left.
+        let tile = CGPoint(x: ZoneGeometry.tileCentreX(zone: 7), y: ZoneGeometry.barHeight / 2)
+        let end = CGPoint(x: target.x - panel.frame.minX, y: target.y - panel.frame.minY)
+        try send(.leftMouseDown, tile)
+        try await Task.sleep(for: .milliseconds(50))
+        try send(.leftMouseDragged, CGPoint(x: tile.x + 10, y: tile.y - 30))
+        try await Task.sleep(for: .milliseconds(50))
+        try send(.leftMouseDragged, end)
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(model.zoneDrag?.zone, 7, "The drag carried on outside the panel")
+        try send(.leftMouseUp, end)
+        try await waitUntil { model.pins.count == 1 && model.previewCurrent }
+        XCTAssertNil(model.zoneDrag)
+        XCTAssertEqual(model.pins[0].zone, 7)
+        XCTAssertEqual(model.pins[0].source?.centre.x ?? -1, 0.25, accuracy: 0.03)
+        XCTAssertEqual(model.pins[0].source?.centre.y ?? -1, 0.75, accuracy: 0.03)
+    }
+
     /// Pins from before zones held their own tone: each takes the zone its
     /// target falls in.
     func testSavedHoldingPinsTakeTheZoneTheirTargetFallsIn() async throws {
