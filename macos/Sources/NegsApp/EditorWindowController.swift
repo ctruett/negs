@@ -5,30 +5,27 @@ import SwiftUI
 /// End field editing even when the clicked view doesn't take keyboard focus.
 @MainActor final class EditorWindow: NSWindow {
     override func sendEvent(_ event: NSEvent) {
-        if [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type),
-           let editor = firstResponder as? NSTextView, editor.isFieldEditor,
-           let field = editor.delegate as? NSTextField,
-           !field.bounds.contains(field.convert(event.locationInWindow, from: nil)) {
-            // Commit before dispatch so the clicked control sees the typed value.
-            makeFirstResponder(nil)
-        }
+        commitFieldEditing(in: self, before: event)
         super.sendEvent(event)
     }
 }
 
-/// The editing window: a unified toolbar over the canvas and a trailing
-/// inspector column. The window, toolbar, and columns are AppKit; the canvas
-/// and inspector contents are SwiftUI. They follow the model through
+/// The editing window: a unified toolbar over the canvas, with the sidebar and
+/// the zone bar floating in their own panels over it. The windows and toolbar
+/// are AppKit; the canvas and panels' contents are SwiftUI. They follow the model through
 /// Observation, like the views.
 @MainActor final class EditorWindowController: NSWindowController, NSToolbarDelegate {
     private let model: EditorModel
-    private let inspector: NSSplitViewItem
-    private let canvasItem: NSSplitViewItem
     private let panel: NSHostingController<InspectorPanel>
+    let sidebar: FloatingPanel
+    let zoneBar: FloatingPanel
+    /// How far the user has moved each panel from its usual place.
+    private var sidebarOffset = CGVector.zero
+    private var zoneBarOffset = CGVector.zero
+    private var windowObservers: [NSObjectProtocol] = []
     private var items: [NSToolbarItem.Identifier: NSToolbarItem] = [:]
     private lazy var cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelCrop))
     private lazy var doneButton = NSButton(title: "Done", target: self, action: #selector(applyCrop))
-    private var collapsing: NSKeyValueObservation?
     private var appearing: NSObjectProtocol?
     private var resigning: NSObjectProtocol?
     private var keyMonitor: Any?
@@ -38,28 +35,19 @@ import SwiftUI
 
     init(model: EditorModel) {
         self.model = model
-        // The split view sizes both columns, so SwiftUI never measures their
-        // contents for the window's size limits.
+        // The windows size the content, so SwiftUI never measures it for their limits.
         let canvas = NSHostingController(rootView: EditorCanvas(model: model))
         canvas.sizingOptions = []
         // The adjustments take about a third of the time to the first frame,
-        // so the column starts empty and fills in once the window is on screen.
+        // so the panel starts empty and fills in once the window is on screen.
         panel = NSHostingController(rootView: InspectorPanel(model: model, built: false))
         panel.sizingOptions = []
-        panel.view.frame.size = NSSize(width: 340, height: 860)
-        canvasItem = NSSplitViewItem(viewController: canvas)
-        canvasItem.minimumThickness = 680
-        inspector = NSSplitViewItem(inspectorWithViewController: panel)
-        // Wide enough for the six workflow tabs and their labels.
-        inspector.minimumThickness = 340
-        inspector.maximumThickness = 440
-        inspector.isCollapsed = !model.inspectorVisible
-        // One toolbar across the window, with the sidebar below it.
-        inspector.allowsFullHeightLayout = false
-        let split = NSSplitViewController()
-        split.addSplitViewItem(canvasItem)
-        split.addSplitViewItem(inspector)
-        split.splitView.autosaveName = "editor"
+        panel.view.frame.size = NSSize(width: FloatingLayout.sidebarWidth, height: 860)
+        sidebar = FloatingPanel(content: panel)
+        let bar = NSHostingController(rootView: ZonePanel(model: model))
+        bar.sizingOptions = []
+        bar.view.frame.size = NSSize(width: ZoneGeometry.barWidth, height: ZoneGeometry.barHeight)
+        zoneBar = FloatingPanel(content: bar)
 
         let window = EditorWindow(contentRect: NSRect(x: 0, y: 0, width: 1320, height: 860),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: true)
@@ -68,17 +56,16 @@ import SwiftUI
         window.isRestorable = false
         // Place the window before adding its content, so the first layout is at the final size.
         if !window.setFrameUsingName("editor") { window.center() }
-        // The split view cannot keep both columns at their minimums in a
-        // narrower window, so the window itself enforces their sum.
-        let minimum = NSSize(width: 680 + 340 + split.splitView.dividerThickness, height: 560)
+        // The canvas stays usable beside the sidebar's margin.
+        let minimum = NSSize(width: 680 + FloatingLayout.gutter, height: 560)
         window.contentMinSize = minimum
         let restored = window.contentRect(forFrameRect: window.frame).size
         if restored.width < minimum.width || restored.height < minimum.height {
             window.setContentSize(NSSize(width: max(restored.width, minimum.width),
                                          height: max(restored.height, minimum.height)))
         }
-        split.view.frame = NSRect(origin: .zero, size: window.contentRect(forFrameRect: window.frame).size)
-        window.contentViewController = split
+        canvas.view.frame = NSRect(origin: .zero, size: window.contentRect(forFrameRect: window.frame).size)
+        window.contentViewController = canvas
         window.setFrameAutosaveName("editor")
         super.init(window: window)
         shouldCascadeWindows = false
@@ -89,13 +76,6 @@ import SwiftUI
         // The view/edit controls lead from the left; the actions group trails.
         window.toolbar = toolbar
         model.undoManager = window.undoManager
-        // Dragging the inspector closed hides the adjustments, like the toolbar button.
-        collapsing = inspector.observe(\.isCollapsed) { [weak self] item, _ in
-            MainActor.assumeIsolated {
-                guard let self, self.model.inspectorVisible == item.isCollapsed else { return }
-                self.model.inspectorVisible = !item.isCollapsed
-            }
-        }
         appearing = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.windowChangedOcclusion() }
         }
@@ -105,6 +85,30 @@ import SwiftUI
                 return self.holdOriginal(event) || self.togglePins(event) || self.toggleProofKey(event)
             } ? nil : event
         }
+        sidebar.onUserMove = { [weak self] in
+            guard let self, let content = self.contentOnScreen else { return }
+            let home = FloatingLayout.sidebar(in: content, offset: .zero)
+            self.sidebarOffset = CGVector(dx: self.sidebar.frame.minX - home.minX, dy: self.sidebar.frame.minY - home.minY)
+        }
+        zoneBar.onUserMove = { [weak self] in
+            guard let self, let content = self.contentOnScreen else { return }
+            let home = FloatingLayout.zoneBar(in: content, sidebarVisible: self.model.inspectorVisible, offset: .zero)
+            self.zoneBarOffset = CGVector(dx: self.zoneBar.frame.minX - home.minX, dy: self.zoneBar.frame.minY - home.minY)
+        }
+        let center = NotificationCenter.default
+        // The panels follow the window's size and whether it's on screen.
+        for name in [NSWindow.didResizeNotification, NSWindow.didChangeOcclusionStateNotification, NSWindow.didBecomeKeyNotification, NSWindow.didMoveNotification] {
+            windowObservers.append(center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.syncPanels() }
+            })
+        }
+        windowObservers.append(center.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hidePanels() }
+        })
+        // The lines follow the bar while it's dragged.
+        windowObservers.append(center.addObserver(forName: NSWindow.didMoveNotification, object: zoneBar, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.publishZoneBar() }
+        })
         resigning = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.originalKey != nil else { return }
@@ -119,8 +123,51 @@ import SwiftUI
     /// Prevent window closure during data removal from restoring preferences.
     func prepareForAppDataRemoval() {
         window?.setFrameAutosaveName("")
-        (window?.contentViewController as? NSSplitViewController)?.splitView.autosaveName = nil
+        hidePanels()
         window?.orderOut(nil)
+    }
+
+    // MARK: Panels
+
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        syncPanels()
+    }
+
+    private var contentOnScreen: CGRect? {
+        window.map { $0.convertToScreen($0.contentLayoutRect) }
+    }
+
+    /// Shows the panels that should be up, each in its place. They join the
+    /// window only once it's on screen, or they would appear without it.
+    private func syncPanels() {
+        guard let window, window.isVisible, let content = contentOnScreen else { return }
+        let sidebarFrame = FloatingLayout.sidebar(in: content, offset: sidebarOffset)
+        let barFrame = FloatingLayout.zoneBar(in: content, sidebarVisible: model.inspectorVisible, offset: zoneBarOffset)
+        for (panel, frame, shown) in [(sidebar, sidebarFrame, model.inspectorVisible), (zoneBar, barFrame, model.showsZonePanel)] {
+            if panel.frame != frame { panel.setFrame(frame, display: panel.isVisible) }
+            if shown, panel.parent == nil {
+                window.addChildWindow(panel, ordered: .above)
+            } else if !shown, panel.parent != nil {
+                window.removeChildWindow(panel)
+                panel.orderOut(nil)
+            }
+        }
+        publishZoneBar()
+    }
+
+    private func hidePanels() {
+        for panel in [sidebar, zoneBar] where panel.parent != nil {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
+        publishZoneBar()
+    }
+
+    /// Tells the canvas where the bar is, for its lines and drags.
+    private func publishZoneBar() {
+        model.canvasScale.zoneBarFrame = zoneBar.parent == nil ? nil : zoneBar.frame
+        model.canvasScale.view?.overlay.redraw()
     }
 
     // MARK: State
@@ -140,8 +187,8 @@ import SwiftUI
     }
 
     private func toggleProofKey(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown, event.window === window, model.source != nil, !model.cropping,
-              Self.togglesProof(keyCode: event.keyCode, modifiers: event.modifierFlags, firstResponder: window?.firstResponder)
+        guard event.type == .keyDown, isOurs(event.window), model.source != nil, !model.cropping,
+              Self.togglesProof(keyCode: event.keyCode, modifiers: event.modifierFlags, firstResponder: event.window?.firstResponder)
         else { return false }
         if !event.isARepeat { model.proofing.toggle() }
         return true
@@ -156,12 +203,15 @@ import SwiftUI
     /// Handled here rather than by the menu alone, because Tab otherwise moves
     /// the keyboard focus before a menu shortcut sees it. True if it was Tab.
     private func togglePins(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown, event.window === window, model.source != nil, !model.cropping,
-              Self.togglesPins(keyCode: event.keyCode, modifiers: event.modifierFlags, firstResponder: window?.firstResponder)
+        guard event.type == .keyDown, isOurs(event.window), model.source != nil, !model.cropping,
+              Self.togglesPins(keyCode: event.keyCode, modifiers: event.modifierFlags, firstResponder: event.window?.firstResponder)
         else { return false }
         if !event.isARepeat { model.pinsVisible.toggle() }
         return true
     }
+
+    /// The editing window or one of its panels, which can hold the keyboard after typing.
+    private func isOurs(_ other: NSWindow?) -> Bool { other != nil && (other === window || other === sidebar || other === zoneBar) }
 
     private func holdOriginal(_ event: NSEvent) -> Bool {
         if event.type == .keyUp {
@@ -169,9 +219,9 @@ import SwiftUI
             originalKey = nil; model.holdOriginal(false)
             return true
         }
-        guard event.window === window, event.characters == "\\",
+        guard isOurs(event.window), event.characters == "\\",
               event.modifierFlags.isDisjoint(with: [.command, .control]),
-              !(window?.firstResponder is NSText) else { return false }
+              !(event.window?.firstResponder is NSText) else { return false }
         if !event.isARepeat { originalKey = event.keyCode; model.holdOriginal(true) }
         return true
     }
@@ -193,6 +243,8 @@ import SwiftUI
 
     private func update() {
         guard let window else { return }
+        _ = (model.inspectorVisible, model.showsZonePanel)
+        syncPanels()
         let photo = model.source != nil
         window.title = model.source?.lastPathComponent ?? "Negs"
         window.subtitle = !photo || !model.ready ? "" : model.value("io.scan_film").bool ? model.filmName : "\(model.filmName) → \(model.paperName)"
@@ -229,7 +281,7 @@ import SwiftUI
                 : symbol("crop", "Crop")
         }
         setEnabled(.export, photo && model.ready && !model.exporting && !model.saving && !model.cropping)
-        // The accent color marks the panel the inspector column shows.
+        // The accent color marks the pane the sidebar shows.
         for (id, pane, name, label) in [(NSToolbarItem.Identifier.adjustments, InspectorPane.adjustments, "slider.horizontal.3", "Adjustments"),
                                         (.presets, .presets, "square.stack", "Presets")] {
             let icon = symbol(name, label)
@@ -241,7 +293,6 @@ import SwiftUI
             cancelButton.keyEquivalent = session.typing ? "" : "\u{1b}"
             doneButton.keyEquivalent = session.typing ? "" : "\r"
         }
-        if inspector.isCollapsed == model.inspectorVisible { inspector.animator().isCollapsed = !model.inspectorVisible }
     }
 
     private func setEnabled(_ id: NSToolbarItem.Identifier, _ enabled: Bool) {

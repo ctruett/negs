@@ -1,13 +1,13 @@
 import AppKit
 import SwiftUI
 
-/// Adams' zones, white at the top. Drag one onto the photograph and that spot's
-/// tone becomes that zone. It sits directly left of the canvas, so
-/// `ZoneGeometry` and the overlay's lines line up with its rows.
+/// Adams' zones, black at the left. Drag one onto the photograph and that spot's
+/// tone becomes that zone. It floats in its own window over the top of the
+/// canvas, so a drag's position goes through the screen to reach the canvas.
 struct ZonePanel: View {
     let model: EditorModel
-    /// The space shared with the canvas, for a drag that crosses into it.
-    static let coordinateSpace = "zoneCanvas"
+    /// The bar's own space, which `CanvasScale` carries to the canvas's.
+    static let coordinateSpace = "zoneBar"
     /// A faint translucent grey, which shows on a white mat and on dark tiles alike.
     static let edgeColour = Color(white: 0.5, opacity: 0.3)
 
@@ -22,29 +22,33 @@ struct ZonePanel: View {
     var body: some View {
         let pins = model.pins
         let selected = model.selectedPin.flatMap { pins.indices.contains($0) ? pins[$0].zone : nil }
-        VStack(spacing: 0) {
-            ForEach(ZoneScale.zones.reversed()) { zone in
+        HStack(spacing: 0) {
+            ZStack {
+                Color(nsColor: .underPageBackgroundColor)
+                Capsule().fill(.secondary).frame(width: 3, height: 18).opacity(0.6)
+                PanelGrip()
+            }
+            .frame(width: ZoneGeometry.gripWidth)
+            .accessibilityHidden(true)
+            ForEach(ZoneScale.zones) { zone in
                 ZoneTile(zone: zone, placed: pins.contains { $0.zone == zone.index }, selected: selected == zone.index) { point in
-                    model.zoneDrag = ZoneDrag(zone: zone.index, point: canvasPoint(point))
+                    guard let canvas = model.canvasScale.canvasPoint(barPoint: point) else { return }
+                    model.zoneDrag = ZoneDrag(zone: zone.index, point: canvas)
                 } onDrop: { point in
                     model.zoneDrag = nil
-                    guard let unit = model.canvasScale.unitPoint(canvasPoint: canvasPoint(point)) else { return }
+                    guard let unit = model.canvasScale.unitPoint(barPoint: point) else { return }
                     Task { await model.placeZone(zone.index, at: unit) }
                 }
+                .frame(width: ZoneGeometry.tileWidth)
+                .allowsHitTesting(model.canPlaceZones)
+                .opacity(model.canPlaceZones ? 1 : 0.5)
             }
         }
-        .frame(width: ZoneGeometry.panelWidth)
-        .allowsHitTesting(model.canPlaceZones)
-        .opacity(model.canPlaceZones ? 1 : 0.5)
-        .overlay(alignment: .trailing) { Rectangle().fill(Self.edgeColour).frame(width: 1).allowsHitTesting(false) }
+        .frame(width: ZoneGeometry.barWidth, height: ZoneGeometry.barHeight)
+        .coordinateSpace(name: Self.coordinateSpace)
+        .floatingPanelShape()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Zones")
-    }
-
-    /// The panel's own width comes off a drag's position, as the canvas starts
-    /// where the panel ends.
-    private func canvasPoint(_ point: CGPoint) -> CGPoint {
-        CGPoint(x: point.x - ZoneGeometry.panelWidth, y: point.y)
     }
 }
 

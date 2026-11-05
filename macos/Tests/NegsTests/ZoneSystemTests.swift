@@ -52,36 +52,27 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertEqual(ZonePanel.label(for: ZoneScale.zones[0], placed: false), "Zone 0, Pure black, not placed")
     }
 
-    /// The column is one scale, with no lines between its tiles, and a line down
-    /// its right side that shows against a white mat as well as the dark tiles.
-    @MainActor func testTheZoneColumnHasARightEdgeAndNoRowLines() throws {
+    /// The bar is one scale, dark to light, with no lines between its tiles.
+    @MainActor func testTheZoneBarIsOneScale() throws {
         _ = NSApplication.shared
         let model = EditorModel()
         defer { model.shutdown() }
-        let height = 550
-        let host = NSHostingView(rootView: ZonePanel(model: model).frame(height: CGFloat(height)).background(Color.white))
+        let host = NSHostingView(rootView: ZonePanel(model: model).background(Color.white))
         host.appearance = NSAppearance(named: .darkAqua)
-        host.frame = NSRect(x: 0, y: 0, width: ZoneGeometry.panelWidth, height: CGFloat(height))
+        host.frame = NSRect(x: 0, y: 0, width: ZoneGeometry.barWidth, height: ZoneGeometry.barHeight)
         host.layoutSubtreeIfNeeded()
         let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
-        let scale = bitmap.pixelsHigh / height
-        func grey(_ x: Int, _ y: Int) throws -> CGFloat {
-            try XCTUnwrap(bitmap.colorAt(x: x, y: y * scale)?.usingColorSpace(.sRGB)).redComponent * 255
-        }
-        // Down a column clear of the numerals, the tone only ever falls: a row
-        // line would show as a dip darker than the tile below it.
-        var previous: CGFloat = 256
-        for y in 0..<height {
-            let value = try grey(4 * scale, y)
-            XCTAssertLessThanOrEqual(value, previous + 0.5, "A line at row \(y)")
+        let scale = bitmap.pixelsWide / Int(ZoneGeometry.barWidth)
+        // Along a row clear of the numerals, the tone only ever rises: a line
+        // between tiles would show as a dip below the tile before it.
+        var previous: CGFloat = -1
+        for x in (Int(ZoneGeometry.gripWidth) + 2)..<(Int(ZoneGeometry.barWidth) - 12) {
+            let value = try XCTUnwrap(bitmap.colorAt(x: x * scale, y: 5 * scale)?.usingColorSpace(.sRGB)).redComponent * 255
+            XCTAssertGreaterThanOrEqual(value, previous - 0.5, "A line at \(x)")
             previous = value
         }
-        // Translucent grey: only slightly darker than the white tile under it.
-        let right = bitmap.pixelsWide - 1
-        let edge = try grey(right, 25)
-        XCTAssertLessThan(edge, try grey(right - 3 * scale, 25) - 20, "It shows on white")
-        XCTAssertGreaterThan(edge, 190, "It's very slight")
+        XCTAssertGreaterThan(previous, 200, "It ends in white")
     }
 
     /// The same line over a dark tile comes out lighter than the tile.

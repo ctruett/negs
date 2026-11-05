@@ -458,6 +458,46 @@ extension ZoneModelTests {
         XCTAssertEqual(scroll.magnification * document.frame.width, onScreen, accuracy: onScreen * 0.01)
     }
 
+    /// Through the real windows: the fitted photograph is clear of the bar, a zone
+    /// let go on a spot lands on that spot, and its line starts under its tile.
+    func testAZoneDraggedFromTheFloatingBarLandsUnderThePointer() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let controller = EditorWindowController(model: model)
+        let window = try XCTUnwrap(controller.window)
+        controller.showWindow(nil)
+        defer { window.orderOut(nil) }
+        window.setFrame(NSRect(x: 80, y: 80, width: 1200, height: 800), display: true)
+        try await waitUntil { model.previewCurrent }
+        try await Task.sleep(for: .milliseconds(400))
+        XCTAssertTrue(controller.zoneBar.isVisible)
+        func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
+        let scroll = try XCTUnwrap(all(try XCTUnwrap(window.contentView)).compactMap { $0 as? ImageScrollView }.first)
+        let photo = try XCTUnwrap(scroll.documentView as? PhotographView)
+        func screen(_ point: CGPoint) -> CGPoint { window.convertPoint(toScreen: photo.convert(point, to: nil)) }
+        let bar = controller.zoneBar.frame
+        XCTAssertLessThanOrEqual(screen(CGPoint(x: 0, y: photo.frame.height)).y, bar.minY + 0.5, "The fitted photograph is clear of the bar")
+        XCTAssertLessThanOrEqual(screen(CGPoint(x: photo.frame.width, y: 0)).x, controller.sidebar.frame.minX + 0.5, "And of the sidebar")
+        // A quarter across and a quarter up from the bottom, as the bar's gesture reports it.
+        let target = screen(CGPoint(x: photo.frame.width * 0.25, y: photo.frame.height * 0.25))
+        let point = CGPoint(x: target.x - bar.minX, y: bar.maxY - target.y)
+        let unit = try XCTUnwrap(model.canvasScale.unitPoint(barPoint: point))
+        XCTAssertEqual(unit.x, 0.25, accuracy: 0.02)
+        XCTAssertEqual(unit.y, 0.75, accuracy: 0.02, "Unit y runs down")
+        model.zoneDrag = ZoneDrag(zone: 7, point: try XCTUnwrap(model.canvasScale.canvasPoint(barPoint: point)))
+        try await Task.sleep(for: .milliseconds(100))
+        let chip = try XCTUnwrap(scroll.overlay.dragChipCentre)
+        XCTAssertEqual(window.convertPoint(toScreen: scroll.overlay.convert(chip, to: nil)).y, target.y, accuracy: 1, "The dragged chip is under the pointer")
+        model.zoneDrag = nil
+        await model.placeZone(7, at: unit)
+        try await waitUntil { model.pins.count == 1 && model.previewCurrent }
+        try await Task.sleep(for: .milliseconds(200))
+        let link = try XCTUnwrap(scroll.overlay.links[0])
+        let start = window.convertPoint(toScreen: scroll.overlay.convert(link.from, to: nil))
+        XCTAssertEqual(start.x, bar.minX + ZoneGeometry.tileCentreX(zone: 7), accuracy: 0.5)
+        XCTAssertEqual(start.y, bar.minY, accuracy: 0.5)
+    }
+
     /// Pins from before zones held their own tone: each takes the zone its
     /// target falls in.
     func testSavedHoldingPinsTakeTheZoneTheirTargetFallsIn() async throws {

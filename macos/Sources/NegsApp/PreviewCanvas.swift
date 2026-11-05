@@ -23,6 +23,8 @@ struct PreviewCanvas: NSViewRepresentable {
     var draggedRadius = SampleSize.initial
     /// In a proof, the pixels the export writes: they alone set the photograph's size.
     var proofPixels: CGSize? = nil
+    /// The room a fitted photograph leaves above itself for the zone bar.
+    var topInset: CGFloat = 0
     /// A click on a pin's chip, or nil on empty photograph.
     var onSelectPin: ((Int?) -> Void)? = nil
     /// Called when a placed pin is dragged to a new point.
@@ -60,6 +62,8 @@ struct PreviewCanvas: NSViewRepresentable {
         photo.draggedRadius = draggedRadius
         scroll.onScrollPin = onScrollPin
         scroll.proofPixels = proofPixels
+        scroll.topInset = topInset
+        scroll.overlay.zoneBarFrame = { [weak scale] in scale?.zoneBarFrame }
         // Esc and Delete reach the photograph once a pin is selected.
         let selected = pins.first(where: \.selected)?.index
         if selected != nil, selected != photo.selectedPin { scroll.window?.makeFirstResponder(photo) }
@@ -110,6 +114,27 @@ struct PreviewCanvas: NSViewRepresentable {
     }
     /// A point of the canvas, from its top left, as a fraction of the uncropped
     /// photograph. Nil on the border, outside the crop or off the canvas.
+    /// The zone bar's frame on screen, while it's showing.
+    var zoneBarFrame: CGRect?
+
+    /// A point in the zone bar, from its top left, as a point of the canvas from
+    /// its top left. The bar is its own window, so this goes through the screen.
+    func canvasPoint(barPoint point: CGPoint) -> CGPoint? {
+        guard let bar = zoneBarFrame else { return point }
+        guard let view, let window = view.window else { return nil }
+        let inWindow = window.convertPoint(fromScreen: CGPoint(x: bar.minX + point.x, y: bar.maxY - point.y))
+        let overlay = view.overlay
+        let inOverlay = overlay.convert(inWindow, from: nil)
+        return CGPoint(x: inOverlay.x, y: overlay.bounds.height - inOverlay.y)
+    }
+
+    /// Where a zone let go at `point` in the bar lands. Over the bar, nowhere,
+    /// even with photograph beneath: it's what's under the pointer.
+    func unitPoint(barPoint point: CGPoint) -> CGPoint? {
+        if let bar = zoneBarFrame, point.x >= 0, point.y >= 0, point.x < bar.width, point.y < bar.height { return nil }
+        return canvasPoint(barPoint: point).flatMap { unitPoint(canvasPoint: $0) }
+    }
+
     func unitPoint(canvasPoint point: CGPoint) -> CGPoint? {
         guard let view, let photo = view.documentView as? PhotographView,
               point.x >= 0, point.y >= 0, point.x < view.bounds.width, point.y < view.bounds.height else { return nil }
@@ -120,11 +145,22 @@ struct PreviewCanvas: NSViewRepresentable {
 }
 
 final class CenteringClipView: NSClipView {
+    /// How much of the top is under the zone bar, in screen points.
+    var topInset: CGFloat = 0
+
+    /// The height of `bounds` below the zone bar, in the document's units.
+    func freeHeight(of bounds: NSRect) -> CGFloat {
+        guard frame.height > 0, bounds.height > 0 else { return bounds.height }
+        return bounds.height - topInset * bounds.height / frame.height
+    }
+
     override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var bounds = super.constrainBoundsRect(proposedBounds)
         guard let documentView else { return bounds }
         if bounds.width > documentView.frame.width { bounds.origin.x = (documentView.frame.width - bounds.width) / 2 }
-        if bounds.height > documentView.frame.height { bounds.origin.y = (documentView.frame.height - bounds.height) / 2 }
+        // The document's y runs up, so the bar covers the high end of the bounds.
+        let (document, free) = (documentView.frame.height, freeHeight(of: bounds))
+        bounds.origin.y = free > document ? (document - free) / 2 : min(max(proposedBounds.origin.y, 0), document - free)
         return bounds
     }
 }
@@ -146,6 +182,14 @@ final class ImageScrollView: NSScrollView {
         }
     }
     private var isProof: Bool { proofPixels != nil }
+    /// The room a fitted photograph leaves above itself for the zone bar.
+    var topInset: CGFloat = 0 {
+        didSet {
+            guard topInset != oldValue else { return }
+            (contentView as? CenteringClipView)?.topInset = topInset
+            if fitting { applyZoom() } else { pan(to: contentView.bounds.origin) }
+        }
+    }
     /// The zoom that makes the document the export's size. By the long edges, so
     /// a photograph of another orientation that's still arriving has the same scale.
     private func proofMagnification(document size: CGSize) -> CGFloat? {
@@ -198,8 +242,7 @@ final class ImageScrollView: NSScrollView {
             lastViewport = contentSize
             if isProof, let documentView, let wanted = proofMagnification(document: documentView.frame.size), abs(magnification - wanted) < 0.0001 {
                 // A new window size doesn't change the zoom, only what's centred.
-                contentView.scroll(to: contentView.bounds.origin)
-                reflectScrolledClipView(contentView)
+                pan(to: contentView.bounds.origin)
             } else if fitting || isProof { applyZoom() }
         }
     }
@@ -214,20 +257,27 @@ final class ImageScrollView: NSScrollView {
         // 1:1 is one photograph pixel per screen pixel. Fitting shows the whole
         // photograph, but never enlarges it past 1:1.
         let oneToOne = 1 / (window?.backingScaleFactor ?? 2)
-        let fit = min(contentSize.width / size.width, contentSize.height / size.height)
+        let fit = min(contentSize.width / size.width, max(contentSize.height - topInset, 1) / size.height)
         let amount = proofMagnification(document: size) ?? (fitting ? min(fit, oneToOne) : oneToOne)
         setMagnification(min(max(amount, minMagnification), maxMagnification), centeredAt: NSPoint(x: size.width / 2, y: size.height / 2))
         // Constraining again centres whatever is smaller than the window.
-        contentView.scroll(to: contentView.bounds.origin)
+        pan(to: contentView.bounds.origin)
+    }
+    /// Moves the view of the photograph, within what the clip view allows:
+    /// `scroll(to:)` alone doesn't always hold to that.
+    func pan(to origin: CGPoint) {
+        let bounds = contentView.bounds
+        contentView.scroll(to: contentView.constrainBoundsRect(NSRect(origin: origin, size: bounds.size)).origin)
         reflectScrolledClipView(contentView)
     }
     /// Whether the photograph is larger than the viewport, so panning has
     /// somewhere to go.
     var canScroll: Bool {
         guard let documentView else { return false }
-        let visible = contentView.bounds.size
+        let visible = contentView.bounds
+        let height = (contentView as? CenteringClipView)?.freeHeight(of: visible) ?? visible.height
         return documentView.frame.width > visible.width + 0.5
-            || documentView.frame.height > visible.height + 0.5
+            || documentView.frame.height > height + 0.5
     }
     /// Double-click: fit the whole photograph, or show it at 1:1 about the
     /// clicked point, which then stays under the pointer.
@@ -249,13 +299,14 @@ final class ImageScrollView: NSScrollView {
     /// one; keep the same region on screen at the same apparent scale.
     func keepVisibleContent(resizingDocumentFrom old: CGSize, to new: CGSize) {
         guard let documentView else { return }
+        let clip = contentView as? CenteringClipView
         let visible = contentView.bounds
-        let center = CGPoint(x: visible.midX / old.width, y: visible.midY / old.height)
+        let center = CGPoint(x: visible.midX / old.width, y: (visible.minY + (clip?.freeHeight(of: visible) ?? visible.height) / 2) / old.height)
         let ratio = old.width / new.width
         documentView.setFrameSize(new)
         magnification = min(max(magnification * ratio, minMagnification), maxMagnification)
         let bounds = contentView.bounds
-        contentView.scroll(to: CGPoint(x: center.x * new.width - bounds.width / 2, y: center.y * new.height - bounds.height / 2))
+        contentView.scroll(to: CGPoint(x: center.x * new.width - bounds.width / 2, y: center.y * new.height - (clip?.freeHeight(of: bounds) ?? bounds.height) / 2))
         reflectScrolledClipView(contentView)
     }
     func keepPhotographInPlace(resizingDocumentFrom old: CGSize, to new: CGSize) {
@@ -452,12 +503,11 @@ final class PhotographView: NSView {
             // A small wobble while clicking is still a click.
             guard moved || hypot(point.x - start.x, point.y - start.y) > 3 else { return }
             drag = .press(start: start, moved: true, canScroll: canScroll)
-            guard canScroll, let scroll = enclosingScrollView else { return }
+            guard canScroll, let scroll = enclosingScrollView as? ImageScrollView else { return }
             var origin = scroll.contentView.bounds.origin
             origin.x -= event.deltaX / scroll.magnification
             origin.y += event.deltaY / scroll.magnification
-            scroll.contentView.scroll(to: origin)
-            scroll.reflectScrolledClipView(scroll.contentView)
+            scroll.pan(to: origin)
         case nil:
             break
         }

@@ -282,6 +282,23 @@ effect and the panel, to judge the photograph clean. Dropping a zone shows them 
 replaces a photograph's pins, a session restores them, and opening another file
 starts with none.
 
+## Floating panels
+
+The sidebar and the zone bar are `FloatingPanel`s: borderless, rounded child windows
+of the editing window, with no title bar and no way to close them, so they travel and
+minimise with it. Each moves by its grip and keeps that offset from its usual place
+until the app quits. They take the keyboard only to type in a field, so the photograph
+keeps Tab, P, Esc and Delete. The toolbar's Adjustments and Presets buttons still show
+and hide the sidebar.
+
+The window keeps a margin at its right for the sidebar, so it covers neither a fitted
+photograph nor the film strip. The zone bar runs 0 to 10 from the left over the top of
+the canvas. A fitted photograph stays below it (`topInset`); a zoomed one pans under it
+and its top can still be brought clear. A zone dragged from the bar crosses windows, so
+its position goes through the screen (`CanvasScale.canvasPoint(barPoint:)`), and the
+lines start at the bottom of the tile wherever the bar has been dragged. Letting go
+over the bar places nothing.
+
 ## Proof
 
 P, the Proof button in the toolbar's view group, or Settings › Viewer shows the

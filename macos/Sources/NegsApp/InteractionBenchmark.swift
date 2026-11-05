@@ -65,7 +65,7 @@ import AppKit
 
     /// The editor window only, without its shadow.
     private static func capture(_ url: URL, status: String) {
-        guard let window = NSApp.windows.first(where: { $0.isVisible && $0.contentViewController != nil }) else { return }
+        guard let window = NSApp.windows.first(where: { $0.isVisible && $0 is EditorWindow }) else { return }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         task.arguments = ["-x", "-o", "-l", String(window.windowNumber), url.path]

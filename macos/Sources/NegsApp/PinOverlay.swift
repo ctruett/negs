@@ -1,10 +1,12 @@
 import AppKit
 import QuartzCore
 
-/// Where the zone panel's tiles sit. The panel spans the canvas's height
-/// directly to its left, so a tile's right edge is the canvas's left edge.
+/// Where the zone bar's tiles sit: zone 0 at the left after the grip, 10 at the right.
 enum ZoneGeometry {
-    static let panelWidth: CGFloat = 56
+    static let barHeight: CGFloat = 44
+    static let gripWidth: CGFloat = 16
+    static let tileWidth: CGFloat = 44
+    static var barWidth: CGFloat { gripWidth + tileWidth * CGFloat(ZoneScale.zones.count) }
     /// The dot on the exact spot a pin measures.
     static let markerDiameter: CGFloat = 8
     /// How close a click on the small marker has to be.
@@ -17,11 +19,8 @@ enum ZoneGeometry {
 
     static func labelWidth(_ numeral: String) -> CGFloat { numeral.count > 1 ? 26 : 20 }
 
-    /// A tile's row centre, from the top: zone 0 in the bottom row.
-    static func tileCentreY(zone: Int, height: CGFloat) -> CGFloat {
-        let count = ZoneScale.zones.count
-        return height * (CGFloat(count - 1 - zone) + 0.5) / CGFloat(count)
-    }
+    /// A tile's centre, from the bar's left edge.
+    static func tileCentreX(zone: Int) -> CGFloat { gripWidth + tileWidth * (CGFloat(zone) + 0.5) }
 }
 
 /// The pins and the lines linking them to their zones, over the canvas. It
@@ -44,6 +43,8 @@ final class PinOverlayView: NSView {
     private(set) var pins: [TonePinMarker] = []
     private(set) var dragged: ZoneDrag?
     private(set) var links: [Int: (from: CGPoint, to: CGPoint)] = [:]
+    /// The zone bar on screen, whose tiles the lines start from.
+    var zoneBarFrame: (() -> CGRect?)?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -106,8 +107,14 @@ final class PinOverlayView: NSView {
         CATransaction.begin(); CATransaction.setDisableActions(true)
         let all = CGMutablePath(), plain = CGMutablePath(), accent = CGMutablePath(), red = CGMutablePath(), fill = CGMutablePath()
         let scale = window?.backingScaleFactor ?? 2
+        // The bottom of a tile: the bar floats in its own window above this one,
+        // so a line runs from right under it. Before it's on screen, where it goes.
         func tile(_ zone: Int) -> CGPoint {
-            CGPoint(x: 0, y: bounds.height - ZoneGeometry.tileCentreY(zone: zone, height: bounds.height))
+            let x = ZoneGeometry.tileCentreX(zone: zone)
+            guard let bar = zoneBarFrame?(), let window else {
+                return CGPoint(x: (bounds.width - ZoneGeometry.barWidth) / 2 + x, y: bounds.height - FloatingLayout.margin - ZoneGeometry.barHeight)
+            }
+            return convert(window.convertPoint(fromScreen: CGPoint(x: bar.minX + x, y: bar.minY)), from: nil)
         }
         func circle(_ centre: CGPoint, _ radius: CGFloat) -> CGPath {
             CGPath(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2), transform: nil)

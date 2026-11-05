@@ -162,26 +162,22 @@ import SwiftUI
     func applicationWillTerminate(_ notification: Notification) { updates.stop(); model.shutdown() }
 }
 
-/// The window's main column: the photograph, the drop target, and the status bar.
+/// The window's content: the photograph, the drop target, and the status bar,
+/// with a margin at the right that the floating sidebar sits in.
 struct EditorCanvas: View {
     let model: EditorModel
     @State private var dropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                if model.showsZonePanel { ZonePanel(model: model) }
-                CanvasArea(model: model)
-                    .dropDestination(for: URL.self) { urls, _ in
-                        guard let url = urls.first, url.isFileURL else { return false }
-                        model.open(url); return true
-                    } isTargeted: { dropTargeted = $0 }
-                    .overlay {
-                        if dropTargeted { RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3).padding(8).allowsHitTesting(false) }
-                    }
-            }
-            .coordinateSpace(name: ZonePanel.coordinateSpace)
-            .overlay(alignment: .top) { EdgeLine(horizontal: true) }
+            CanvasArea(model: model)
+                .dropDestination(for: URL.self) { urls, _ in
+                    guard let url = urls.first, url.isFileURL else { return false }
+                    model.open(url); return true
+                } isTargeted: { dropTargeted = $0 }
+                .overlay {
+                    if dropTargeted { RoundedRectangle(cornerRadius: 12).strokeBorder(.tint, lineWidth: 3).padding(8).allowsHitTesting(false) }
+                }
             if model.filmstripVisible, let source = model.source {
                 Divider()
                 PhotoBrowser(model: model, directory: source.deletingLastPathComponent())
@@ -191,14 +187,28 @@ struct EditorCanvas: View {
                 StatusBar(model: model)
             }
         }
+        .padding(.trailing, model.inspectorVisible ? FloatingLayout.gutter : 0)
+        .background(ViewerColour(model: model))
+        .overlay(alignment: .top) { EdgeLine(horizontal: true) }
         .alert("Negs", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK", role: .cancel) { model.error = nil }
         } message: { Text(model.error ?? "") }
     }
 }
 
-/// The 1-point line between the window's regions: under the toolbar and down
-/// the sidebar's left edge.
+/// The viewer's background: white in a proof, where the saved colour stays saved.
+struct ViewerColour: View {
+    let model: EditorModel
+    /// Settings › Viewer background.
+    @AppStorage(ViewerBackground.customKey) private var customBackground = false
+    @AppStorage(ViewerBackground.colorKey) private var backgroundHex = ViewerBackground.defaultHex
+
+    var body: some View {
+        model.proofing ? Color.white : ViewerBackground.canvas(custom: customBackground, hex: backgroundHex)
+    }
+}
+
+/// The 1-point line under the toolbar.
 struct EdgeLine: View {
     let horizontal: Bool
 
@@ -211,41 +221,42 @@ struct EdgeLine: View {
     }
 }
 
-/// The inspector column: the adjustments, or the crop panel while cropping.
+/// The floating sidebar: the adjustments, or the crop panel while cropping.
 struct InspectorPanel: View {
     let model: EditorModel
     /// False until the window is on screen; see EditorWindowController.
     var built = true
 
     var body: some View {
-        Group {
-            if !built { Color.clear }
-            else if let session = model.cropSession { CropInspector(model: model, session: session) }
-            else if model.inspectorPane == .presets { PresetInspector(model: model) }
-            else { AdjustmentInspector(model: model) }
+        VStack(spacing: 0) {
+            ZStack {
+                Capsule().fill(.secondary).frame(width: 36, height: 3).opacity(0.6)
+                PanelGrip()
+            }
+            .frame(height: 14)
+            .accessibilityHidden(true)
+            Group {
+                if !built { Color.clear }
+                else if let session = model.cropSession { CropInspector(model: model, session: session) }
+                else if model.inspectorPane == .presets { PresetInspector(model: model) }
+                else { AdjustmentInspector(model: model) }
+            }
+            .scrollContentBackground(.hidden)
         }
-        .scrollContentBackground(.hidden)
         // The title bar's colour over the default viewer. Never a custom viewer
         // colour, which is for the photograph and could hide the controls' text.
         .background(Color(nsColor: .underPageBackgroundColor))
-        // The edge the film strip has on top, down the left.
-        .overlay(alignment: .leading) { EdgeLine(horizontal: false) }
-        // The line under the toolbar, which continues the canvas's.
-        .overlay(alignment: .top) { EdgeLine(horizontal: true) }
+        .floatingPanelShape()
     }
 }
 
 /// Reads only the preview state, so edits don't re-evaluate the canvas.
 struct CanvasArea: View {
     let model: EditorModel
-    /// Settings › Viewer background.
-    @AppStorage(ViewerBackground.customKey) private var customBackground = false
-    @AppStorage(ViewerBackground.colorKey) private var backgroundHex = ViewerBackground.defaultHex
 
     var body: some View {
         ZStack {
-            // White in a proof; the saved colour stays saved.
-            model.proofing ? Color.white : ViewerBackground.canvas(custom: customBackground, hex: backgroundHex)
+            ViewerColour(model: model)
             if let session = model.cropSession, let image = model.image {
                 CropEditor(session: session, image: image)
             } else if let image = model.image {
@@ -266,6 +277,7 @@ struct CanvasArea: View {
                       dragged: model.zoneDrag,
                       draggedRadius: model.sampleRadius,
                       proofPixels: model.proofing ? model.exportPixels : nil,
+                      topInset: FloatingLayout.zoneBarInset,
                       onSelectPin: { model.selectPin($0) },
                       onMovePin: { index, centre in Task { await model.movePin(index, to: centre) } },
                       onScrollPin: { model.resizeSelectedPin(scrollDelta: $0, precise: $1) },
