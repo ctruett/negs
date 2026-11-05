@@ -171,6 +171,10 @@ import UniformTypeIdentifiers
         didSet { UserDefaults.standard.set(filmstripVisible, forKey: "filmstripVisible") }
     }
     var inspectorVisible = true
+    /// The sidebar has been dragged clear of its margin at the window's right.
+    var sidebarDetached = false
+    /// The room the canvas leaves at its right for the sidebar.
+    var canvasGutter: CGFloat { inspectorVisible && !sidebarDetached ? FloatingLayout.gutter : 0 }
     /// The inspector tab chosen in this session. Like the pane, it survives
     /// changing photos; unlike it, it isn't carried into the next launch.
     var inspectorTab = InspectorTab.camera

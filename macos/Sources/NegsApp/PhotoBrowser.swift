@@ -104,7 +104,9 @@ struct PhotoBrowser: View {
                 }
             }
             .scrollTargetLayout()
-            .padding(.horizontal, 12)
+            // The last photographs can scroll out from under the sidebar.
+            .padding(.leading, 12)
+            .padding(.trailing, 12 + model.canvasGutter)
             .padding(.vertical, 8)
         }
         .scrollIndicators(.automatic)

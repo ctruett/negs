@@ -18,6 +18,11 @@ enum FloatingLayout {
                width: sidebarWidth, height: content.height - margin * 2)
     }
 
+    /// Dragged wholly out of its margin, the canvas has no need to leave one.
+    static func sidebarIsClearOfMargin(_ sidebar: CGRect, in content: CGRect) -> Bool {
+        sidebar.maxX <= content.maxX - gutter
+    }
+
     static func zoneBar(in content: CGRect, sidebarVisible: Bool, offset: CGVector) -> CGRect {
         let canvasWidth = content.width - (sidebarVisible ? gutter : 0)
         return CGRect(x: content.minX + (canvasWidth - ZoneGeometry.barWidth) / 2 + offset.dx,
@@ -30,7 +35,7 @@ enum FloatingLayout {
 /// of the main window, so it travels and minimises with it. It takes the keyboard
 /// only to type in a field, leaving the photograph its keys the rest of the time.
 @MainActor final class FloatingPanel: NSPanel {
-    /// The user finished dragging it by its grip.
+    /// The user has moved it by its grip, at each step of the drag.
     var onUserMove: (() -> Void)?
 
     init(content: NSViewController) {
@@ -62,11 +67,6 @@ enum FloatingLayout {
         super.resignKey()
         makeFirstResponder(nil)
     }
-
-    func drag(with event: NSEvent) {
-        performDrag(with: event)
-        onUserMove?()
-    }
 }
 
 /// The part of a panel that moves it, since there's no title bar to hold.
@@ -74,8 +74,31 @@ struct PanelGrip: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView { GripView() }
     func updateNSView(_ view: NSView, context: Context) {}
 
+    /// Moves the panel itself, so its place is known at every step: a position
+    /// read after the system's window drag can be from before the drag.
     private final class GripView: NSView {
-        override func mouseDown(with event: NSEvent) { (window as? FloatingPanel)?.drag(with: event) }
+        private var grab: (pointer: CGPoint, origin: CGPoint)?
+
+        private func pointer(_ event: NSEvent) -> CGPoint? { window?.convertPoint(toScreen: event.locationInWindow) }
+
+        override func mouseDown(with event: NSEvent) {
+            guard let window, let pointer = pointer(event) else { return }
+            grab = (pointer, window.frame.origin)
+            NSCursor.closedHand.push()
+        }
+
+        override func mouseDragged(with event: NSEvent) {
+            guard let grab, let window, let pointer = pointer(event) else { return }
+            window.setFrameOrigin(CGPoint(x: grab.origin.x + pointer.x - grab.pointer.x, y: grab.origin.y + pointer.y - grab.pointer.y))
+            (window as? FloatingPanel)?.onUserMove?()
+        }
+
+        override func mouseUp(with event: NSEvent) {
+            guard grab != nil else { return }
+            grab = nil
+            NSCursor.pop()
+        }
+
         override func resetCursorRects() { addCursorRect(bounds, cursor: .openHand) }
     }
 }

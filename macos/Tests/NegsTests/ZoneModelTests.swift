@@ -538,6 +538,85 @@ extension ZoneModelTests {
         XCTAssertEqual(model.pins[0].source?.centre.y ?? -1, 0.75, accuracy: 0.03)
     }
 
+    /// Sends a press, a drag to `delta` and a release through a panel's grip.
+    private func dragGrip(of panel: FloatingPanel, at grip: CGPoint, by delta: CGVector) async throws {
+        func send(_ type: NSEvent.EventType, _ location: CGPoint) throws {
+            panel.sendEvent(try XCTUnwrap(NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: panel.windowNumber, context: nil,
+                eventNumber: 0, clickCount: 1, pressure: 1)))
+        }
+        let start = panel.frame.origin
+        try send(.leftMouseDown, grip)
+        try await Task.sleep(for: .milliseconds(30))
+        for step in 1...2 {
+            // Where the pointer is, in the panel's coordinates as it stands now.
+            let fraction = CGFloat(step) / 2
+            let moved = CGPoint(x: start.x + delta.dx * fraction - panel.frame.minX + grip.x,
+                                y: start.y + delta.dy * fraction - panel.frame.minY + grip.y)
+            try send(.leftMouseDragged, moved)
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        try send(.leftMouseUp, CGPoint(x: start.x + delta.dx - panel.frame.minX + grip.x, y: start.y + delta.dy - panel.frame.minY + grip.y))
+    }
+
+    private func openWindow(_ model: EditorModel) async throws -> (EditorWindowController, NSWindow) {
+        let controller = EditorWindowController(model: model)
+        let window = try XCTUnwrap(controller.window)
+        controller.showWindow(nil)
+        window.setFrame(NSRect(x: 80, y: 80, width: 1300, height: 800), display: true)
+        try await waitUntil { model.previewCurrent }
+        try await Task.sleep(for: .milliseconds(300))
+        return (controller, window)
+    }
+
+    /// Moved by its grip, a panel stays there: Tab refreshes the window's state
+    /// and used to put it back. Dragging the sidebar mustn't shift the bar either.
+    func testAPanelMovedByItsGripStaysPut() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let (controller, window) = try await openWindow(model)
+        defer { window.orderOut(nil) }
+        let bar = controller.zoneBar
+        let home = bar.frame.origin
+        try await dragGrip(of: bar, at: CGPoint(x: 8, y: ZoneGeometry.barHeight / 2), by: CGVector(dx: 60, dy: -90))
+        let moved = CGPoint(x: home.x + 60, y: home.y - 90)
+        XCTAssertEqual(bar.frame.origin.x, moved.x, accuracy: 1)
+        XCTAssertEqual(bar.frame.origin.y, moved.y, accuracy: 1)
+        model.pinsVisible.toggle()
+        controller.refresh()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(bar.frame.origin.x, moved.x, accuracy: 1, "Tab leaves it alone")
+        XCTAssertEqual(bar.frame.origin.y, moved.y, accuracy: 1, "Tab leaves it alone")
+        model.pinsVisible.toggle()
+        // Out of the sidebar's margin, which the canvas then takes back.
+        let sidebar = controller.sidebar
+        try await dragGrip(of: sidebar, at: CGPoint(x: sidebar.frame.width / 2, y: sidebar.frame.height - 7), by: CGVector(dx: -500, dy: 0))
+        controller.refresh()
+        XCTAssertEqual(bar.frame.origin.x, moved.x, accuracy: 1, "The moved bar doesn't follow the sidebar")
+        XCTAssertEqual(model.canvasGutter, 0)
+        // It keeps its offset when the window changes size.
+        let left = sidebar.frame.maxX - window.frame.maxX
+        window.setFrame(NSRect(x: 80, y: 80, width: 1400, height: 800), display: true)
+        XCTAssertEqual(sidebar.frame.maxX - window.frame.maxX, left, accuracy: 1)
+    }
+
+    /// The film strip runs the window's whole width under the sidebar; only the
+    /// canvas keeps clear of it.
+    func testTheFilmStripRunsFullWidth() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let (controller, window) = try await openWindow(model)
+        defer { window.orderOut(nil) }
+        XCTAssertEqual(model.canvasGutter, FloatingLayout.gutter)
+        func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
+        let scrolls = all(try XCTUnwrap(window.contentView)).compactMap { $0 as? NSScrollView }
+        let width = try XCTUnwrap(window.contentView).bounds.width
+        let canvas = try XCTUnwrap(scrolls.first { $0 is ImageScrollView })
+        XCTAssertEqual(canvas.bounds.width, width - FloatingLayout.gutter, accuracy: 1)
+        XCTAssertTrue(scrolls.contains { !($0 is ImageScrollView) && abs($0.bounds.width - width) < 1 }, "\(scrolls.map(\.bounds.width)) of \(width)")
+        _ = controller
+    }
+
     /// Pins from before zones held their own tone: each takes the zone its
     /// target falls in.
     func testSavedHoldingPinsTakeTheZoneTheirTargetFallsIn() async throws {

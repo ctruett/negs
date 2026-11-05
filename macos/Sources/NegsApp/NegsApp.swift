@@ -162,8 +162,9 @@ import SwiftUI
     func applicationWillTerminate(_ notification: Notification) { updates.stop(); model.shutdown() }
 }
 
-/// The window's content: the photograph, the drop target, and the status bar,
-/// with a margin at the right that the floating sidebar sits in.
+/// The window's content: the photograph, the drop target, and the status bar.
+/// The photograph leaves a margin at the right that the floating sidebar sits
+/// in, and the film strip and status bar run under it.
 struct EditorCanvas: View {
     let model: EditorModel
     @State private var dropTargeted = false
@@ -171,6 +172,7 @@ struct EditorCanvas: View {
     var body: some View {
         VStack(spacing: 0) {
             CanvasArea(model: model)
+                .padding(.trailing, model.canvasGutter)
                 .dropDestination(for: URL.self) { urls, _ in
                     guard let url = urls.first, url.isFileURL else { return false }
                     model.open(url); return true
@@ -187,7 +189,6 @@ struct EditorCanvas: View {
                 StatusBar(model: model)
             }
         }
-        .padding(.trailing, model.inspectorVisible ? FloatingLayout.gutter : 0)
         .background(ViewerColour(model: model))
         .overlay(alignment: .top) { EdgeLine(horizontal: true) }
         .alert("Negs", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -360,7 +361,8 @@ struct StatusBar: View {
             if model.source != nil { OriginalButton(model: model) }
         }
         .font(.caption).foregroundStyle(.secondary)
-        .padding(.horizontal, 14).frame(height: 28)
+        // The sidebar floats over the right end.
+        .padding(.leading, 14).padding(.trailing, 14 + model.canvasGutter).frame(height: 28)
         .background(.bar)
         .accessibilityElement(children: .contain)
     }

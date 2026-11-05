@@ -286,13 +286,14 @@ starts with none.
 
 The sidebar and the zone bar are `FloatingPanel`s: borderless, rounded child windows
 of the editing window, with no title bar and no way to close them, so they travel and
-minimise with it. Each moves by its grip and keeps that offset from its usual place
-until the app quits. They take the keyboard only to type in a field, so the photograph
+minimise with it. Each moves by its grip, which moves the panel itself and records its
+offset from its usual place at every step, and keeps that until the app quits. They take the keyboard only to type in a field, so the photograph
 keeps Tab, P, Esc and Delete. The toolbar's Adjustments and Presets buttons still show
 and hide the sidebar.
 
-The window keeps a margin at its right for the sidebar, so it covers neither a fitted
-photograph nor the film strip. The zone bar runs 0 to 10 from the left over the top of
+The canvas keeps a margin at its right for the sidebar, so it doesn't cover a fitted
+photograph, until the sidebar is dragged wholly out of it. The film strip and status bar
+run the window's full width under the sidebar, and can scroll out from under it. The zone bar runs 0 to 10 from the left over the top of
 the canvas. A fitted photograph stays below it (`topInset`); a zoomed one pans under it
 and its top can still be brought clear. A zone dragged from the bar crosses windows, so
 its position goes through the screen (`CanvasScale.canvasPoint(barPoint:)`), and the

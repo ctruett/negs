@@ -222,7 +222,7 @@ final class PhotoBrowserTests: XCTestCase {
                 XCTAssertEqual(model.source?.lastPathComponent, "Photo18.png")
                 // The selected thumbnail is centered; click its right neighbour.
                 let content = try XCTUnwrap(window.contentView)
-                let point = NSPoint(x: (content.frame.width - FloatingLayout.gutter) / 2 + 104, y: 80)
+                let point = NSPoint(x: content.frame.width / 2 + 104, y: 80)
                 for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
                     let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                         timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,

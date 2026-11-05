@@ -89,10 +89,11 @@ import SwiftUI
             guard let self, let content = self.contentOnScreen else { return }
             let home = FloatingLayout.sidebar(in: content, offset: .zero)
             self.sidebarOffset = CGVector(dx: self.sidebar.frame.minX - home.minX, dy: self.sidebar.frame.minY - home.minY)
+            self.syncPanels()
         }
         zoneBar.onUserMove = { [weak self] in
             guard let self, let content = self.contentOnScreen else { return }
-            let home = FloatingLayout.zoneBar(in: content, sidebarVisible: self.model.inspectorVisible, offset: .zero)
+            let home = FloatingLayout.zoneBar(in: content, sidebarVisible: true, offset: .zero)
             self.zoneBarOffset = CGVector(dx: self.zoneBar.frame.minX - home.minX, dy: self.zoneBar.frame.minY - home.minY)
         }
         let center = NotificationCenter.default
@@ -143,7 +144,10 @@ import SwiftUI
     private func syncPanels() {
         guard let window, window.isVisible, let content = contentOnScreen else { return }
         let sidebarFrame = FloatingLayout.sidebar(in: content, offset: sidebarOffset)
-        let barFrame = FloatingLayout.zoneBar(in: content, sidebarVisible: model.inspectorVisible, offset: zoneBarOffset)
+        let detached = FloatingLayout.sidebarIsClearOfMargin(sidebarFrame, in: content)
+        if model.sidebarDetached != detached { model.sidebarDetached = detached }
+        // Centred over the canvas until moved; a moved bar keeps its place.
+        let barFrame = FloatingLayout.zoneBar(in: content, sidebarVisible: model.canvasGutter > 0 || zoneBarOffset != .zero, offset: zoneBarOffset)
         for (panel, frame, shown) in [(sidebar, sidebarFrame, model.inspectorVisible), (zoneBar, barFrame, model.showsZonePanel)] {
             if panel.frame != frame { panel.setFrame(frame, display: panel.isVisible) }
             if shown, panel.parent == nil {
@@ -243,7 +247,7 @@ import SwiftUI
 
     private func update() {
         guard let window else { return }
-        _ = (model.inspectorVisible, model.showsZonePanel)
+        _ = (model.canvasGutter, model.showsZonePanel)
         syncPanels()
         let photo = model.source != nil
         window.title = model.source?.lastPathComponent ?? "Negs"
