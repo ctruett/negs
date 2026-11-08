@@ -687,6 +687,9 @@ impl Session {
                 // memory flat, and the display clips the same way.
                 spektrafilm_core::pipeline::clip_to_display(image, encoded);
                 let image = &*image;
+                // Local Contrast on the whole picture, before any crop, as the preview has it.
+                let local = local_contrast(image, encoding, post);
+                let image = local.as_ref().unwrap_or(image);
                 let adjusted_before = (crop_after_post && !post.is_identity())
                     .then(|| PostProcess::new(post, encoded, encoding.space.name).applied(image));
                 let image = adjusted_before.as_ref().unwrap_or(image);
@@ -909,12 +912,27 @@ fn parse_request(line: &str) -> Result<Request> {
 /// Writes the preview for the app as raw RGBA, avoiding PNG compression on
 /// every slider edit. Save keeps the float output, independent of this proxy.
 /// The bytes are in `DisplaySpace::of(encoding)`.
+/// `image` clipped as the display clips it, with `post`'s Local Contrast;
+/// none when it's off.
+fn local_contrast(image: &ImageBuf, encoding: Encoding, post: &PostParams) -> Option<ImageBuf> {
+    (post.local_contrast > 0.0).then(|| {
+        let mut local = image.clone();
+        spektrafilm_core::pipeline::clip_to_display(&mut local, encoding.encoded);
+        spektrafilm_core::local_contrast::apply(&mut local, post.local_contrast, encoding.encoded, encoding.space.name);
+        local
+    })
+}
+
 fn write_display(
     image: &ImageBuf,
     encoding: Encoding,
     post: &PostParams,
     path: &Path,
 ) -> Result<(usize, usize)> {
+    // Local Contrast needs the whole picture, so it goes on a clipped copy
+    // before the display's per-pixel Post.
+    let local = local_contrast(image, encoding, post);
+    let image = local.as_ref().unwrap_or(image);
     let post = (!post.is_identity()).then(|| PostProcess::new(post, encoding.encoded, encoding.space.name));
     let (width, height, bytes) =
         display_rgba_with_post(image, DISPLAY_MAX_DIM, encoding, post.as_ref());
@@ -1193,6 +1211,44 @@ mod tests {
             input: input.clone(), params, limit_preview: false, preview_path: dir.join("original.rgba"),
         } }, &data).unwrap();
         assert_eq!(original["display_color_space"], DisplaySpace::Rec2020SrgbTransfer.name());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Local Contrast reaches the preview and the saved file, as the rest of
+    /// Post does, though it needs the whole picture.
+    #[test]
+    fn local_contrast_reaches_the_preview_and_the_save() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let dir = std::env::temp_dir().join(format!("negs-local-contrast-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (input, preview) = (dir.join("input.png"), dir.join("preview.rgba"));
+        // A step edge, so Local Contrast has something to do.
+        let pixels = (0..64 * 32).flat_map(|i| [if i % 64 < 32 { 0.15 } else { 0.6 }; 3]).collect();
+        spektrafilm_io::save_image(&ImageBuf::from_data(64, 32, pixels), &input, None).unwrap();
+        let shot = |amount: f32, name: &str| {
+            let mut session = Session::default();
+            let Command::Render { mut params, .. } = render(&input, &preview, None, None, None) else { unreachable!() };
+            params.settings.serial_grain = false;
+            params.film_render.grain.active = false;
+            params.post.local_contrast = amount;
+            session.handle(Request { id: 1, command: Command::Render {
+                input: input.clone(), source_generation: 1, film: "kodak_portra_400".into(),
+                paper: "kodak_portra_endura".into(), params, limit_preview: false,
+                preview_path: preview.clone(), interactive_scale: None, crop: None,
+            } }, &data).unwrap();
+            let shown = std::fs::read(&preview).unwrap();
+            let output = dir.join(name);
+            session.handle(Request { id: 2, command: Command::Save {
+                render_id: 1, output: output.clone(), save_options: spektrafilm_io::save::SaveOptions { bit_depth: Some(16), ..Default::default() },
+                crop_after_post: false, border: None, border_options: BorderOptions::default(), instagram: false,
+                crop: None, rotate_cw: 0, fit: None,
+            } }, &data).unwrap();
+            (shown, image::open(&output).unwrap().to_rgb16().into_raw())
+        };
+        let (plain_shown, plain_saved) = shot(0.0, "plain.png");
+        let (lc_shown, lc_saved) = shot(80.0, "lc.png");
+        assert_ne!(plain_shown, lc_shown, "the preview shows it");
+        assert_ne!(plain_saved, lc_saved, "the file has it");
         std::fs::remove_dir_all(dir).unwrap();
     }
 

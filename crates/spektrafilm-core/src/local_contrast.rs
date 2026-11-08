@@ -58,19 +58,24 @@ pub fn apply(image: &mut ImageBuf, amount: f32, encoded: bool, color_space: &str
 fn blur(plane: &[f32], w: usize, h: usize, radius: usize) -> Vec<f32> {
     let mut a = plane.to_vec();
     let mut b = vec![0.0; a.len()];
+    let mut columns = vec![0.0; a.len()];
     for _ in 0..3 {
         b.par_chunks_mut(w).zip(a.par_chunks(w)).for_each(|(out, row)| box_line(row, out, radius));
-        let mut columns = vec![0.0; a.len()];
         // Columns as rows of the transposed plane.
-        columns.par_chunks_mut(h).enumerate().for_each(|(x, out)| {
-            let column: Vec<f32> = (0..h).map(|y| b[y * w + x]).collect();
-            box_line(&column, out, radius);
-        });
-        for x in 0..w {
-            for y in 0..h {
-                a[y * w + x] = columns[x * h + y];
+        columns.par_chunks_mut(h).enumerate().for_each_init(
+            || vec![0.0; h],
+            |column, (x, out)| {
+                for (y, v) in column.iter_mut().enumerate() {
+                    *v = b[y * w + x];
+                }
+                box_line(column, out, radius);
+            },
+        );
+        a.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
+            for (x, v) in row.iter_mut().enumerate() {
+                *v = columns[x * h + y];
             }
-        }
+        });
     }
     a
 }
@@ -141,5 +146,21 @@ mod tests {
     fn nothing_happens_at_zero() {
         let (dark, light) = edge_overshoots(60, 20, 0.0);
         assert_eq!((dark, light), (0.0, 0.0));
+    }
+}
+
+#[cfg(test)]
+mod timing {
+    /// Not a gate: prints how long a 24 MP scan takes, with `--ignored`.
+    #[test]
+    #[ignore]
+    fn a_24_megapixel_scan() {
+        use spektrafilm_math::{image::ImageBuf, precision::from_f32};
+        let (w, h) = (6000u32, 4000u32);
+        let data = (0..w * h * 3).map(|i| from_f32(((i * 7919) % 1000) as f32 / 999.0)).collect();
+        let mut img = ImageBuf::from_data(w, h, data);
+        let t = std::time::Instant::now();
+        super::apply(&mut img, 60.0, true, "sRGB");
+        eprintln!("local contrast, 24 MP: {:?}", t.elapsed());
     }
 }

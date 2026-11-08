@@ -172,6 +172,8 @@ fn mul(m: &[[f32; 3]; 3], c: [f32; 3]) -> [f32; 3] {
 /// linearly to 0, so −100 is grey, as RPP's monochrome mode is.
 fn chroma_scale(saturation: f32) -> f32 {
     const C: f64 = 248.4375;
+    // Held to the slider's range: past +124 the formula's pole turns it inside out.
+    let saturation = if saturation.is_finite() { saturation.clamp(-100.0, 100.0) } else { 0.0 };
     if saturation <= 0.0 {
         return (1.0 + saturation / 100.0).max(0.0);
     }
@@ -714,6 +716,15 @@ impl PostProcess {
 
 #[cfg(test)]
 mod tests {
+    /// A preset edited by hand can carry any number; it never makes NaN.
+    #[test]
+    fn saturation_past_its_range_is_held_at_the_ends() {
+        assert_eq!(chroma_scale(400.0), chroma_scale(100.0));
+        assert_eq!(chroma_scale(-400.0), 0.0);
+        let post = PostProcess::new(&PostParams { saturation: 250.0, ..Default::default() }, false, "sRGB");
+        assert!(post.apply_rgb([0.4, 0.4, 0.4]).iter().all(|v| v.is_finite()));
+    }
+
     #[test]
     fn the_chroma_scale_follows_rpp() {
         assert_eq!(chroma_scale(0.0), 1.0);
