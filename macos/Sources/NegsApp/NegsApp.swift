@@ -271,6 +271,7 @@ struct PaneSwitch: View {
             }
             Spacer(minLength: 0)
             if model.inspectorPane == .adjustments, model.cropSession == nil {
+                HiddenPartsEye()
                 let edits = model.editCount
                 if edits > 0 {
                     (Text("\(edits)").foregroundStyle(Ink.amber) + Text(edits == 1 ? " edit" : " edits").foregroundStyle(Ink.dim))

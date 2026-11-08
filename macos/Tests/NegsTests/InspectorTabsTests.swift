@@ -23,6 +23,24 @@ final class InspectorTabsTests: XCTestCase {
         XCTAssertTrue(folds.contains("module:Grain"))
     }
 
+    /// A part is shown unless it's hidden, and the eye, open, shows every part.
+    func testHiddenPartsComeBackWithTheEye() {
+        var stored = ""
+        var parts = HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: false)
+        XCTAssertTrue(parts.shows("section:Tone"))
+        XCTAssertFalse(parts.any)
+        parts.toggle("section:Tone")
+        XCTAssertFalse(parts.shows("section:Tone"))
+        XCTAssertTrue(parts.isHidden("section:Tone"))
+        XCTAssertTrue(parts.shows("module:Grain"))
+        XCTAssertTrue(parts.any)
+        parts.revealed = true
+        XCTAssertTrue(parts.shows("section:Tone"), "The open eye shows everything")
+        XCTAssertTrue(parts.isHidden("section:Tone"), "and remembers what's hidden")
+        parts.toggle("section:Tone")
+        XCTAssertFalse(parts.any)
+    }
+
     func testPrintIsSkippedOnlyWhileScanningFilmDirectly() {
         XCTAssertTrue(InspectorTab.print.isSkipped(scanning: true))
         for tab in InspectorTab.allCases where tab != .print {

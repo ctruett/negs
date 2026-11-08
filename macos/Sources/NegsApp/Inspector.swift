@@ -863,7 +863,9 @@ struct AdjustmentInspector: View {
             ZoneHistogramView(model: model)
                 .padding(.horizontal, InkLayout.gutter)
                 .padding(.bottom, 4)
+                .hideable("histogram")
             stockCards
+                .hideable("stocks")
             if model.gridVisible {
                 let count = model.gridSelection.count
                 Text((count == 1 ? "Editing 1 photo" : "Editing \(count) photos").uppercased())
@@ -1435,6 +1437,7 @@ struct AdjustmentInspector: View {
         }
         .padding(.horizontal, InkLayout.gutter)
         .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
+        .hideable("module:" + title)
     }
 
     @ViewBuilder private func developmentTime(stock: Stock?, path: String, label: String) -> some View {

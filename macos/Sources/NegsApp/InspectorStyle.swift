@@ -47,6 +47,64 @@ struct AllFolds {
     }
 }
 
+/// The sidebar's parts hidden with a right-click, kept across launches. The
+/// eye above the histogram, open, shows them all again.
+struct HiddenParts {
+    static let key = "hiddenSidebarParts"
+    static let revealKey = "showHiddenSidebarParts"
+    let storage: Binding<String>
+    var revealed: Bool
+
+    private var keys: [String] { storage.wrappedValue.split(separator: "\n").map(String.init) }
+    var any: Bool { !keys.isEmpty }
+    func isHidden(_ key: String) -> Bool { keys.contains(key) }
+    func shows(_ key: String) -> Bool { revealed || !isHidden(key) }
+    func toggle(_ key: String) {
+        storage.wrappedValue = (isHidden(key) ? keys.filter { $0 != key } : keys + [key]).joined(separator: "\n")
+    }
+}
+
+/// A sidebar part that a right-click can hide, or with the eye open, show again.
+struct Hideable: ViewModifier {
+    let key: String
+    @AppStorage(HiddenParts.key) private var storage = ""
+    @AppStorage(HiddenParts.revealKey) private var revealed = false
+
+    func body(content: Content) -> some View {
+        let parts = HiddenParts(storage: $storage, revealed: revealed)
+        if parts.shows(key) {
+            content.contextMenu {
+                Button(parts.isHidden(key) ? "Show Section" : "Hide Section") { parts.toggle(key) }
+            }
+        }
+    }
+}
+
+extension View {
+    /// See [`Hideable`]: `key` names the part, as "section:Tone".
+    func hideable(_ key: String) -> some View { modifier(Hideable(key: key)) }
+}
+
+/// The eye above the histogram: open shows every part, hidden ones included.
+struct HiddenPartsEye: View {
+    @AppStorage(HiddenParts.key) private var storage = ""
+    @AppStorage(HiddenParts.revealKey) private var revealed = false
+
+    var body: some View {
+        let any = HiddenParts(storage: $storage, revealed: revealed).any
+        Button { revealed.toggle() } label: {
+            Image(systemName: revealed ? "eye" : "eye.slash")
+                .font(.system(size: 12))
+                .foregroundStyle(any ? (revealed ? Ink.amber : Ink.label) : Ink.dim.opacity(0.5))
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(revealed ? "Hide the sections you've hidden" : "Show the sections you've hidden. Right-click a section to hide it.")
+        .accessibilityLabel(revealed ? "Hide hidden sections" : "Show hidden sections")
+    }
+}
+
 /// The mark on a heading folded in the all-controls column.
 struct FoldChevron: View {
     var body: some View {
@@ -98,6 +156,7 @@ struct InkSection<Content: View, Action: View>: View {
         .padding(.horizontal, InkLayout.gutter)
         .padding(.vertical, 8)
         .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
+        .hideable("section:" + (title ?? ""))
     }
 }
 
