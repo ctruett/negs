@@ -882,6 +882,22 @@ mod tests {
     /// Pins are measured on one photograph, so a preset's Finish section
     /// neither carries them to another nor replaces the ones it has.
     #[test]
+    fn local_contrast_travels_with_the_finish_section() {
+        let data = data_dir();
+        let mut saved = RuntimeParams::default();
+        saved.post.local_contrast = 30.0;
+        let text = export_with_finish("kodak_portra_400", "kodak_portra_endura", &saved, &data, true).unwrap();
+        let applied = apply_with_finish(&import(&text, &data).unwrap(), &RuntimeParams::default(), true);
+        assert_eq!(applied.post.local_contrast, 30.0);
+        // A Finish section from before it existed turns it off.
+        let older = text.replace("\"local_contrast\": 30.0,", "");
+        assert!(!older.contains("local_contrast"), "{older}");
+        let mut current = RuntimeParams::default();
+        current.post.local_contrast = 50.0;
+        assert_eq!(apply_with_finish(&import(&older, &data).unwrap(), &current, true).post.local_contrast, 0.0);
+    }
+
+    #[test]
     fn a_finish_section_leaves_the_photographs_pins_alone() {
         use crate::post::ToneAnchor;
         let data = data_dir();

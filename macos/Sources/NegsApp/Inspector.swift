@@ -112,13 +112,14 @@ private let cameraEditControls: [Adjustment] = [
     .slider("Long edge (mm)", "camera.film_format_mm", 4...120, 0.1)
 ]
 
-/// Tone lives in Finish, and on Simple's page.
+/// Tone lives in Scan, and on Simple's page.
 let toneControls: [Adjustment] = [
     .slider("Brightness", "post.brightness", -100...100, 1),
     .slider("Contrast", "post.contrast", -100...100, 1),
     .slider("Whites", "post.whites", -100...100, 1),
     .slider("Blacks", "post.blacks", -100...100, 1),
-    .slider("Saturation", "post.saturation", -100...100, 1)
+    .slider("Saturation", "post.saturation", -100...100, 1),
+    .slider("Local Contrast", "post.local_contrast", 0...100, 1)
 ]
 
 struct AdjustmentGroup: Identifiable {
@@ -1117,6 +1118,9 @@ struct AdjustmentInspector: View {
     // MARK: Scan
 
     @ViewBuilder private var scanTab: some View {
+        InkSection("Tone", footer: "These shape the tones the film produced. To recover a clipped highlight, use Exposure in Camera.") {
+            ForEach(toneControls) { control($0) }
+        }
         InkSection("Sharpness") {
             control(.slider("Unsharp radius (px)", "scanner.unsharp_mask.0", 0...3, 0.01))
             control(.slider("Unsharp amount", "scanner.unsharp_mask.1", 0...2, 0.01))
@@ -1132,9 +1136,6 @@ struct AdjustmentInspector: View {
             dependent(on: "scanner.black_correction") {
                 control(.slider("Black level", "scanner.black_level", 0...0.5, 0.01))
             }
-        }
-        InkSection("Tone", footer: "These shape the tones the film produced. To recover a clipped highlight, use Exposure in Camera.") {
-            ForEach(toneControls) { control($0) }
         }
         module("Border", enable: model.border(\.enabled), summary: model.border.style.title) {
             let photo = model.photoSize == .zero ? nil : model.photoSize

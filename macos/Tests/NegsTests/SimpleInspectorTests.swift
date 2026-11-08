@@ -40,7 +40,7 @@ import XCTest
         defer { window.orderOut(nil) }
         XCTAssertEqual(sliders(in: host).map { $0.accessibilityLabel() ?? "" }, [
             "Print exposure",
-            "Brightness", "Contrast", "Whites", "Blacks", "Saturation",
+            "Brightness", "Contrast", "Whites", "Blacks", "Saturation", "Local Contrast",
             "Midtone Detail", "Unsharp radius (px)", "Unsharp amount",
         ])
     }
@@ -144,6 +144,10 @@ import XCTest
         let scan = labels(.scan)
         XCTAssertTrue(scan.contains("Brightness"))
         XCTAssertFalse(scan.contains("Exposure (EV)"))
+        let saturation = try XCTUnwrap(scan.firstIndex(of: "Saturation"))
+        XCTAssertEqual(scan.firstIndex(of: "Local Contrast"), saturation + 1, "\(scan)")
+        XCTAssertLessThan(try XCTUnwrap(scan.firstIndex(of: "Local Contrast")), try XCTUnwrap(scan.firstIndex(of: "Unsharp radius (px)")),
+                          "Tone above Sharpness")
     }
 
     /// With the film scanned directly there's no print, so its controls are
