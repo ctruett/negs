@@ -168,6 +168,8 @@ struct PhotoBrowser: View {
     @State private var scroller = FilmRollScroller()
     /// Which stretch of film is in view, in coarse steps.
     @State private var band = 0
+    /// Not observed: only refreshes the open photograph's frame.
+    @State private var frames = VisibleCells()
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -179,6 +181,7 @@ struct PhotoBrowser: View {
                 ForEach(Array(FilmRollLayout.framesInView(edges: edges, band: band)), id: \.self) { index in
                     let file = shown[index]
                     FilmFrame(height: height, length: edges[index + 1] - edges[index], file: file,
+                              developed: model.rollDeveloper?.frames[file.url],
                               selected: file.url == model.source) {
                         if file.url != model.source { model.open(file.url) }
                     }
@@ -200,9 +203,16 @@ struct PhotoBrowser: View {
         .onAppear {
             scroller.onScroll = { [scroller] in
                 let next = FilmRollLayout.band(offset: scroller.offset)
-                if next != band { band = next }
+                if next != band {
+                    band = next
+                    // The frames that have come into view develop next.
+                    let inView = FilmRollLayout.framesInView(edges: edges, band: next)
+                    if !inView.isEmpty { model.rollDeveloper?.setCentre((inView.lowerBound + inView.upperBound) / 2) }
+                }
             }
         }
+        // The open photograph's edit, once changes pause.
+        .onChange(of: model.state) { _, _ in frames.refresh(model) }
         .onDisappear { scroller.stop() }
         .onMoveCommand { direction in
             guard !model.cropping, let source = model.source,

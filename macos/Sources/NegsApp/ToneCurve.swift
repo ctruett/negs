@@ -13,30 +13,88 @@ struct ToneCurve: Equatable {
         a.black == b.black && a.white == b.white && a.points.elementsEqual(b.points) { $0 == $1 }
     }
 
-    init(anchors: [(input: Double, target: Double)]) {
+    /// `soft` says which anchors are pins measured on the photograph; see
+    /// `relaxed`. Without it, every anchor lands exactly.
+    init(anchors: [(input: Double, target: Double)], soft softAnchors: [Bool] = []) {
         // Pins on one target are one reading of that tone.
-        var zones: [Int: (sum: Double, count: Int)] = [:]
-        for anchor in anchors where anchor.input.isFinite && anchor.target.isFinite && (0..<100).contains(anchor.input) {
+        var zones: [Int: (sum: Double, count: Int, soft: Bool)] = [:]
+        for (index, anchor) in anchors.enumerated() where anchor.input.isFinite && anchor.target.isFinite && (0..<100).contains(anchor.input) {
             let key = Int((min(max(anchor.target, 0), 100) * 2).rounded())
-            zones[key, default: (0, 0)].sum += anchor.input
-            zones[key, default: (0, 0)].count += 1
+            zones[key, default: (0, 0, false)].sum += anchor.input
+            zones[key, default: (0, 0, false)].count += 1
+            if softAnchors.indices.contains(index), softAnchors[index] { zones[key, default: (0, 0, false)].soft = true }
         }
         var (black, white) = (0.0, 100.0)
-        var interior: [(input: Double, target: Double)] = []
+        var interior: [(input: Double, target: Double, soft: Bool)] = []
         for (key, zone) in zones {
             let (input, target) = (zone.sum / Double(zone.count), Double(key) / 2)
-            if target <= 0 { black = input } else if target >= 100 { white = input } else { interior.append((input, target)) }
+            if target <= 0 { black = input } else if target >= 100 { white = input } else { interior.append((input, target, zone.soft)) }
         }
         if white <= black + 0.5 { white = 100 }
         interior.sort { ($0.input, $0.target) < ($1.input, $1.target) }
         // The curve must rise, so a zone that would turn it back has no effect.
-        var kept: [(input: Double, target: Double)] = []
+        var kept: [(input: Double, target: Double, soft: Bool)] = []
         for point in interior where point.input > black + 0.5 && point.input < white - 0.5 {
             if let last = kept.last, point.input - last.input < 0.5 || point.target - last.target < 0.5 { continue }
             kept.append(point)
         }
-        self.black = black; self.white = white; points = kept
-        tangents = Self.tangents(black: black, white: white, points: kept)
+        self.black = black; self.white = white
+        points = Self.relaxed(black: black, white: white, points: kept)
+        tangents = Self.tangents(black: black, white: white, points: points)
+    }
+
+    /// How steep or flat soft pins may make the curve, as the engine's `SOFT_SLOPE`.
+    static let softSlope = (flat: 0.35, steep: 1.8)
+
+    /// The soft pins, moved as little as keeps every stretch within `softSlope`;
+    /// the ends and hard points stay. Pins close together blend rather than
+    /// stretching some tones and crushing others, and pins with room land exactly.
+    /// The same steps as the engine's `AnchorCurve::relaxed`.
+    private static func relaxed(black: Double, white: Double, points: [(input: Double, target: Double, soft: Bool)]) -> [(input: Double, target: Double)] {
+        let plain = points.map { (input: $0.input, target: $0.target) }
+        guard points.contains(where: \.soft) else { return plain }
+        let (flat, steep) = softSlope
+        let knots = [(input: black, target: 0.0, soft: false)] + points + [(input: white, target: 100.0, soft: false)]
+        let count = knots.count
+        var bounds = [(low: Double, high: Double)](repeating: (0, 0), count: count)
+        for i in 0..<count {
+            let knot = knots[i]
+            guard knot.soft else { bounds[i] = (knot.target, knot.target); continue }
+            let left = knots[..<i].last { !$0.soft }!, right = knots[(i + 1)...].first { !$0.soft }!
+            let low = max(left.target + flat * (knot.input - left.input), right.target - steep * (right.input - knot.input))
+            let high = min(left.target + steep * (knot.input - left.input), right.target - flat * (right.input - knot.input))
+            // Hard points too close for the limits leave nothing to aim for: it stays.
+            let stay = min(max(knot.target, left.target), right.target)
+            bounds[i] = low <= high ? (low, high) : (stay, stay)
+        }
+        // Within what's allowed from its neighbour too, or if nothing is, its bounds.
+        func place(_ y: Double, _ low: Double, _ high: Double, _ bound: (low: Double, high: Double)) -> Double {
+            low <= high ? min(max(y, low), high) : min(max(y, bound.low), bound.high)
+        }
+        var forward = [Double](repeating: 0, count: count)
+        forward[0] = knots[0].target
+        for i in 1..<count {
+            let d = knots[i].input - knots[i - 1].input
+            let low = max(bounds[i].low, forward[i - 1] + flat * d)
+            let high = min(bounds[i].high, forward[i - 1] + steep * d)
+            forward[i] = knots[i].soft ? place(knots[i].target, low, high, bounds[i]) : knots[i].target
+        }
+        var backward = [Double](repeating: 0, count: count)
+        backward[count - 1] = knots[count - 1].target
+        for i in stride(from: count - 2, through: 0, by: -1) {
+            let d = knots[i + 1].input - knots[i].input
+            let low = max(bounds[i].low, backward[i + 1] - steep * d)
+            let high = min(bounds[i].high, backward[i + 1] - flat * d)
+            backward[i] = knots[i].soft ? place(knots[i].target, low, high, bounds[i]) : knots[i].target
+        }
+        // Between hard points too close for the limits, it must still rise.
+        var result = zip(forward, backward).map { ($0 + $1) / 2 }
+        if count > 2 {
+            for i in 1..<(count - 1) where knots[i].soft {
+                result[i] = min(max(result[i], result[i - 1]), max(result[i + 1], result[i - 1]))
+            }
+        }
+        return (1..<(count - 1)).map { (input: knots[$0].input, target: result[$0]) }
     }
 
     private static func tangents(black: Double, white: Double, points: [(input: Double, target: Double)]) -> [Double] {
@@ -58,6 +116,10 @@ struct ToneCurve: Equatable {
                 let (w0, w1) = (2 * h1 + h0, h1 + 2 * h0)
                 result[i] = (w0 + w1) / (w0 / slopes[i - 1] + w1 / slopes[i])
             }
+            // The ends of the axis don't flatten, which would crush the deepest
+            // shadows and the brightest highlights together.
+            result[0] = max(result[0], slopes[0] / 2)
+            result[last + 1] = max(result[last + 1], slopes[last] / 2)
         }
         if black > 0 { result[0] = 0 }
         if white < 100 { result[last + 1] = 0 }
@@ -80,154 +142,4 @@ struct ToneCurve: Equatable {
             + (-2 * t3 + 3 * t2) * b.target + (t3 - t2) * h * tangents[index + 1]
         return min(max(y, a.target), b.target)
     }
-}
-
-/// A point on the tone curve: a zone's pins, read as one, or a point set by hand.
-struct CurvePoint: Identifiable, Equatable {
-    var id: Double { target }
-    let input: Double
-    let target: Double
-    /// The anchors behind it.
-    let anchors: [Int]
-    /// Measured from the photograph, rather than set here.
-    let pinned: Bool
-    let ignored: Bool
-}
-
-/// The whole curve over a faint histogram. Drag a point to change it, which
-/// turns a pin into a plain point; click to add one; drag one out to remove it.
-struct ToneCurveBox: View {
-    let model: EditorModel
-    @State private var dragging: [Int]?
-    @State private var moved = false
-    @State private var outside = false
-    @State private var start = CGPoint.zero
-
-    /// How far past the box a point has to be let go to come off.
-    static let removeDistance: CGFloat = 24
-    /// How close a click has to be to take hold of a point.
-    static let reach: CGFloat = 10
-
-    var body: some View {
-        let points = model.curvePoints
-        VStack(spacing: 8) {
-            GeometryReader { geometry in
-                ZStack {
-                    HistogramView(histogram: model.histogram).opacity(0.3)
-                    Canvas { context, size in draw(&context, size: size, points: points) }
-                }
-                // AppKit, since SwiftUI doesn't pass mouse drags through the Form's scrolling.
-                .overlay {
-                    CurveMouseSurface { event in
-                        // It sits outside SwiftUI's disabling.
-                        guard model.source != nil, !model.cropping else { return }
-                        switch event {
-                        case .down(let point): start = point; changed(at: point, size: geometry.size)
-                        case .dragged(let point): changed(at: point, size: geometry.size)
-                        case .up: ended()
-                        }
-                    }
-                }
-            }
-            .frame(height: 170)
-            .accessibilityElement()
-            .accessibilityLabel("Tone Curve")
-            .accessibilityValue(points.isEmpty ? "Straight" : "\(points.count) points")
-            HStack {
-                Button("Copy") { model.copyToneCurve() }.disabled(points.isEmpty)
-                Button("Paste") { model.pasteToneCurve() }.disabled(!model.canPasteToneCurve)
-                Spacer()
-                Button("Reset") { model.resetToneCurve() }.disabled(points.isEmpty)
-            }
-            .buttonStyle(.borderless)
-        }
-        .disabled(model.source == nil || model.cropping)
-    }
-
-    static func position(input: Double, target: Double, size: CGSize) -> CGPoint {
-        CGPoint(x: size.width * input / 100, y: size.height * (1 - target / 100))
-    }
-
-    private func draw(_ context: inout GraphicsContext, size: CGSize, points: [CurvePoint]) {
-        var grid = Path()
-        for step in 1..<4 {
-            let (x, y) = (size.width * CGFloat(step) / 4, size.height * CGFloat(step) / 4)
-            grid.move(to: CGPoint(x: x, y: 0)); grid.addLine(to: CGPoint(x: x, y: size.height))
-            grid.move(to: CGPoint(x: 0, y: y)); grid.addLine(to: CGPoint(x: size.width, y: y))
-        }
-        context.stroke(grid, with: .color(EdgePrint.amber.opacity(0.12)), lineWidth: 1)
-        let curve = model.toneCurve
-        var line = Path()
-        let samples = max(Int(size.width), 2)
-        for sample in 0...samples {
-            let input = 100 * Double(sample) / Double(samples)
-            let point = Self.position(input: input, target: curve.map(input), size: size)
-            if sample == 0 { line.move(to: point) } else { line.addLine(to: point) }
-        }
-        context.stroke(line, with: .color(EdgePrint.amber), lineWidth: 1.5)
-        for point in points {
-            let centre = Self.position(input: point.input, target: point.target, size: size)
-            let selected = model.selectedPin.map(point.anchors.contains) ?? false
-            let radius: CGFloat = selected ? 5.5 : 4
-            let dot = Path(ellipseIn: CGRect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2))
-            let colour = point.ignored ? Color.red : EdgePrint.amber
-            context.opacity = outside && dragging == point.anchors ? 0.3 : 1
-            context.fill(dot, with: .color(point.pinned ? colour : .black))
-            context.stroke(dot, with: .color(colour), lineWidth: 1.5)
-            context.opacity = 1
-        }
-    }
-
-    private func changed(at location: CGPoint, size: CGSize) {
-        let input = 100 * location.x / max(size.width, 1)
-        let target = 100 * (1 - location.y / max(size.height, 1))
-        guard let held = dragging else {
-            let near = model.curvePoints.map { point -> (CurvePoint, CGFloat) in
-                let centre = Self.position(input: point.input, target: point.target, size: size)
-                return (point, hypot(centre.x - location.x, centre.y - location.y))
-            }.filter { $0.1 <= Self.reach }.min { $0.1 < $1.1 }?.0
-            if let near {
-                dragging = near.anchors
-                model.selectPin(near.anchors.first)
-            } else {
-                model.beginInteraction()
-                moved = true
-                dragging = model.addCurvePoint(input: input, target: target)
-            }
-            return
-        }
-        if !moved {
-            guard hypot(location.x - start.x, location.y - start.y) > 1 else { return }
-            model.beginInteraction()
-            moved = true
-        }
-        let r = Self.removeDistance
-        outside = !CGRect(origin: .zero, size: size).insetBy(dx: -r, dy: -r).contains(location)
-        if !outside { dragging = model.moveCurvePoint(held, input: input, target: target) }
-    }
-
-    private func ended() {
-        if outside, let dragging { model.removeCurvePoint(dragging) }
-        if moved { model.endInteraction(action: "Edit Tone Curve") }
-        dragging = nil; moved = false; outside = false
-    }
-}
-
-/// The mouse over the curve, in points from the box's top left.
-private struct CurveMouseSurface: NSViewRepresentable {
-    enum Event { case down(CGPoint), dragged(CGPoint), up }
-    let handle: (Event) -> Void
-
-    final class Surface: NSView {
-        var handle: (Event) -> Void = { _ in }
-        override var isFlipped: Bool { true }
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-        private func point(_ event: NSEvent) -> CGPoint { convert(event.locationInWindow, from: nil) }
-        override func mouseDown(with event: NSEvent) { handle(.down(point(event))) }
-        override func mouseDragged(with event: NSEvent) { handle(.dragged(point(event))) }
-        override func mouseUp(with event: NSEvent) { handle(.up) }
-    }
-
-    func makeNSView(context: Context) -> Surface { Surface() }
-    func updateNSView(_ view: Surface, context: Context) { view.handle = handle }
 }

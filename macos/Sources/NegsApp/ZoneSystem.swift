@@ -1,44 +1,51 @@
 import AppKit
 
-/// One of Ansel Adams' zones, as a tone of the print.
+/// One of the zones, as a tone of the print.
 struct Zone: Identifiable, Hashable, Sendable {
     let index: Int
     let name: String
     /// What typically belongs in this zone.
     let note: String
     var id: Int { index }
-    var numeral: String { "\(index)" }
-    /// Where a pin on this zone prints, in L\* 0…100: the middle of its band.
-    /// The two end bands are half as wide, stopping at black and white, so a
-    /// pin on either leaves the ends of the curve alone rather than clipping.
-    var target: Double { min(max(Double(index) * 10, 2.5), 97.5) }
+    var numeral: String { ZoneScale.numerals[index] }
+    /// The relative luminance at the middle of the zone: a stop per zone, with
+    /// zone V at 18 % gray.
+    private var luminance: Double { 0.18 * pow(2, Double(index) - 5) }
+    /// The middle of the zone, in L\* 0…100: where ⇧ places a reading.
+    var target: Double { ZoneScale.lstar(luminance: luminance) }
+    /// Where a plain click places a reading: the start of the zone, as in the
+    /// zone system's own readings. Zone 0 starts at black, which no exposure
+    /// reaches, so it takes its middle.
+    var start: Double { index == 0 ? target : band.lowerBound }
+    /// The zone's band on the L\* axis, half a stop either side of its middle.
+    /// Zone 0 runs down to black and the last zone up to white.
+    var band: ClosedRange<Double> {
+        let low = index == 0 ? 0 : ZoneScale.lstar(luminance: luminance / 2.0.squareRoot())
+        return low...min(ZoneScale.lstar(luminance: luminance * 2.0.squareRoot()), 100)
+    }
 }
 
-/// The eleven zones, evenly spaced in L\*, which puts zone 5 at 18 % gray
-/// (L\* 49.5). On the negative a zone is a stop, but 18 % × 2⁵ is far past
-/// white: the print compresses that range onto paper, and these are the tones
-/// it prints.
+/// Zones 0 to VII: each a stop apart in luminance, from 18 % gray at zone V up
+/// to the first stop past white, which the last band stops at.
 enum ZoneScale {
+    static let numerals = ["0", "I", "II", "III", "IV", "V", "VI", "VII"]
     static let zones: [Zone] = [
         ("Pure black", "No tone at all."),
         ("Near black", "A slight tonality, but no detail."),
-        ("Dark black", "Slight detail in the shadows."),
-        ("Very dark gray", "Shadows with distinct, visible texture."),
-        ("Medium dark gray", "Slightly darker Black skin, dark foliage, landscape shadows."),
+        ("First texture", "Slight detail in the shadows."),
+        ("Dark detail", "Shadows with distinct, visible texture."),
+        ("Open shadow", "Slightly darker Black skin, dark foliage, landscape shadows."),
         ("Middle gray", "18% gray: darker tan white skin, lighter Black skin, light foliage, dark blue sky."),
-        ("Middle light gray", "Average white skin, light stone, shadow areas on snow."),
-        ("Light gray", "Pale white skin, concrete or gray asphalt in sunlight."),
-        ("Gray-white", "Detail in highlights: white walls in sunlight, bright surfaces."),
-        ("Bright white", "Slight detail in highlights: white paper, snow, white water."),
-        ("Pure white", "No detail: light sources, specular highlights.")
+        ("Light midtone", "Average white skin, light stone, shadow areas on snow."),
+        ("Light texture", "Pale white skin, white walls in sunlight, detail in snow and bright surfaces.")
     ].enumerated().map { Zone(index: $0.offset, name: $0.element.0, note: $0.element.1) }
 
-    /// The zone nearest a tone, L\* 0…100.
-    static func zone(forTarget target: Double) -> Int {
-        min(max(Int((target / 10).rounded()), 0), zones.count - 1)
+    /// CIE L\* of a relative luminance.
+    static func lstar(luminance y: Double) -> Double {
+        y > 216.0 / 24389 ? 116 * cbrt(y) - 16 : y * 24389 / 27
     }
 
-    /// The grey a zone prints as, on its tile and its pins.
+    /// The grey a zone prints as.
     static func grey(_ zone: Int) -> NSColor { grey(lstar: zones[zone].target) }
 
     /// The sRGB grey of a tone, L\* 0…100.
@@ -50,36 +57,21 @@ enum ZoneScale {
     }
 }
 
-/// A pin: a measured tone that prints as its zone.
-struct TonePin: Equatable, Sendable {
-    /// The tone before the pins' curve.
-    var input: Double
-    var target: Double
-    var zone: Int
-    /// Where the tone was measured; nil when the app recorded no position.
-    var source: PinSource?
-}
+/// A ⌃-pick: an area of the photograph read against the zones.
+struct ZoneReading: Equatable, Sendable {
+    /// The area's corners, in fractions of the uncropped photograph from its top left.
+    let from: CGPoint
+    let to: CGPoint
+    /// Where the area prints now, in L\*; nil until it's been read.
+    var printed: Double?
+    /// By zone, the stops of Zone Shift that print the area at the zone's
+    /// start, and at its middle; empty until it's been read.
+    var toStart: [Double] = []
+    var toMiddle: [Double] = []
 
-/// The circle a pin averages, in fractions of the uncropped photograph.
-struct PinSource: Equatable, Sendable {
-    var centre: CGPoint
-    /// As a fraction of the shorter side.
-    var radius: Double
-}
-
-/// A pin the canvas draws.
-struct TonePinMarker: Equatable, Sendable {
-    let index: Int
-    let zone: Int
-    let source: PinSource
-    let selected: Bool
-    /// The tone curve can't honour it, so it has no effect.
-    var ignored = false
-}
-
-/// A zone being dragged from the panel.
-struct ZoneDrag: Equatable, Sendable {
-    let zone: Int
-    /// The pointer in canvas points, from the top left.
-    let point: CGPoint
+    var isRead: Bool { printed != nil && toStart.count == ZoneScale.zones.count && toMiddle.count == ZoneScale.zones.count }
+    /// The zone the area prints in now.
+    var zone: Int? {
+        printed.flatMap { lstar in ZoneScale.zones.last { lstar >= $0.band.lowerBound }?.index }
+    }
 }

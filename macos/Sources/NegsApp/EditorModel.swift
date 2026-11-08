@@ -42,65 +42,12 @@ import UniformTypeIdentifiers
     /// Original button is held.
     private(set) var original: IOSurface?
     /// The tones of `image` within the crop; nil until it develops.
-    private(set) var histogram: Histogram?
-    /// The photograph's pins, in parameter order.
-    var pins: [TonePin] {
-        let anchors = state.params["post.tone_anchors"].array
-        return anchors.indices.compactMap { index in
-            let path = "post.tone_anchors.\(index)"
-            let input = state.params["\(path).input"].double
-            let target = state.params["\(path).target"].double
-            guard input.isFinite, target.isFinite else { return nil }
-            let radius = state.params["\(path).source.radius"].double
-            let centre = CGPoint(
-                x: state.params["\(path).source.x"].double,
-                y: state.params["\(path).source.y"].double
-            )
-            let source = radius.isFinite && radius >= 0 && centre.x.isFinite && centre.y.isFinite
-                && state.params["\(path).source.x"] != .null
-                ? PinSource(centre: centre, radius: radius)
-                : nil
-            return TonePin(input: input, target: target, zone: ZoneScale.zone(forTarget: target), source: source)
-        }
+    private(set) var histogram: Histogram? {
+        didSet { if histogram != oldValue { zoneChart = histogram.map(ZoneChartData.init) } }
     }
-
-    /// The zones with a pin on the photograph. A point set on the curve is on no zone.
-    var placedZones: Set<Int> { Set(pins.filter { $0.source != nil }.map(\.zone)) }
-    /// The zone of the selected pin, if it's a pin.
-    var selectedZone: Int? {
-        guard let selectedPin, pins.indices.contains(selectedPin), pins[selectedPin].source != nil else { return nil }
-        return pins[selectedPin].zone
-    }
-
-    /// The pins the canvas draws, with a resize in progress already applied.
-    var pinsToShow: [TonePinMarker] {
-        guard pinsVisible, !imageOnly, original == nil, !holdingOriginal else { return [] }
-        return pins.enumerated().compactMap { index, pin in
-            guard var source = pin.source else { return nil }
-            if let pendingResize, pendingResize.index == index { source.radius = pendingResize.radius }
-            return TonePinMarker(
-                index: index, zone: pin.zone, source: source,
-                selected: selectedPin == index, ignored: ignoredPins.contains(index)
-            )
-        }
-    }
-
-    /// Whether the pins and their lines are drawn; hidden, they still shape the
-    /// photograph. Remembered between launches.
-    var pinsVisible = UserDefaults.standard.object(forKey: "showTonePins") as? Bool ?? true {
-        didSet {
-            UserDefaults.standard.set(pinsVisible, forKey: "showTonePins")
-            if !pinsVisible { selectedPin = nil }
-        }
-    }
-
-    /// The panel shows with a photograph and goes with the pins on Tab, and
-    /// isn't there while cropping.
-    var showsZonePanel: Bool { source != nil && pinsVisible && !cropping && !gridVisible && !imageOnly }
-
-    /// Where the zone panel sits against the photograph.
-    var zonePlacement: ZonePlacement?
-
+    /// `histogram` on the L\* axis. It's worked out here, however the histogram
+    /// arrived, so no redraw has to and the two can't disagree.
+    private(set) var zoneChart: ZoneChartData?
     /// F: nothing in the window but the photograph and its camera details. The
     /// grid and cropping bring their own controls back while they're up.
     var imageOnly: Bool { imageOnlyChosen && source != nil && !cropping && !gridVisible }
@@ -184,9 +131,71 @@ import UniformTypeIdentifiers
         open(shown[index + step].url)
     }
 
+    /// The photographs the grid's panel edits; the open one is always among them.
+    var gridSelection: Set<URL> { source.map { gridOthers.union([$0]) } ?? [] }
+    private var gridOthers: Set<URL> = []
+    /// The edit the others last took on, while more than one is selected.
+    @ObservationIgnored private var batchBase: EditState?
+    /// How many columns the grid shows, across launches.
+    static let gridColumnRange = 3...6
+    var gridColumns = { () -> Int in
+        let saved = UserDefaults.standard.integer(forKey: "gridColumns")
+        return EditorModel.gridColumnRange.contains(saved) ? saved : PhotoGridLayout.columns
+    }() {
+        didSet { UserDefaults.standard.set(gridColumns, forKey: "gridColumns") }
+    }
+
+    /// A click in the grid. Alone it opens that photograph behind the grid, for
+    /// the panel to edit; with ⌘ or ⇧ it adds or removes one from the selection,
+    /// and the open photograph stays the one being edited.
+    func clickInGrid(_ url: URL, adding: Bool) {
+        flushBatch()
+        if !adding {
+            gridOthers = []
+            if url != source { open(url) }
+        } else if url == source {
+            // Taking the open one out hands the panel to another.
+            guard let next = gridOthers.sorted(by: { $0.path < $1.path }).first else { return }
+            gridOthers.remove(next)
+            open(next)
+        } else if gridOthers.contains(url) {
+            gridOthers.remove(url)
+        } else {
+            gridOthers.insert(url)
+        }
+        batchBase = gridOthers.isEmpty ? nil : state
+    }
+
+    /// Writes what's changed since the last time into the other selected
+    /// photographs' settings, where the grid reads them. It's upkeep like
+    /// autosaving, so a photograph that can't be written just says so.
+    private func flushBatch() {
+        guard let base = batchBase, !gridOthers.isEmpty else { return }
+        batchBase = state
+        let edit = BatchEdit(from: base, to: state)
+        guard !edit.isEmpty else { return }
+        var failed = 0
+        for url in gridOthers {
+            var other: EditState
+            if let saved = try? PhotoSettingsFile.read(beside: url) { other = merged(saved.state) }
+            else { other = uneditedState(in: url.deletingLastPathComponent()) }
+            other = edit.applied(to: other)
+            do {
+                _ = try PhotoSettingsFile(image: url.lastPathComponent, state: other).write(beside: url)
+                rollDeveloper?.invalidate(url)
+            } catch {
+                failed += 1
+            }
+        }
+        if failed > 0 { status = "Couldn’t save the edit to \(failed) selected photograph\(failed == 1 ? "" : "s")" }
+    }
+
     /// The developer stays, with its frames, so coming back doesn't start over.
     /// Only another folder ends it.
     private func closeGrid() {
+        flushBatch()
+        gridOthers = []
+        batchBase = nil
         gridVisible = false
         rollDeveloper?.reach = RollDeveloper.openReach
     }
@@ -227,19 +236,6 @@ import UniformTypeIdentifiers
     /// makes it quicker: the film simulation itself is a few percent of the time.
     private static let rollReadSide = 1200
 
-    /// A zone being dragged from the panel.
-    var zoneDrag: ZoneDrag?
-
-    /// The size the next pin's circle starts at: the last one used.
-    var sampleRadius = SampleSize.initial
-
-    /// The selected pin: its tile is outlined, and the scroll wheel sizes it.
-    private(set) var selectedPin: Int?
-    /// The pins the tone curve can't honour, from the last render.
-    private(set) var ignoredPins: Set<Int> = []
-    /// A resize waiting for the wheel to stop, shown before it's an edit.
-    private var pendingResize: (index: Int, radius: Double)?
-    @ObservationIgnored private var resizeCommit: Task<Void, Never>?
     /// The developed preview's frame, uncropped, which the canvas lays out:
     /// the working frame, or less with the 12 MP limit.
     private(set) var imageSize = CGSize.zero
@@ -447,9 +443,6 @@ import UniformTypeIdentifiers
     var canSave: Bool { previewCurrent && image != nil && !rendering && !saving && !cropping }
     var cropping: Bool { cropSession != nil }
     var canShowOriginal: Bool { image != nil && !cropping }
-    /// Whether a zone can be dropped: a drop during a render waits for it, but
-    /// the original or the crop must not be what's on screen.
-    var canPlaceZones: Bool { image != nil && !cropping && !holdingOriginal && original == nil }
     /// The shown photograph's size after cropping, before rotation; zero
     /// before one opens. Borders fit this size.
     var photoSize: CGSize { crop.size(of: image != nil ? imageSize : placeholderSize) }
@@ -647,7 +640,6 @@ import UniformTypeIdentifiers
         if border != state.border { border = state.border }
         if crop != state.crop {
             crop = state.crop
-            selectedPin = nil
             updateHistogram()
         }
         let rotation = Int(state.params["io.rotate_cw"].double)
@@ -713,6 +705,46 @@ import UniformTypeIdentifiers
             && zip(values, preset).allSatisfy { abs($0 - $1) <= 1e-6 * max(1, abs($1)) }
         set(path, atPreset ? .null : .array(values.map(JSONValue.number)))
     }
+    // A linked slider's lanes, each its own parameter or one index of an array.
+    func laneValue(_ lane: ChannelLane) -> Double {
+        guard let index = lane.stockIndex else { return value(lane.path).double }
+        let values = stockValues(lane.path)
+        return values.indices.contains(index) ? values[index] : 0
+    }
+    func laneDefault(_ lane: ChannelLane) -> Double {
+        lane.stockIndex.map { stockDefault(lane.path, $0) } ?? defaultValue(lane.path).double
+    }
+    func isLaneModified(_ lane: ChannelLane) -> Bool {
+        lane.stockIndex.map { isStockModified(lane.path, $0) } ?? isModified(lane.path)
+    }
+    func resetLane(_ lane: ChannelLane) {
+        if let index = lane.stockIndex { resetStock(lane.path, index) } else { resetValue(lane.path) }
+    }
+    func laneNumber(_ lane: ChannelLane, range: ClosedRange<Double>, step: Double) -> Binding<Double> {
+        lane.stockIndex.map { stockNumber(lane.path, $0, range: range, step: step) } ?? number(lane.path, range: range, step: step)
+    }
+    /// Moves lanes together so their average lands on `average`, keeping the
+    /// differences between them, as one edit.
+    func moveLanes(_ lanes: [ChannelLane], to average: Double, range: ClosedRange<Double>, step: Double) {
+        let current = lanes.map(laneValue).reduce(0, +) / Double(max(lanes.count, 1))
+        let delta = average - current
+        for lane in lanes { laneNumber(lane, range: range, step: step).wrappedValue = laneValue(lane) + delta }
+    }
+
+    /// How many controls on a tab are off their defaults; a linked slider counts once.
+    func editCount(on tab: InspectorTab) -> Int {
+        tab.editableControls.reduce(0) { total, control in
+            let modified: Bool
+            switch control {
+            case .slider(_, let path, _, _), .toggle(_, let path), .choice(_, let path, _): modified = isModified(path)
+            case .stockSlider(_, let path, let index, _, _, _): modified = isStockModified(path, index)
+            case .linked(_, _, let lanes, _, _, _): modified = lanes.contains(where: isLaneModified)
+            }
+            return total + (modified ? 1 : 0)
+        }
+    }
+    var editCount: Int { InspectorTab.allCases.reduce(0) { $0 + editCount(on: $1) } }
+
     /// The input colour pop-up: "auto", "manual", or "assume:" and the
     /// colour space (`io.input_interpretation`).
     var inputInterpretation: Binding<String> {
@@ -817,13 +849,10 @@ import UniformTypeIdentifiers
     /// else re-renders.
     private func replaceState(_ next: EditState) {
         guard !closing else { return }
-        let previousAnchors = state.params["post.tone_anchors"]
         let render = next.rendered != state.rendered
         let size = next.params[ImageSize.targetPath]
         if size != state.params[ImageSize.targetPath] { Self.savedImageSize = size }
         state = next
-        if next.params["post.tone_anchors"] != previousAnchors { cancelResize() }
-        if let selectedPin, !pins.indices.contains(selectedPin) { self.selectedPin = nil }
         // A crop doesn't re-render the preview, but it changes the thumbnails.
         if render { changed() } else { pumpPreviews() }
     }
@@ -1000,7 +1029,7 @@ import UniformTypeIdentifiers
         source = url; image = nil; placeholder = nil; previewCurrent = false; renderFailed = false
         sourceSize = .zero; workingSize = .zero; previewScale = 1
         showingCachedPreview = false
-        selectedPin = nil
+        zoneReadingTask?.cancel(); zoneReading = nil
         updateHistogram()
         interactionStart = nil; cropSession = nil
         original = nil; originalCache = nil; originalLoad?.cancel(); originalLoad = nil; holdingOriginal = false
@@ -1334,11 +1363,10 @@ import UniformTypeIdentifiers
             isRaw = result["raw"].bool
             if inputColour != result["input_colour"] { inputColour = result["input_colour"] }
             lensCorrectionSupported = result["lens_correction_supported"].bool
-            let ignored = Set(result["ignored_pins"].array.map { Int($0.double) })
-            if ignored != ignoredPins { ignoredPins = ignored }
             if revision == currentRevision, interactiveScale == nil {
                 renderID = id; previewCurrent = true; hideActivity()
                 showingCachedPreview = false
+                readZoneArea()
                 renderAtExportSize = result["export_resolution"].bool
                 renderOnGPU = ExportEngine.ranOnGPU(backend: result["backend"].string)
                 if let source = self.source { rememberFrame(developed, url: source, rendered: snapshot.rendered) }
@@ -1456,6 +1484,7 @@ import UniformTypeIdentifiers
     /// so a folder that can't be written doesn't interrupt with an alert.
     private func saveEditsNow() {
         autosave?.cancel(); autosave = nil
+        flushBatch()
         guard editedSinceSave, let source else { return }
         editedSinceSave = false
         _ = try? PhotoSettingsFile(image: source.lastPathComponent, state: state).write(beside: source)
@@ -1491,12 +1520,9 @@ import UniformTypeIdentifiers
         let interpretation = defaults["io.input_interpretation"]
         if interpretation != .null { next.params["io.input_interpretation"] = interpretation }
         next.params[Self.lensCorrectionPath] = defaults[Self.lensCorrectionPath]
-        // Pins describe the tones of the photograph they were measured on, so
-        // they never carry to another file. Plain curve points are settings.
-        let anchors = next.params["post.tone_anchors"].array
-        if anchors.contains(where: { $0["source"] != .null }) {
-            next.params["post.tone_anchors"] = .array(anchors.filter { $0["source"] == .null })
-        }
+        // Zone Shift places this photograph's tones, so it never carries to another file.
+        if next.params[Self.zoneShiftPath] != .null { next.params[Self.zoneShiftPath] = defaults[Self.zoneShiftPath] }
+        next = Self.withoutPins(next)
         next.crop = CropSettings()
         return next
     }
@@ -1602,178 +1628,107 @@ import UniformTypeIdentifiers
 
     // MARK: The zone system
 
-    /// Adds a pin reading the circle at `centre` to `zone`, and selects it. The
-    /// average of a zone's pins prints as that zone. A drop during a render waits
-    /// for it. `centre` is in fractions of the uncropped photograph.
-    func placeZone(_ zone: Int, at centre: CGPoint) async {
-        guard ZoneScale.zones.indices.contains(zone) else { return }
-        let radius = sampleRadius
-        guard let lstar = await measureTone(at: centre, radius: radius) else { return }
-        let anchor = Self.anchor(input: lstar, target: ZoneScale.zones[zone].target, centre: centre, radius: radius)
-        var anchors = state.params["post.tone_anchors"].array
-        anchors.append(anchor)
-        setAnchors(anchors, action: "Place Tone Pin")
-        // A new pin is there to be seen and sized.
-        pinsVisible = true
-        selectedPin = anchors.indices.last
+    /// Prep's exposure, which the print doesn't make up for: zone placements add to it.
+    nonisolated static let zoneShiftPath = "prep.exposure_ev"
+    nonisolated static let zoneShiftRange = -5.0...5.0
+
+    /// The area last ⌃-picked, read against the zones. It's read again after
+    /// each render, so it follows the edits, until it's placed, cleared with
+    /// Esc, or the photograph changes.
+    private(set) var zoneReading: ZoneReading?
+    @ObservationIgnored private var zoneReadingTask: Task<Void, Never>?
+
+    /// ⌃-click or ⌃-drag: reads an area, its corners in fractions of the
+    /// uncropped photograph, against the zones.
+    func pickZone(from a: CGPoint, to b: CGPoint) {
+        guard source != nil, engine != nil, hasCatalog, !cropping else { return }
+        zoneReading = ZoneReading(from: a, to: b)
+        readZoneArea()
     }
 
-    /// Measures a pin again at a new spot, keeping its zone and size.
-    func movePin(_ index: Int, to centre: CGPoint) async {
-        guard pins.indices.contains(index) else { return }
-        let radius = pins[index].source?.radius ?? sampleRadius
-        guard let lstar = await measureTone(at: centre, radius: radius), pins.indices.contains(index) else { return }
-        var anchors = state.params["post.tone_anchors"].array
-        anchors[index] = Self.anchor(input: lstar, target: pins[index].target, centre: centre, radius: radius)
-        setAnchors(anchors, action: "Move Tone Pin")
-        selectedPin = index
+    func clearZoneReading() {
+        zoneReadingTask?.cancel()
+        zoneReading = nil
     }
 
-    /// One step of the scroll wheel on the selected pin. The circle follows at
-    /// once; when the wheel stops the area is measured as one edit.
-    func resizeSelectedPin(scrollDelta: Double, precise: Bool) {
-        guard let index = selectedPin, pins.indices.contains(index), pins[index].source != nil else { return }
-        let current = pendingResize?.index == index ? pendingResize!.radius : pins[index].source!.radius
-        let radius = SampleSize.radius(from: current, scrollDelta: scrollDelta, precise: precise)
-        pendingResize = (index, radius)
-        sampleRadius = radius
-        resizeCommit?.cancel()
-        resizeCommit = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            await self?.commitResize(of: index, to: radius)
+    var canPlaceZone: Bool { zoneReading?.isRead == true && !cropping }
+
+    /// Adds the stops that print the reading at `zone`'s start, or with
+    /// `centre` its middle, to Zone Shift, as one edit. That's the reading
+    /// used: the next placement starts from a new ⌃-pick.
+    func placeReading(onZone zone: Int, centre: Bool) {
+        guard canPlaceZone, let reading = zoneReading, ZoneScale.zones.indices.contains(zone) else { return }
+        let current = value(Self.zoneShiftPath).double.isFinite ? value(Self.zoneShiftPath).double : 0
+        let shift = Self.snap(current + (centre ? reading.toMiddle : reading.toStart)[zone], to: Self.zoneShiftRange, step: 0.01)
+        guard shift != current else { return }
+        var next = state
+        next.params[Self.zoneShiftPath] = .number(shift)
+        apply(next, action: "Place on Zone \(ZoneScale.zones[zone].numeral)")
+        clearZoneReading()
+        let edge = abs(shift) == Self.zoneShiftRange.upperBound ? ", as far as Zone Shift goes" : ""
+        status = "Zone Shift \(shift.formatted(.number.precision(.fractionLength(2)).sign(strategy: .always())))\(edge)"
+    }
+
+    /// Reads the picked area against the current render, waiting out any render
+    /// in progress. A render that finishes reads it again.
+    private func readZoneArea() {
+        guard let reading = zoneReading, let engine else { return }
+        zoneReadingTask?.cancel()
+        let generation = sourceGeneration
+        let targets = ZoneScale.zones.map(\.start) + ZoneScale.zones.map(\.target)
+        zoneReadingTask = Task { [weak self] in
+            while let self, generation == self.sourceGeneration, !self.closing, !self.renderFailed, !Task.isCancelled {
+                guard self.previewCurrent, !self.rendering else {
+                    try? await Task.sleep(for: .milliseconds(20))
+                    continue
+                }
+                let request = self.state
+                do {
+                    let (_, result) = try await engine.request([
+                        "command": .string("zone_readout"), "film": .string(request.film), "paper": .string(request.paper),
+                        "params": request.params, "targets": .array(targets.map(JSONValue.number)),
+                        "x0": .number(reading.from.x), "y0": .number(reading.from.y),
+                        "x1": .number(reading.to.x), "y1": .number(reading.to.y)
+                    ])
+                    guard !Task.isCancelled, generation == self.sourceGeneration, self.state == request,
+                          self.zoneReading?.from == reading.from, self.zoneReading?.to == reading.to else { return }
+                    let shifts = result["shifts"].array.map(\.double)
+                    let count = ZoneScale.zones.count
+                    guard shifts.count == count * 2 else { return }
+                    self.zoneReading = ZoneReading(from: reading.from, to: reading.to, printed: result["printed"].double,
+                                                   toStart: Array(shifts[..<count]), toMiddle: Array(shifts[count...]))
+                } catch {
+                    if !Task.isCancelled { self.status = error.localizedDescription }
+                }
+                return
+            }
         }
     }
 
-    private func commitResize(of index: Int, to radius: Double) async {
-        guard pins.indices.contains(index), let centre = pins[index].source?.centre,
-              let lstar = await measureTone(at: centre, radius: radius) else {
-            if !Task.isCancelled { pendingResize = nil }
-            return
+    nonisolated static let pinsBeforeFilmPath = "post.pins_before_film"
+    nonisolated static let zoneCurvePath = "prep.zone_curve"
+    /// What belongs to the one photograph: its Zone Shift, and the pins and
+    /// curve of earlier versions.
+    nonisolated static let photographOwnPaths = [zoneShiftPath, "post.tone_anchors", pinsBeforeFilmPath, zoneCurvePath]
+
+    /// An edit without the zone pins of earlier versions: they and the curve
+    /// they bent the scene with come off, leaving any plain curve points.
+    nonisolated static func withoutPins(_ state: EditState) -> EditState {
+        var next = state
+        let anchors = next.params["post.tone_anchors"].array
+        if anchors.contains(where: { $0["source"] != .null }) {
+            next.params["post.tone_anchors"] = .array(anchors.filter { $0["source"] == .null })
         }
-        guard !Task.isCancelled, pins.indices.contains(index) else { return }
-        var anchors = state.params["post.tone_anchors"].array
-        anchors[index] = Self.anchor(input: lstar, target: pins[index].target, centre: centre, radius: radius)
-        setAnchors(anchors, action: "Resize Tone Pin")
-    }
-
-    private func cancelResize() {
-        resizeCommit?.cancel()
-        resizeCommit = nil
-        pendingResize = nil
-    }
-
-    func selectPin(_ index: Int?) { selectedPin = index }
-
-    var canRemovePin: Bool { selectedPin != nil }
-
-    func removeSelectedPin() {
-        guard let index = selectedPin, pins.indices.contains(index) else { return }
-        var anchors = state.params["post.tone_anchors"].array
-        anchors.remove(at: index)
-        setAnchors(anchors, action: "Remove Tone Pin")
-        selectedPin = nil
-    }
-
-    func clearToneSelection() { selectedPin = nil }
-
-    // MARK: The tone curve
-
-    private static let toneCurvePasteboard = NSPasteboard.PasteboardType("com.negs.tone-curve")
-    private static let editPasteboard = NSPasteboard.PasteboardType("com.negs.edit")
-    /// Counts copies, so what depends on the pasteboard looks again.
-    private var copies = 0
-
-    var toneCurve: ToneCurve { ToneCurve(anchors: pins.map { ($0.input, $0.target) }) }
-
-    /// One point per target, as the engine reads them, left to right.
-    var curvePoints: [CurvePoint] {
-        var zones: [Int: [Int]] = [:]
-        let pins = pins
-        for (index, pin) in pins.enumerated() { zones[Int((min(max(pin.target, 0), 100) * 2).rounded()), default: []].append(index) }
-        return zones.map { key, anchors in
-            CurvePoint(input: anchors.map { pins[$0].input }.reduce(0, +) / Double(anchors.count), target: Double(key) / 2,
-                       anchors: anchors, pinned: anchors.contains { pins[$0].source != nil },
-                       ignored: anchors.allSatisfy(ignoredPins.contains))
-        }.sorted { ($0.input, $0.target) < ($1.input, $1.target) }
-    }
-
-    /// Where a point at `from` may go: it stops at its neighbours, so the curve
-    /// keeps rising and the point stays where it's put.
-    private func curvePosition(input: Double, target: Double, from: Double, excluding anchors: [Int]) -> (input: Double, target: Double) {
-        let others = curvePoints.filter { Set($0.anchors).isDisjoint(with: anchors) }
-        let below = others.last { $0.input < from }, above = others.first { $0.input >= from }
-        let inputs = (low: below.map { $0.input + 0.5 } ?? 0, high: above.map { $0.input - 0.5 } ?? 99.5)
-        let targets = (low: below.map { $0.target + 0.5 } ?? 0, high: above.map { $0.target - 0.5 } ?? 100)
-        return (min(max(input, inputs.low), max(inputs.high, inputs.low)),
-                (min(max(target, targets.low), max(targets.high, targets.low)) * 2).rounded() / 2)
-    }
-
-    private static func plainAnchor(input: Double, target: Double) -> JSONValue {
-        .object(["input": .number(input), "target": .number(target)])
-    }
-
-    /// Adds a point, returning the anchors now behind it.
-    @discardableResult func addCurvePoint(input: Double, target: Double) -> [Int] {
-        let place = curvePosition(input: input, target: target, from: min(max(input, 0), 99.5), excluding: [])
-        var anchors = state.params["post.tone_anchors"].array
-        anchors.append(Self.plainAnchor(input: place.input, target: place.target))
-        setAnchors(anchors, action: "Add Curve Point")
-        selectedPin = anchors.indices.last
-        return [anchors.count - 1]
-    }
-
-    /// Moves a point. Any pins behind it come off the photograph, replaced by
-    /// one plain point here. Returns the anchors now behind it.
-    @discardableResult func moveCurvePoint(_ point: [Int], input: Double, target: Double) -> [Int] {
-        let pins = pins
-        guard !point.isEmpty, point.allSatisfy(pins.indices.contains) else { return point }
-        let from = point.map { pins[$0].input }.reduce(0, +) / Double(point.count)
-        let place = curvePosition(input: input, target: target, from: from, excluding: point)
-        let moving = Set(point)
-        var anchors = state.params["post.tone_anchors"].array.enumerated().filter { !moving.contains($0.offset) }.map(\.element)
-        anchors.append(Self.plainAnchor(input: place.input, target: place.target))
-        setAnchors(anchors, action: "Edit Tone Curve")
-        selectedPin = anchors.indices.last
-        return [anchors.count - 1]
-    }
-
-    func removeCurvePoint(_ point: [Int]) {
-        let removing = Set(point)
-        let anchors = state.params["post.tone_anchors"].array.enumerated().filter { !removing.contains($0.offset) }.map(\.element)
-        setAnchors(anchors, action: "Remove Curve Point")
-        selectedPin = nil
-    }
-
-    /// Takes every point and pin off, as one edit.
-    func resetToneCurve() {
-        setAnchors([], action: "Reset Tone Curve")
-        selectedPin = nil
-    }
-
-    func copyToneCurve() {
-        let points = curvePoints.map { Self.plainAnchor(input: $0.input, target: $0.target) }
-        guard let data = try? JSONEncoder().encode(JSONValue.array(points)) else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setData(data, forType: Self.toneCurvePasteboard)
-        copies += 1
-    }
-
-    var canPasteToneCurve: Bool {
-        _ = copies
-        return NSPasteboard.general.availableType(from: [Self.toneCurvePasteboard]) != nil
-    }
-
-    /// Replaces the curve. The points were measured elsewhere, so they arrive
-    /// as plain points, not pins on this photograph.
-    func pasteToneCurve() {
-        guard let data = NSPasteboard.general.data(forType: Self.toneCurvePasteboard),
-              case .array(let points)? = try? JSONDecoder().decode(JSONValue.self, from: data) else { return }
-        setAnchors(points, action: "Paste Tone Curve")
-        selectedPin = nil
+        if !next.params[zoneCurvePath].array.isEmpty { next.params[zoneCurvePath] = .array([]) }
+        if next.params[pinsBeforeFilmPath] != .null { next.params[pinsBeforeFilmPath] = .bool(false) }
+        return next
     }
 
     // MARK: Copying a whole edit
+
+    private static let editPasteboard = NSPasteboard.PasteboardType("com.negs.edit")
+    /// Counts copies, so what depends on the pasteboard looks again.
+    private var copies = 0
 
     func copyEdit() {
         guard let data = try? JSONEncoder().encode(state) else { return }
@@ -1788,58 +1743,18 @@ import UniformTypeIdentifiers
     }
 
     /// Takes another photograph's edit. What's particular to this one stays: its
-    /// pins, crop, rotation and how its file is read, and the export's settings.
+    /// Zone Shift, crop, rotation and how its file is read, and the export's settings.
     func pasteEdit() {
         guard hasCatalog, source != nil, !cropping, let data = NSPasteboard.general.data(forType: Self.editPasteboard),
               let copied = try? JSONDecoder().decode(EditState.self, from: data) else { return }
         var next = merged(copied)
         next.crop = state.crop
         next.limitPreview = state.limitPreview
-        for path in ["post.tone_anchors", "io.rotate_cw", "io.input_interpretation", Self.lensCorrectionPath,
+        for path in [Self.zoneShiftPath, "io.rotate_cw", "io.input_interpretation", Self.lensCorrectionPath,
                      ImageSize.targetPath, "io.output_color_space", "io.output_cctf_encoding"] where state.params[path] != .null {
             next.params[path] = state.params[path]
         }
         apply(next, action: "Paste Edit")
-    }
-
-    /// The tone of a circle on the current render, as the pins read it: before
-    /// the curve they make. Waits out any render. Nil if the photograph
-    /// changes first, cropping starts or the render fails.
-    private func measureTone(at centre: CGPoint, radius: Double) async -> Double? {
-        guard let engine else { return nil }
-        let generation = sourceGeneration
-        while generation == sourceGeneration, !closing, !cropping, !renderFailed, !Task.isCancelled {
-            guard previewCurrent, !rendering else {
-                try? await Task.sleep(for: .milliseconds(20))
-                continue
-            }
-            let measuring = revision
-            do {
-                let (_, result) = try await engine.request([
-                    "command": .string("sample_tone"), "render_id": .number(Double(renderID)),
-                    "x": .number(centre.x), "y": .number(centre.y), "radius": .number(radius)
-                ])
-                if measuring == revision, generation == sourceGeneration { return result["lstar"].double }
-            } catch {
-                report(error)
-                return nil
-            }
-        }
-        return nil
-    }
-
-    private static func anchor(input: Double, target: Double, centre: CGPoint, radius: Double) -> JSONValue {
-        .object([
-            "input": .number(input), "target": .number(target),
-            "source": .object(["x": .number(centre.x), "y": .number(centre.y), "radius": .number(radius)])
-        ])
-    }
-
-    /// Replaces the pins as one undoable edit.
-    private func setAnchors(_ anchors: [JSONValue], action: String) {
-        var next = state
-        next.params["post.tone_anchors"] = .array(anchors)
-        apply(next, action: action)
     }
 
     /// Only mention an update once it has visibly taken a while.
@@ -2036,6 +1951,34 @@ import UniformTypeIdentifiers
                 apply(next, action: "Balance Print")
                 status = "Print balanced: magenta \(m.formatted(.number.precision(.fractionLength(2)))), yellow \(y.formatted(.number.precision(.fractionLength(2))))"
             } catch { report(error) }
+        }
+    }
+
+    /// ⌘-click or ⌘-drag on a RAW: the Custom white balance that makes that
+    /// point or area neutral, as one edit. Anything else says why not.
+    func pickWhiteBalance(from a: CGPoint, to b: CGPoint) {
+        guard let source, let engine, hasCatalog else { return }
+        guard isRaw else { status = "White balance can be picked on RAW files"; return }
+        let params = state.params
+        status = "Picking white balance…"
+        Task {
+            do {
+                let (_, result) = try await engine.request([
+                    "command": .string("wb_pick"), "input": .string(source.path), "params": params,
+                    "x0": .number(a.x), "y0": .number(a.y), "x1": .number(b.x), "y1": .number(b.y)
+                ])
+                guard self.source == source else { return }
+                let temperature = result["temperature"].double.rounded(), tint = (result["tint"].double * 100).rounded() / 100
+                var next = state
+                next.params["io.raw_white_balance.mode"] = .string("custom")
+                next.params["io.raw_white_balance.temperature"] = .number(temperature)
+                next.params["io.raw_white_balance.tint"] = .number(tint)
+                apply(next, action: "Set White Balance")
+                status = "White balance set to \(Int(temperature)) K, tint \(tint.formatted(.number.precision(.fractionLength(2))))"
+                    + (result["exact"].bool ? "" : ", as close as it goes: that area isn’t near neutral")
+            } catch {
+                status = error.localizedDescription
+            }
         }
     }
 
@@ -2256,9 +2199,9 @@ import UniformTypeIdentifiers
         }
     }
 
-    /// The film, paper, Lab settings and tone curve of a preset, as one undo
+    /// The film, paper and Lab settings of a preset, as one undo
     /// step. The photograph's own settings stay: Image Size, rotation, crop,
-    /// border, output encoding, the preview limit, its pins and the Post tab.
+    /// border, output encoding, the preview limit, its Zone Shift and the Post tab.
     func applyPreset(_ preset: PresetFile) {
         guard canChangePresets, let engine else { return }
         Task {
@@ -2272,8 +2215,6 @@ import UniformTypeIdentifiers
                     guard state == snapshot else { continue }
                     var next = state
                     next.film = imported.film; next.paper = imported.paper; next.params = imported.params
-                    // Its curve may have moved the photograph's points along.
-                    if next.params["post.tone_anchors"] != state.params["post.tone_anchors"] { selectedPin = nil }
                     apply(next, action: "Apply Preset “\(preset.name)”")
                     status = "Applied preset “\(preset.name)”"
                     return
@@ -2299,8 +2240,8 @@ import UniformTypeIdentifiers
         return (film, paper, result["params"])
     }
 
-    /// Saves the film, paper, Lab settings and tone curve as a new preset, named
-    /// after the film, and starts renaming it. Pins go in as plain points.
+    /// Saves the film, paper and Lab settings as a new preset, named
+    /// after the film, and starts renaming it.
     func newPreset() {
         guard canChangePresets, let engine else { return }
         showPane(.presets)

@@ -8,26 +8,48 @@ enum Adjustment: Identifiable {
     /// the film's grain preset from the catalog applies. B&W films have one
     /// emulsion: they show the lane under `bw`, or hide it when that is nil.
     case stockSlider(String, String, Int, ClosedRange<Double>, Double, bw: String?)
-    /// A button that solves for parameters: title, help.
-    case balancePrint(String, String)
+    /// One slider for several lanes, which a chip splits apart. It moves them
+    /// together, keeping any differences between them. A B&W film has one
+    /// emulsion, so it shows only the first lane, under `bw`.
+    case linked(String, chip: String, [ChannelLane], ClosedRange<Double>, Double, bw: String?)
 
     var id: String {
         switch self {
         case .slider(_, let path, _, _), .toggle(_, let path), .choice(_, let path, _): return path
         case .stockSlider(_, let path, let index, _, _, _): return "\(path).\(index)"
-        case .balancePrint(let title, _): return title
+        case .linked(let title, _, let lanes, _, _, _): return "\(lanes.first?.id ?? "").\(title)"
         }
     }
+}
+
+/// One lane of a linked slider: its own parameter, or one index of an engine
+/// array that stays null until edited.
+struct ChannelLane {
+    let title: String
+    let path: String
+    var stockIndex: Int?
+
+    var id: String { stockIndex.map { "\(path).\($0)" } ?? path }
+}
+
+/// A red, green and blue lane of one engine array.
+private func stockLanes(_ path: String) -> [ChannelLane] {
+    ["Red", "Green", "Blue"].enumerated().map { ChannelLane(title: $0.element, path: path, stockIndex: $0.offset) }
+}
+/// Red, green and blue gamma, each its own parameter.
+private func gammaLanes(_ root: String) -> [ChannelLane] {
+    ["Red", "Green", "Blue"].map { ChannelLane(title: $0, path: "\(root).gamma_factor_\($0.lowercased())") }
 }
 
 enum InspectorSection: String, CaseIterable {
     case camera = "Camera", film = "Film", print = "Print", scan = "Scan & Color"
 }
 
-/// How much of the inspector shows: everything on its tabs, or the everyday
-/// controls on one page. Only the controls change, never the photograph.
+/// How much of the inspector shows: everything on its tabs, the everyday
+/// controls on one page, or every control down one column. Only the controls
+/// change, never the photograph.
 enum InspectorMode: String, CaseIterable {
-    case simple, advanced
+    case simple, advanced, all
 
     var title: String { rawValue.capitalized }
 }
@@ -36,33 +58,58 @@ enum InspectorMode: String, CaseIterable {
 /// camera saw the photograph, the film and print that carry it, the scanner
 /// that reads it, the finishing edits, and the export.
 enum InspectorTab: String, CaseIterable, Identifiable {
-    case camera, film, print, scan, finish, export
+    case camera, film, print, scan, export
 
     var id: String { rawValue }
 
     var title: String { rawValue.capitalized }
 
-    /// A symbol for the tab bar, one that reads at 15 points.
-    var symbol: String {
-        switch self {
-        case .camera: "camera"
-        case .film: "film"
-        case .print: "photo"
-        case .scan: "scanner"
-        case .finish: "slider.horizontal.3"
-        case .export: "square.and.arrow.up"
-        }
-    }
-
     /// Printing is skipped while the film is scanned directly, since there is
     /// no print to make. Such a tab stays visible, dimmed and struck through.
     func isSkipped(scanning: Bool) -> Bool { self == .print && scanning }
+
+    /// The controls on this tab that count as edits. Export's settings are the
+    /// file's, not the photograph's look, so they don't.
+    var editableControls: [Adjustment] {
+        let section: InspectorSection?
+        switch self {
+        case .camera: section = .camera
+        case .film: section = .film
+        case .print: section = .print
+        case .scan: section = .scan
+        case .export: section = nil
+        }
+        let groups = adjustmentGroups.filter { $0.section == section }
+        let switches = groups.compactMap(\.enable).map { Adjustment.toggle($0, $0) }
+        let extras: [Adjustment]
+        switch self {
+        case .camera: extras = cameraEditControls
+        case .scan: extras = scanDetailControls + toneControls
+        default: extras = []
+        }
+        return groups.flatMap(\.controls) + switches + extras
+    }
 }
+
+/// Prep's exposure: the light on the film, which the print doesn't make up
+/// for. Placing a zone reading adds to it.
+let zoneShiftControl = Adjustment.slider("Zone Shift (EV)", EditorModel.zoneShiftPath,
+                                         EditorModel.zoneShiftRange, 0.01)
 
 /// Detail lives in Scan, though the engine applies it to the scene before the
 /// film; the newest controls call it Midtone Detail.
 let scanDetailControls: [Adjustment] = [
     .slider("Midtone Detail", "prep.midtone_detail", -100...100, 1)
+]
+
+/// Camera's own controls, outside its effect groups.
+private let cameraEditControls: [Adjustment] = [
+    .toggle("Auto exposure", "camera.auto_exposure"),
+    .choice("Metering", "camera.auto_exposure_method", []),
+    .slider("Exposure (EV)", "camera.exposure_compensation_ev", -5...5, 0.1),
+    zoneShiftControl,
+    .slider("Lens blur (µm)", "camera.lens_blur_um", 0...100, 0.1),
+    .slider("Long edge (mm)", "camera.film_format_mm", 4...120, 0.1)
 ]
 
 /// Tone lives in Finish, and on Simple's page.
@@ -76,16 +123,28 @@ let toneControls: [Adjustment] = [
 
 struct AdjustmentGroup: Identifiable {
     let title: String
-    let symbol: String
     let section: InspectorSection
     /// Switches the whole effect on and off from the group's header.
     var enable: String?
+    /// How many controls show before "more controls"; all of them if nil.
+    var primary: Int?
     let controls: [Adjustment]
     var id: String { title }
 }
 
+/// A density curve's controls: the main gamma and the colour lanes first.
+private func curveControls(_ root: String) -> [Adjustment] {
+    [
+        .slider("Gamma", "\(root).gamma_factor", 0.5...2, 0.01),
+        .linked("Colour gamma", chip: "RGB", gammaLanes(root), 0.5...2, 0.01, bw: nil),
+        .slider("Fast gamma", "\(root).gamma_factor_fast", 0.5...2, 0.01),
+        .slider("Slow gamma", "\(root).gamma_factor_slow", 0.5...2, 0.01),
+        .slider("Developer exhaustion", "\(root).developer_exhaustion", 0...1, 0.01)
+    ]
+}
+
 let adjustmentGroups: [AdjustmentGroup] = [
-    .init(title: "Lens Diffusion", symbol: "camera.filters", section: .camera, enable: "camera.diffusion_filter.active", controls: [
+    .init(title: "Lens Diffusion", section: .camera, enable: "camera.diffusion_filter.active", primary: 2, controls: [
         .choice("Filter", "camera.diffusion_filter.filter_family", ["black_pro_mist", "glimmerglass", "pro_mist", "cinebloom"]),
         .slider("Strength", "camera.diffusion_filter.strength", 0...2, 0.01),
         .slider("Spatial scale", "camera.diffusion_filter.spatial_scale", 0.1...3, 0.01),
@@ -96,22 +155,10 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Halo size", "camera.diffusion_filter.halo_size", 0.1...3, 0.01),
         .slider("Bloom size", "camera.diffusion_filter.bloom_size", 0.1...3, 0.01)
     ]),
-    .init(title: "Film Curves", symbol: "chart.xyaxis.line", section: .film, enable: "film_render.density_curves_morph.active", controls: [
-        .slider("Gamma", "film_render.density_curves_morph.gamma_factor", 0.5...2, 0.01),
-        .slider("Fast gamma", "film_render.density_curves_morph.gamma_factor_fast", 0.5...2, 0.01),
-        .slider("Slow gamma", "film_render.density_curves_morph.gamma_factor_slow", 0.5...2, 0.01),
-        .slider("Red gamma", "film_render.density_curves_morph.gamma_factor_red", 0.5...2, 0.01),
-        .slider("Green gamma", "film_render.density_curves_morph.gamma_factor_green", 0.5...2, 0.01),
-        .slider("Blue gamma", "film_render.density_curves_morph.gamma_factor_blue", 0.5...2, 0.01),
-        .slider("Developer exhaustion", "film_render.density_curves_morph.developer_exhaustion", 0...1, 0.01)
-    ]),
-    .init(title: "Grain", symbol: "circle.dotted", section: .film, enable: "film_render.grain.active", controls: [
-        .stockSlider("Red granularity", "film_render.grain.rms_granularity", 0, 0...80, 0.1, bw: "Granularity"),
-        .stockSlider("Green granularity", "film_render.grain.rms_granularity", 1, 0...80, 0.1, bw: nil),
-        .stockSlider("Blue granularity", "film_render.grain.rms_granularity", 2, 0...80, 0.1, bw: nil),
-        .stockSlider("Red uniformity", "film_render.grain.uniformity", 0, 0...1, 0.01, bw: "Uniformity"),
-        .stockSlider("Green uniformity", "film_render.grain.uniformity", 1, 0...1, 0.01, bw: nil),
-        .stockSlider("Blue uniformity", "film_render.grain.uniformity", 2, 0...1, 0.01, bw: nil),
+    .init(title: "Film Curves", section: .film, enable: "film_render.density_curves_morph.active", primary: 2, controls: curveControls("film_render.density_curves_morph")),
+    .init(title: "Grain", section: .film, enable: "film_render.grain.active", primary: 3, controls: [
+        .linked("Granularity", chip: "RGB", stockLanes("film_render.grain.rms_granularity"), 0...80, 0.1, bw: "Granularity"),
+        .linked("Uniformity", chip: "RGB", stockLanes("film_render.grain.uniformity"), 0...1, 0.01, bw: "Uniformity"),
         .stockSlider("Coarse grain size", "film_render.grain.particle_scale_sublayers", 0, 0.05...2, 0.01, bw: "Coarse grain size"),
         .stockSlider("Medium grain size", "film_render.grain.particle_scale_sublayers", 1, 0.05...2, 0.01, bw: "Medium grain size"),
         .stockSlider("Fine grain size", "film_render.grain.particle_scale_sublayers", 2, 0.05...2, 0.01, bw: "Fine grain size"),
@@ -122,7 +169,7 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Clump blur (µm)", "film_render.grain.micro_structure.0", 0...1, 0.01),
         .slider("Clump size (nm)", "film_render.grain.micro_structure.1", 0...100, 1)
     ]),
-    .init(title: "Halation", symbol: "sun.haze", section: .film, enable: "film_render.halation.active", controls: [
+    .init(title: "Halation", section: .film, enable: "film_render.halation.active", primary: 2, controls: [
         .slider("Amount", "film_render.halation.halation_amount", 0...3, 0.01),
         .slider("Spatial scale", "film_render.halation.halation_spatial_scale", 0.1...5, 0.01),
         .slider("Scatter amount", "film_render.halation.scatter_amount", 0...3, 0.01),
@@ -130,50 +177,41 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .slider("Bounces", "film_render.halation.halation_n_bounces", 1...5, 1),
         .slider("Bounce decay", "film_render.halation.halation_bounce_decay", 0...1, 0.01)
     ]),
-    .init(title: "DIR Couplers", symbol: "circle.hexagongrid", section: .film, enable: "film_render.dir_couplers.active", controls: [
+    .init(title: "DIR Couplers", section: .film, enable: "film_render.dir_couplers.active", primary: 2, controls: [
         .slider("Amount", "film_render.dir_couplers.amount", 0...2, 0.01),
         .slider("Diffusion (µm)", "film_render.dir_couplers.diffusion_size_um", 0...100, 0.1),
         .slider("Tail (µm)", "film_render.dir_couplers.diffusion_tail_um", 0...400, 1),
         .slider("Tail weight", "film_render.dir_couplers.diffusion_tail_weight", 0...1, 0.01)
     ]),
-    .init(title: "Film Base", symbol: "square.stack.3d.down.right", section: .film, enable: "film_render.base.active", controls: [
+    .init(title: "Film Base", section: .film, enable: "film_render.base.active", primary: 2, controls: [
         .slider("Density", "film_render.base.scale", 0...2, 0.01),
         .slider("Tilt", "film_render.base.tilt", -1...1, 0.01),
         .slider("Cyan", "film_render.base.cyan", 0...2, 0.01),
         .slider("Magenta", "film_render.base.magenta", 0...2, 0.01),
         .slider("Yellow", "film_render.base.yellow", 0...2, 0.01)
     ]),
-    .init(title: "Enlarger", symbol: "light.overhead.left", section: .print, controls: [
+    .init(title: "Enlarger", section: .print, controls: [
         .slider("Print exposure", "enlarger.print_exposure", 0.1...5, 0.01),
         .toggle("Exposure compensation", "enlarger.print_exposure_compensation"),
         .slider("Magenta shift", "enlarger.m_filter_shift", -50...50, 0.1),
         .slider("Yellow shift", "enlarger.y_filter_shift", -50...50, 0.1),
         .slider("Preflash exposure", "enlarger.preflash_exposure", 0...0.5, 0.01),
         .slider("Preflash magenta", "enlarger.preflash_m_filter_shift", -50...50, 0.1),
-        .slider("Preflash yellow", "enlarger.preflash_y_filter_shift", -50...50, 0.1),
-        .balancePrint("Balance Print", "Sets the magenta and yellow shifts so a mid-grey prints neutral with the current film, bases, paper and enlarger. Use it after changing the film base.")
+        .slider("Preflash yellow", "enlarger.preflash_y_filter_shift", -50...50, 0.1)
     ]),
-    .init(title: "Print Curves", symbol: "chart.xyaxis.line", section: .print, enable: "print_render.density_curves_morph.active", controls: [
-        .slider("Gamma", "print_render.density_curves_morph.gamma_factor", 0.5...2, 0.01),
-        .slider("Fast gamma", "print_render.density_curves_morph.gamma_factor_fast", 0.5...2, 0.01),
-        .slider("Slow gamma", "print_render.density_curves_morph.gamma_factor_slow", 0.5...2, 0.01),
-        .slider("Red gamma", "print_render.density_curves_morph.gamma_factor_red", 0.5...2, 0.01),
-        .slider("Green gamma", "print_render.density_curves_morph.gamma_factor_green", 0.5...2, 0.01),
-        .slider("Blue gamma", "print_render.density_curves_morph.gamma_factor_blue", 0.5...2, 0.01),
-        .slider("Developer exhaustion", "print_render.density_curves_morph.developer_exhaustion", 0...1, 0.01)
-    ]),
-    .init(title: "Print Base", symbol: "square.stack.3d.down.right", section: .print, enable: "print_render.base.active", controls: [
+    .init(title: "Print Curves", section: .print, enable: "print_render.density_curves_morph.active", primary: 2, controls: curveControls("print_render.density_curves_morph")),
+    .init(title: "Print Base", section: .print, enable: "print_render.base.active", controls: [
         .slider("Density", "print_render.base.scale", 0...2, 0.01),
         .slider("Cyan", "print_render.base.cyan", 0...2, 0.01),
         .slider("Magenta", "print_render.base.magenta", 0...2, 0.01),
         .slider("Yellow", "print_render.base.yellow", 0...2, 0.01)
     ]),
-    .init(title: "Glare", symbol: "light.max", section: .print, enable: "print_render.glare.active", controls: [
+    .init(title: "Glare", section: .print, enable: "print_render.glare.active", controls: [
         .slider("Amount", "print_render.glare.percent", 0...0.2, 0.001),
         .slider("Roughness", "print_render.glare.roughness", 0...2, 0.01),
         .slider("Blur (px)", "print_render.glare.blur", 0...5, 0.01)
     ]),
-    .init(title: "Scanner", symbol: "scanner", section: .scan, controls: [
+    .init(title: "Scanner", section: .scan, controls: [
         .slider("Lens blur (px)", "scanner.lens_blur", 0...5, 0.01),
         .slider("Unsharp radius (px)", "scanner.unsharp_mask.0", 0...3, 0.01),
         .slider("Unsharp amount", "scanner.unsharp_mask.1", 0...2, 0.01),
@@ -182,7 +220,7 @@ let adjustmentGroups: [AdjustmentGroup] = [
         .toggle("Black correction", "scanner.black_correction"),
         .slider("Black level", "scanner.black_level", 0...0.5, 0.01)
     ]),
-    .init(title: "Color Management", symbol: "paintpalette", section: .scan, controls: [
+    .init(title: "Color Management", section: .scan, controls: [
         .choice("Output gamut", "io.output_gamut_compress.algorithm", ["off", "oklch", "oklrab", "cam16ucs", "aces_rgc"]),
         .choice("Input gamut", "io.input_gamut_compress.algorithm", ["off", "xy"]),
         .toggle("CAT16 adaptation", "settings.use_cat16"),
@@ -208,7 +246,7 @@ struct AdjustmentControl: View {
         case .toggle(let title, let path):
             Toggle(title, isOn: model.toggle(path)).resettable(model, path)
         case .choice(let title, let path, let options):
-            Picker(title, selection: model.choice(path)) {
+            ChoiceRow(title, selection: model.choice(path)) {
                 ForEach(options, id: \.self) { Text(optionTitle($0)).tag($0) }
             }.resettable(model, path)
         case .slider(let title, let path, let range, let step):
@@ -221,15 +259,66 @@ struct AdjustmentControl: View {
                               reset: { model.resetStock(path, index) },
                               editing: { $0 ? model.beginInteraction() : model.endInteraction() })
             }
-        case .balancePrint(let title, let help):
-            HStack {
-                Spacer()
-                Button(model.balancingPrint ? "Balancing…" : title) { model.balancePrint() }
-                    .disabled(!model.canBalancePrint)
-                    .help(help)
+        case .linked(let title, let chip, let lanes, let range, let step, let bw):
+            LinkedSliders(model: model, title: title, chip: chip, lanes: lanes, range: range, step: step, bw: bw)
+        }
+    }
+}
+
+/// One slider over several lanes, and the chip that splits them apart.
+struct LinkedSliders: View {
+    let model: EditorModel
+    let title: String
+    let chip: String
+    let lanes: [ChannelLane]
+    let range: ClosedRange<Double>
+    let step: Double
+    let bw: String?
+    /// Which linked sliders are split, across launches.
+    @AppStorage("splitSliders") private var split = ""
+    @Environment(\.inspectorShowsEverything) private var everything
+
+    private var isSplit: Bool { everything || split.split(separator: ",").contains(Substring(title)) }
+
+    private func toggleSplit() {
+        var titles = split.split(separator: ",").map(String.init).filter { $0 != title }
+        if !isSplit { titles.append(title) }
+        split = titles.joined(separator: ",")
+    }
+
+    var body: some View {
+        if model.filmIsBW, lanes.first?.stockIndex != nil {
+            if let bw, let lane = lanes.first { row(lane, title: bw, indented: false) }
+        } else {
+            let edits = lanes.map { model.laneValue($0) - model.laneDefault($0) }
+            let average = lanes.map(model.laneValue).reduce(0, +) / Double(max(lanes.count, 1))
+            let defaultAverage = lanes.map(model.laneDefault).reduce(0, +) / Double(max(lanes.count, 1))
+            let mixed = edits.contains { abs($0 - (edits.first ?? 0)) > step / 2 }
+            LabeledSlider(title: title,
+                          value: Binding(get: { average }, set: { model.moveLanes(lanes, to: $0, range: range, step: step) }),
+                          range: range, step: step, valueText: mixed ? "Mixed" : nil,
+                          defaultValue: defaultAverage, modified: lanes.contains(where: model.isLaneModified),
+                          reset: { lanes.forEach(model.resetLane) },
+                          editing: { $0 ? model.beginInteraction() : model.endInteraction() },
+                          chip: everything ? nil : LabeledSlider.Chip(title: chip, on: isSplit, action: toggleSplit))
+            if isSplit {
+                ForEach(lanes, id: \.id) { row($0, title: $0.title, indented: true) }
             }
         }
     }
+
+    private func row(_ lane: ChannelLane, title: String, indented: Bool) -> some View {
+        LabeledSlider(title: title, value: model.laneNumber(lane, range: range, step: step), range: range, step: step,
+                      defaultValue: model.laneDefault(lane), modified: model.isLaneModified(lane),
+                      reset: { model.resetLane(lane) },
+                      editing: { $0 ? model.beginInteraction() : model.endInteraction() },
+                      indented: indented)
+    }
+}
+
+extension EnvironmentValues {
+    /// The all-controls column: everything open, with nothing to fold.
+    @Entry var inspectorShowsEverything = false
 }
 
 struct SliderRow: View {
@@ -266,7 +355,7 @@ struct FilmFormatPicker: View {
     var body: some View {
         let mm = model.value(Self.path).double
         let custom = model.customFilmFormat || Self.format(mm: mm) == nil
-        Picker("Film format", selection: Binding(get: { custom ? Self.custom : Self.format(mm: mm) ?? Self.custom }, set: { name in
+        ChoiceRow("Film format", selection: Binding(get: { custom ? Self.custom : Self.format(mm: mm) ?? Self.custom }, set: { name in
             if let format = Self.formats.first(where: { $0.name == name }) {
                 model.customFilmFormat = false
                 model.set(Self.path, .number(format.mm))
@@ -285,52 +374,84 @@ struct FilmFormatPicker: View {
     }
 }
 
-/// A slider under its title and value. Clicking the value types one; off
-/// its default, a button resets it.
+/// A slider on one row, between its title and value. Clicking the value types
+/// one; off its default, a button resets it, and the value and fill turn amber.
 struct LabeledSlider: View {
+    /// A small button beside the title, such as RGB to split lanes apart.
+    struct Chip {
+        let title: String
+        let on: Bool
+        let action: () -> Void
+    }
+
     let title: String
     let value: Binding<Double>
     let range: ClosedRange<Double>
     let step: Double
     /// Shown after the value, such as "%".
     var unit = ""
+    /// Shown in place of the value, such as "Mixed".
+    var valueText: String?
     let defaultValue: Double
     let modified: Bool
     let reset: () -> Void
     let editing: (Bool) -> Void
+    var chip: Chip?
+    var indented = false
 
     @State private var typing = false
     private var decimals: Int { max(0, Int(-log10(step).rounded(.down))) }
     private var format: FloatingPointFormatStyle<Double> { .number.precision(.fractionLength(0...decimals)) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Text(title).lineLimit(1)
+        HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Text(title).lineLimit(1).truncationMode(.tail)
+                    .foregroundStyle(indented ? Ink.dim : modified ? Ink.paper : Ink.label)
                     .onTapGesture(count: 2) { reset() }
-                Spacer(minLength: 8)
+                if let chip {
+                    Button(action: chip.action) {
+                        Text(chip.title)
+                            .font(Ink.print(10)).tracking(0.5)
+                            .foregroundStyle(chip.on ? Ink.paper : Ink.dim)
+                            .padding(.horizontal, 3)
+                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(chip.on ? Ink.label : Ink.track))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(chip.on ? "Show \(title) as one slider" : "Show \(title)’s lanes separately")
+                    .accessibilityLabel("Split \(title)")
+                    .accessibilityAddTraits(chip.on ? .isSelected : [])
+                }
+            }
+            .padding(.leading, indented ? 10 : 0)
+            .frame(width: InkLayout.labelWidth, alignment: .leading)
+            ResettableSlider(title: title, value: value, range: range, defaultValue: defaultValue, editing: editing, reset: reset)
+            // A field only while typing, so the window never focuses one by default.
+            if typing {
+                ValueField(title: title, value: value, decimals: decimals) { typing = false }
+                    .frame(width: 56)
+            } else {
+                Text(valueText ?? "\(value.wrappedValue.formatted(format))\(unit)")
+                    .font(Ink.print(14)).monospacedDigit()
+                    .foregroundStyle(modified ? Ink.amber : Ink.dim)
+                    .lineLimit(1)
+                    .frame(width: InkLayout.valueWidth, alignment: .trailing)
+                    .contentShape(Rectangle())
+                    .onTapGesture { typing = true }
+                    .help("Click to type a value")
+            }
+            ZStack {
                 if modified {
-                    Button { reset() } label: { Image(systemName: "arrow.counterclockwise") }
-                        .buttonStyle(.borderless).foregroundStyle(.secondary).imageScale(.small)
+                    Button { reset() } label: { Image(systemName: "arrow.counterclockwise").font(.system(size: 10)) }
+                        .buttonStyle(.plain).foregroundStyle(Ink.dim)
                         .help("Reset to \(defaultValue.formatted(format))\(unit)")
                         .accessibilityLabel("Reset \(title)")
                 }
-                // A field only while typing, so the window never focuses one by default.
-                if typing {
-                    ValueField(title: title, value: value, decimals: decimals) { typing = false }
-                        .frame(width: 64)
-                } else {
-                    Text("\(value.wrappedValue.formatted(format))\(unit)")
-                        .monospacedDigit().foregroundStyle(.secondary)
-                        .frame(minWidth: 40, alignment: .trailing)
-                        .contentShape(Rectangle())
-                        .onTapGesture { typing = true }
-                        .help("Click to type a value")
-                }
             }
-            ResettableSlider(title: title, value: value, range: range, editing: editing, reset: reset)
+            .frame(width: InkLayout.resetWidth)
         }
-        .padding(.vertical, 1)
+        .frame(height: InkLayout.rowHeight)
         .resettable(modified: modified, reset: reset)
         .accessibilityElement(children: .contain)
     }
@@ -344,11 +465,14 @@ struct ResettableSlider: NSViewRepresentable {
     let title: String
     let value: Binding<Double>
     let range: ClosedRange<Double>
+    /// Where the fill starts, so an untouched slider shows no amber.
+    var defaultValue: Double?
     let editing: (Bool) -> Void
     let reset: () -> Void
 
     func makeNSView(context: Context) -> NSSlider {
         let slider = Control()
+        slider.cell = Cell()
         slider.trackFillColor = EdgePrint.colour
         slider.isContinuous = true
         slider.target = context.coordinator
@@ -368,6 +492,10 @@ struct ResettableSlider: NSViewRepresentable {
         if slider.controlSize != .small { slider.controlSize = .small }
         if slider.minValue != range.lowerBound { slider.minValue = range.lowerBound }
         if slider.maxValue != range.upperBound { slider.maxValue = range.upperBound }
+        if let cell = slider.cell as? Cell, cell.defaultValue != defaultValue {
+            cell.defaultValue = defaultValue
+            slider.needsDisplay = true
+        }
         slider.wanted = value.wrappedValue
     }
 
@@ -381,6 +509,54 @@ struct ResettableSlider: NSViewRepresentable {
             // Read back the snapped value at once rather than waiting for
             // updateNSView, so the knob's target is current when a drag ends.
             (slider as! Control).wanted = parent.value.wrappedValue
+        }
+    }
+
+    /// A hairline track with a tick at the default, filled from the default to
+    /// the value, and a small rectangular knob: amber once it's moved.
+    final class Cell: NSSliderCell {
+        var defaultValue: Double?
+        private var modified: Bool {
+            guard let defaultValue else { return true }
+            return abs(doubleValue - defaultValue) > max(maxValue - minValue, 1e-9) / 2000
+        }
+
+        private func x(_ value: Double, in rect: NSRect) -> CGFloat {
+            let inset = Self.knobWidth / 2
+            let fraction = maxValue > minValue ? (min(max(value, minValue), maxValue) - minValue) / (maxValue - minValue) : 0
+            return rect.minX + inset + CGFloat(fraction) * (rect.width - inset * 2)
+        }
+
+        private static let knobWidth: CGFloat = 8, knobHeight: CGFloat = 12
+
+        override func knobRect(flipped: Bool) -> NSRect {
+            guard let bounds = controlView?.bounds else { return super.knobRect(flipped: flipped) }
+            return NSRect(x: x(doubleValue, in: bounds) - Self.knobWidth / 2, y: bounds.midY - Self.knobHeight / 2,
+                          width: Self.knobWidth, height: Self.knobHeight)
+        }
+
+        override func drawBar(inside rect: NSRect, flipped: Bool) {
+            guard let bounds = controlView?.bounds else { return }
+            let y = bounds.midY
+            Ink.trackColour.setFill()
+            NSRect(x: bounds.minX + Self.knobWidth / 2, y: y - 1, width: bounds.width - Self.knobWidth, height: 2).fill()
+            if let defaultValue {
+                (isEnabled ? Ink.dimColour : Ink.trackColour).setFill()
+                NSRect(x: (x(defaultValue, in: bounds) - 0.5).rounded(), y: y - 4, width: 1, height: 8).fill()
+                if modified, isEnabled {
+                    let (a, b) = (x(defaultValue, in: bounds), x(doubleValue, in: bounds))
+                    EdgePrint.colour.setFill()
+                    NSRect(x: min(a, b), y: y - 1, width: abs(a - b), height: 2).fill()
+                }
+            }
+        }
+
+        override func drawKnob(_ knobRect: NSRect) {
+            let colour = !isEnabled ? Ink.trackColour : defaultValue != nil && modified ? EdgePrint.colour : Ink.labelColour
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: knobRect.insetBy(dx: -1, dy: -1), xRadius: 3, yRadius: 3).fill()
+            colour.setFill()
+            NSBezierPath(roundedRect: knobRect, xRadius: 2, yRadius: 2).fill()
         }
     }
 
@@ -493,10 +669,10 @@ final class FocusingTextField: NSTextField {
     }
 }
 
-/// Image Size, at the top of Camera: the photograph's resolution before the
-/// film develops it. Reads only its own parameters, the crop and the source's
-/// size, so other edits don't redraw it.
-struct ImageSizeSection: View {
+/// The photograph's resolution before the film develops it, and the size it's
+/// exported at. Reads only its own parameters, the crop and the source's size,
+/// so other edits don't redraw it.
+struct ImageSizeRows: View {
     let model: EditorModel
     @State private var fieldError: String?
 
@@ -506,44 +682,38 @@ struct ImageSizeSection: View {
         let source = model.sourceSize
         let working = source == .zero ? CGSize.zero : ImageSize.working(source: source, params: params, crop: model.crop)
         let photograph = model.crop.size(of: working)
-        Section {
-            Picker("Size", selection: Binding(get: { mode }, set: { fieldError = nil; model.chooseImageSize($0) })) {
-                Text("Original").tag(ImageSize.Mode.original)
-                Text("Longest side").tag(ImageSize.Mode.longestSide)
-            }
-            .help("Original develops the photograph’s own pixels. Longest side enlarges or reduces it first, so the cropped photograph has that many pixels on its longest side.")
-            if mode == .longestSide {
-                LabeledContent("Longest side") {
-                    HStack(spacing: 4) {
-                        PixelField(title: "Longest side", value: ImageSize.target(of: params) ?? 0) { pixels in
-                            fieldError = model.setLongestSide(pixels)
-                            return fieldError == nil
-                        }
-                        .frame(width: 72)
-                        Text("px").foregroundStyle(.secondary)
+        ChoiceRow("Develop at", selection: Binding(get: { mode }, set: { fieldError = nil; model.chooseImageSize($0) })) {
+            Text("Original").tag(ImageSize.Mode.original)
+            Text("Longest side").tag(ImageSize.Mode.longestSide)
+        }
+        .help("Original develops the photograph’s own pixels. Longest side enlarges or reduces it first, so the cropped photograph has that many pixels on its longest side.")
+        if mode == .longestSide {
+            LabeledContent("Longest side") {
+                HStack(spacing: 4) {
+                    PixelField(title: "Longest side", value: ImageSize.target(of: params) ?? 0) { pixels in
+                        fieldError = model.setLongestSide(pixels)
+                        return fieldError == nil
                     }
-                }
-                .help("The cropped photograph’s longest side, before any border. Exports can still be reduced in the save panel.")
-                if let fieldError {
-                    Text(fieldError).font(.caption).foregroundStyle(.red)
+                    .frame(width: 72)
+                    Text("px").foregroundStyle(Ink.dim)
                 }
             }
-            LabeledContent("Photograph") {
-                // Verbatim, so pixel counts read like the status bar's, without grouping.
-                Text(verbatim: photograph == .zero ? "—" : "\(Int(photograph.width)) × \(Int(photograph.height)) · \(ImageSize.megapixels(photograph)) MP")
-                    .monospacedDigit()
+            .help("The cropped photograph’s longest side, before any border. Exports can still be reduced in the save panel.")
+            if let fieldError {
+                Text(fieldError).font(.caption).foregroundStyle(.red)
             }
-            .help("The exported photograph, cropped, before rotation, the border, and any export size.")
-            if ImageSize.exceedsLimit(working: working, source: source) {
-                Label(ImageSize.limitMessage(working: working), systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption).foregroundStyle(.red)
-            } else if model.previewScale < 1, model.image != nil {
-                Text("The preview shows \(EditorModel.percent(model.previewScale)) of these pixels. Exports develop all of them; inspect grain in an exported file.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        } header: { Text("Input") } footer: {
-            Text("Resized first, before film simulation, halation and grain.")
-                .font(.caption).foregroundStyle(.secondary)
+        }
+        LabeledContent("Photograph") {
+            // Verbatim, so pixel counts read like the status bar's, without grouping.
+            Text(verbatim: photograph == .zero ? "—" : "\(Int(photograph.width)) × \(Int(photograph.height)) · \(ImageSize.megapixels(photograph)) MP")
+                .font(Ink.print(14)).monospacedDigit()
+        }
+        .help("The exported photograph, cropped, before rotation, the border, and any export size.")
+        if ImageSize.exceedsLimit(working: working, source: source) {
+            Label(ImageSize.limitMessage(working: working), systemImage: "exclamationmark.triangle.fill")
+                .font(.caption).foregroundStyle(.red)
+        } else if model.previewScale < 1, model.image != nil {
+            InkNote("The preview shows \(EditorModel.percent(model.previewScale)) of these pixels. Exports develop all of them; inspect grain in an exported file.")
         }
     }
 }
@@ -609,106 +779,183 @@ private extension View {
     }
 }
 
-/// Six equal workflow tabs, a symbol over a short label, as a segmented
-/// control. Print dims and strikes through while the film is scanned directly.
+/// Six equal workflow tabs in edge print, with a dot on any that holds edits.
+/// Print strikes through while the film is scanned directly.
 struct InspectorTabBar: View {
     let model: EditorModel
 
     var body: some View {
         let scanning = model.value("io.scan_film").bool
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             ForEach(InspectorTab.allCases) { tab in
                 let selected = model.inspectorTab == tab
                 let skipped = tab.isSkipped(scanning: scanning)
-                let tint = selected ? EdgePrint.amber : EdgePrint.amber.opacity(0.6)
+                let edited = model.editCount(on: tab) > 0
                 Button {
                     model.inspectorTab = tab
                 } label: {
-                    VStack(spacing: 3) {
-                        // A fixed icon box keeps every label on one baseline,
-                        // whatever the symbol's own height.
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 15))
-                            .frame(width: 22, height: 18)
-                            .foregroundStyle(tint)
-                        Text(tab.title)
-                            .font(.system(size: 11, weight: selected ? .semibold : .regular))
-                            .foregroundStyle(tint)
-                            .strikethrough(skipped)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 5)
-                    .contentShape(Rectangle())
+                    Text(tab.title.uppercased())
+                        .font(Ink.print(14)).tracking(0.7)
+                        .foregroundStyle(selected ? Ink.amber : Ink.dim)
+                        .strikethrough(skipped)
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .overlay(alignment: .bottom) { if selected { Ink.amber.frame(height: 2) } }
+                        .overlay(alignment: .topTrailing) {
+                            if edited { Circle().fill(Ink.amber).frame(width: 4, height: 4).padding(.top, 7).padding(.trailing, 5) }
+                        }
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                // Equal shares of the bar, so the columns and their bold
-                // selected labels never shift.
+                // Equal shares of the bar, so the columns never shift.
                 .frame(maxWidth: .infinity)
-                .background {
-                    if selected { RoundedRectangle(cornerRadius: 6).fill(.quaternary) }
-                }
-                .opacity(skipped ? 0.45 : 1)
                 .help(skipped ? "Print is skipped while Scan film directly is on." : tab.title)
                 .accessibilityLabel(tab.title)
-                .accessibilityValue(skipped ? "Skipped" : selected ? "Selected" : "")
+                .accessibilityValue([skipped ? "Skipped" : selected ? "Selected" : "", edited ? "Has edits" : ""].filter { !$0.isEmpty }.joined(separator: ", "))
             }
         }
-        .padding(3)
-        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+        .padding(.horizontal, 8)
+        .overlay(alignment: .top) { Ink.line.frame(height: 1) }
+        .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
+    }
+}
+
+/// A heading for one stage in the all-controls column.
+private struct StageHeading: View {
+    let title: String
+    let edited: Bool
+    var folded = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased()).font(Ink.print(16)).tracking(1).foregroundStyle(Ink.paper)
+                .accessibilityAddTraits(.isHeader)
+            if edited { Circle().fill(Ink.amber).frame(width: 4, height: 4).accessibilityHidden(true) }
+            Spacer(minLength: 0)
+            if folded { FoldChevron() }
+        }
+        .padding(.horizontal, InkLayout.gutter)
+        .frame(height: 36)
+        .background(Ink.well)
+        .contentShape(Rectangle())
+        .accessibilityValue(folded ? "Collapsed" : "Expanded")
     }
 }
 
 struct AdjustmentInspector: View {
     let model: EditorModel
-    @AppStorage("expandedAdjustments") private var expanded = "Enlarger"
+    @AppStorage("expandedAdjustments") private var expanded = "Lens Diffusion,Grain,Halation"
+    /// Modules showing their "more controls".
+    @AppStorage("expandedMoreControls") private var expandedMore = ""
+    @AppStorage(AllFolds.key) private var allFoldsStorage = ""
+    private var allFolds: AllFolds { AllFolds(storage: $allFoldsStorage) }
 
     /// The selected tab lives on the model, so changing photos or switching
     /// to Presets keeps it for this session without carrying it into the next.
     private var tab: InspectorTab { model.inspectorTab }
-    private var simple: Bool { model.inspectorMode == .simple }
+    /// The grid's panel is always the everyday controls.
+    private var simple: Bool { model.inspectorMode == .simple || model.gridVisible }
+    private var everything: Bool { model.inspectorMode == .all && !model.gridVisible }
 
     var body: some View {
         // The histogram and workflow tabs stay put above the tab's scrolling sections.
         VStack(spacing: 0) {
-            VStack(spacing: 10) {
-                HistogramView(histogram: model.histogram).frame(height: 88)
-                if !simple { InspectorTabBar(model: model) }
+            ZoneHistogramView(model: model)
+                .padding(.horizontal, InkLayout.gutter)
+                .padding(.bottom, 4)
+            stockCards
+            if model.gridVisible {
+                let count = model.gridSelection.count
+                Text((count == 1 ? "Editing 1 photo" : "Editing \(count) photos").uppercased())
+                    .font(Ink.print(14)).foregroundStyle(Ink.amber)
+                    .padding(.horizontal, InkLayout.gutter)
+                    .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                    .overlay(alignment: .top) { Ink.line.frame(height: 1) }
+                    .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
+            } else if !simple && !everything {
+                InspectorTabBar(model: model)
+            } else {
+                Ink.line.frame(height: 1)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            Divider()
-            Form {
-                if simple {
-                    simplePage
-                } else {
-                    switch tab {
-                    case .camera: cameraTab
-                    case .film: filmTab
-                    case .print: printTab
-                    case .scan: scanTab
-                    case .finish: finishTab
-                    case .export: exportTab
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if simple {
+                        simplePage
+                    } else if everything {
+                        ForEach(InspectorTab.allCases) { stage in
+                            let key = "stage:" + stage.title
+                            StageHeading(title: stage.title, edited: model.editCount(on: stage) > 0, folded: allFolds.contains(key))
+                                .onTapGesture(count: 2) { allFolds.toggle(key) }
+                            if !allFolds.contains(key) { page(stage) }
+                        }
+                    } else {
+                        page(tab)
                     }
                 }
             }
-            .formStyle(.grouped)
-            // A fresh Form per tab starts at the top rather than inheriting
+            // A fresh page per tab starts at the top rather than inheriting
             // the last tab's scroll offset.
-            .id(simple ? "simple" : tab.rawValue)
-            footer
+            .id(simple ? "simple" : everything ? "all" : tab.rawValue)
+            if simple || everything || tab == .export { exportFooter }
         }
+        .font(.system(size: 12))
+        .foregroundStyle(Ink.label)
+        .toggleStyle(InkSwitchStyle())
+        .labeledContentStyle(InkRowStyle())
+        .environment(\.inspectorShowsEverything, everything)
         .disabled(!model.hasCatalog)
     }
 
-    /// Pinned below the sections, like the Reset Adjustments button in Photos.
-    private var footer: some View {
-        Button(action: model.reset) {
-            Text("Reset Adjustments").frame(maxWidth: .infinity)
+    /// The film and paper, above the tabs, to change from any of them. There's
+    /// no paper to choose while the film is scanned directly.
+    private var stockCards: some View {
+        let scanning = model.value("io.scan_film").bool
+        return VStack(spacing: InkLayout.cardGap) {
+            filmPicker
+            paperPicker
+                .opacity(scanning ? 0.45 : 1)
+                .disabled(scanning)
+                .help(scanning ? "The film is scanned directly, so there’s no print." : "")
         }
-        .buttonStyle(.bordered).buttonBorderShape(.capsule).controlSize(.extraLarge)
-        .help("Restore defaults on every tab while keeping the film, paper, rotation, crop, border, and Image Size. You can undo this.")
-        .padding(.horizontal, 20)
+        .padding(.horizontal, InkLayout.gutter)
+        .padding(.vertical, 10)
+        .overlay(alignment: .top) { Ink.line.frame(height: 1) }
+    }
+
+    @ViewBuilder private func page(_ tab: InspectorTab) -> some View {
+        switch tab {
+        case .camera: cameraTab
+        case .film: filmTab
+        case .print: printTab
+        case .scan: scanTab
+        case .export: exportTab
+        }
+    }
+
+    /// What will be written, and the button that writes it, pinned below the page.
+    private var exportFooter: some View {
+        VStack(spacing: 8) {
+            Text(verbatim: exportSummary).font(Ink.print(14)).monospacedDigit().foregroundStyle(Ink.label)
+            Button { model.savePanel(export: true) } label: {
+                Text("Export Image…").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity, minHeight: 32)
+                    .background(Ink.amber, in: RoundedRectangle(cornerRadius: 6))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(model.source == nil || !model.ready || model.exporting || model.saving)
+            .opacity(model.source == nil || !model.ready || model.exporting || model.saving ? 0.5 : 1)
+            .help("Export the photograph (⇧⌘E).")
+        }
+        .padding(.horizontal, InkLayout.gutter)
         .padding(.vertical, 12)
+        .overlay(alignment: .top) { Ink.line.frame(height: 1) }
+    }
+
+    private var exportSummary: String {
+        let format = model.exportFormat.title.split(separator: " ").first.map(String.init) ?? model.exportFormat.title
+        let size = model.photoSize == .zero ? "" : "\(Int(model.photoSize.width)) × \(Int(model.photoSize.height)) · "
+        return "\(size)\(format) \(model.exportBitDepth)-bit · \(model.previewSpace)"
     }
 
     // MARK: Simple
@@ -717,37 +964,32 @@ struct AdjustmentInspector: View {
     /// Advanced has set still applies.
     @ViewBuilder private var simplePage: some View {
         let scanning = model.value("io.scan_film").bool
-        Section("Film & Paper") {
-            filmPicker
+        InkSection("Print") {
             Group {
-                paperPicker
                 ForEach(simplePrintControls) { control($0) }
             }
             .opacity(scanning ? 0.45 : 1)
             .disabled(scanning)
-            if scanning {
-                Text("This film is scanned directly, so there’s no print to adjust.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+            if scanning { InkNote("This film is scanned directly, so there’s no print to adjust.") }
         }
         if model.isRaw { whiteBalanceSection }
-        Section("Tone") {
-            ToneCurveBox(model: model)
+        InkSection("Tone") {
             ForEach(toneControls) { control($0) }
         }
-        Section("Detail") {
+        module("Detail", summary: summary(of: simpleDetailControls.first), edited: isEdited(simpleDetailControls)) {
             ForEach(simpleDetailControls) { control($0) }
         }
-        ImageSizeSection(model: model)
-        fileSection
-        exportButton
+        module("Output", summary: "\(model.exportFormat.title) · \(model.exportBitDepth)-bit") {
+            ImageSizeRows(model: model)
+            fileRows
+        }
     }
 
     // MARK: Camera
 
     /// A RAW file's white balance, on Simple's page and in Advanced's Camera tab.
     @ViewBuilder private var whiteBalanceSection: some View {
-        Section("White Balance") {
+        InkSection("White Balance") {
             control(.choice("RAW white balance", "io.raw_white_balance.mode", ["as_shot", "daylight", "tungsten", "custom"]))
             if model.value("io.raw_white_balance.mode").string == "custom" {
                 control(.slider("Temperature (K)", "io.raw_white_balance.temperature", 1667...25000, 1))
@@ -757,51 +999,51 @@ struct AdjustmentInspector: View {
     }
 
     @ViewBuilder private var cameraTab: some View {
+        InkSection("Exposure") {
+            control(.slider("Exposure (EV)", "camera.exposure_compensation_ev", -5...5, 0.1))
+            control(zoneShiftControl)
+                .help("Moves the light on the film without the print making up for it. ⌃-click the photograph, then click a zone in the histogram, to set it from a reading.")
+            Toggle("Auto exposure", isOn: model.toggle("camera.auto_exposure"))
+            dependent(on: "camera.auto_exposure") {
+                control(.choice("Metering", "camera.auto_exposure_method", ["average", "median", "center_weighted", "partial", "matrix", "multi_zone", "highlight_weighted"]))
+            }
+        }
         if model.isRaw {
             whiteBalanceSection
         } else {
-            Section { inputColour }
+            inputColour
         }
-        Section("Exposure") {
-            Toggle("Auto exposure", isOn: model.toggle("camera.auto_exposure"))
-            if model.value("camera.auto_exposure").bool {
-                control(.choice("Metering", "camera.auto_exposure_method", ["average", "median", "center_weighted", "partial", "matrix", "multi_zone", "highlight_weighted"]))
-            }
-            control(.slider("Exposure (EV)", "camera.exposure_compensation_ev", -5...5, 0.1))
-        }
-        Section("Lens") {
+        InkSection("Lens") {
             FilmFormatPicker(model: model)
             control(.slider("Lens blur (µm)", "camera.lens_blur_um", 0...100, 0.1))
             if model.isRaw, model.lensCorrectionSupported {
                 control(.toggle("Lens corrections", EditorModel.lensCorrectionPath))
                     .help("Corrects distortion and vignetting with the data the camera recorded for its lens.")
             }
-            group("Lens Diffusion")
         }
+        group("Lens Diffusion")
     }
 
     // MARK: Film
 
     @ViewBuilder private var filmTab: some View {
-        Section("Film Stock") {
-            filmPicker
+        InkSection {
             developmentTime(stock: model.films.first { $0.id == model.film }, path: "film_render.development_time", label: "Development")
             Toggle(isOn: model.toggle("io.scan_film")) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("Scan film directly")
-                    Text("Skips the Print step").font(.caption).foregroundStyle(.secondary)
+                    Text("Skips the Print stage").font(.system(size: 11)).foregroundStyle(Ink.dim)
                 }
             }
+            .padding(.vertical, 2)
             .help("The developed negative goes straight to the scanner, as for slides.")
         }
-        // In the order the light meets them.
-        Section("Emulsion") {
-            group("Halation")
-            group("Film Curves")
-            group("DIR Couplers")
-            group("Grain")
-            group("Film Base")
-        }
+        // The controls people reach for first, at the top.
+        group("Grain")
+        group("Halation")
+        group("DIR Couplers")
+        group("Film Curves")
+        group("Film Base")
     }
 
     @ViewBuilder private var filmPicker: some View {
@@ -809,11 +1051,7 @@ struct AdjustmentInspector: View {
         if model.previews.enabled {
             StockFoldout(model: model, paper: false)
         } else {
-            Picker("Film", selection: Binding(get: { model.film }, set: model.chooseFilm)) {
-                ForEach(model.filmGroups) { group in
-                    Section(group.title) { ForEach(group.stocks) { Text($0.name).tag($0.id) } }
-                }
-            }
+            StockMenuCard(name: model.filmName, kind: "Film stock", label: "Film", groups: model.filmGroups, selected: model.film, choose: model.chooseFilm)
         }
     }
 
@@ -822,34 +1060,47 @@ struct AdjustmentInspector: View {
     @ViewBuilder private var printTab: some View {
         let scanning = model.value("io.scan_film").bool
         if scanning {
-            Section {
+            InkSection {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Print step is skipped", systemImage: "info.circle").font(.headline)
-                    Text("“Scan film directly” is on in Film, so the negative goes straight to the scanner.")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Button("Use print instead") { model.set("io.scan_film", .bool(false)) }
-                        .buttonStyle(.bordered)
+                    Text("The Print stage is skipped").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Ink.paper)
+                    InkNote("Scan film directly is on in Film, so the negative goes straight to the scanner.")
+                    Button("Use the Print stage") { model.set("io.scan_film", .bool(false)) }
+                        .buttonStyle(InkButtonStyle())
                         .help("Turns off Scan film directly in Film.")
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
             }
         }
         Group {
-            Section("Paper") {
-                paperPicker
-                developmentTime(stock: model.papers.first { $0.id == model.paper }, path: "print_render.development_time", label: "Print development")
+            if let paper = model.papers.first(where: { $0.id == model.paper }), paper.times.count > 1 {
+                InkSection {
+                    developmentTime(stock: paper, path: "print_render.development_time", label: "Print development")
+                }
             }
-            Section("Enlarger") {
-                let enlarger = adjustmentGroups.first { $0.title == "Enlarger" }
-                ForEach(enlarger?.controls ?? []) { control($0) }
-                // Print Diffusion is an enlarger filter, so it stays with it.
-                group("Print Diffusion")
+            InkSection("Enlarger") {
+                control(.slider("Print exposure", "enlarger.print_exposure", 0.1...5, 0.01))
+                control(.toggle("Exposure compensation", "enlarger.print_exposure_compensation"))
             }
-            Section("Darkroom") {
-                group("Print Curves")
-                group("Print Base")
-                group("Glare")
+            InkSection("Filtration", action: {
+                Button(model.balancingPrint ? "Balancing…" : "Balance Print") { model.balancePrint() }
+                    .buttonStyle(InkButtonStyle())
+                    .disabled(!model.canBalancePrint)
+                    .help("Sets the magenta and yellow shifts so a mid-grey prints neutral with the current film, bases, paper and enlarger. Use it after changing the film base.")
+            }) {
+                control(.slider("Magenta shift", "enlarger.m_filter_shift", -50...50, 0.1))
+                control(.slider("Yellow shift", "enlarger.y_filter_shift", -50...50, 0.1))
             }
+            let preflash = [
+                Adjustment.slider("Preflash exposure", "enlarger.preflash_exposure", 0...0.5, 0.01),
+                .slider("Preflash magenta", "enlarger.preflash_m_filter_shift", -50...50, 0.1),
+                .slider("Preflash yellow", "enlarger.preflash_y_filter_shift", -50...50, 0.1)
+            ]
+            module("Preflash", summary: summary(of: preflash.first), edited: isEdited(preflash)) {
+                ForEach(preflash) { control($0) }
+            }
+            group("Print Curves")
+            group("Print Base")
+            group("Glare")
         }
         .opacity(scanning ? 0.45 : 1)
         .disabled(scanning)
@@ -859,80 +1110,51 @@ struct AdjustmentInspector: View {
         if model.previews.enabled {
             StockFoldout(model: model, paper: true)
         } else {
-            Picker("Paper", selection: Binding(get: { model.paper }, set: model.choosePaper)) {
-                ForEach(model.paperGroups) { group in
-                    Section(group.title) { ForEach(group.stocks) { Text($0.name).tag($0.id) } }
-                }
-            }
+            StockMenuCard(name: model.paperName, kind: "Paper", label: "Paper", groups: model.paperGroups, selected: model.paper, choose: model.choosePaper)
         }
     }
 
     // MARK: Scan
 
     @ViewBuilder private var scanTab: some View {
-        Section("Scanner") {
-            let scanner = adjustmentGroups.first { $0.title == "Scanner" }
-            ForEach(scanner?.controls ?? []) { control($0) }
-        }
-        Section("Detail") {
+        InkSection("Sharpness") {
+            control(.slider("Unsharp radius (px)", "scanner.unsharp_mask.0", 0...3, 0.01))
+            control(.slider("Unsharp amount", "scanner.unsharp_mask.1", 0...2, 0.01))
             ForEach(scanDetailControls) { control($0) }
+            control(.slider("Lens blur (px)", "scanner.lens_blur", 0...5, 0.01))
         }
-        Section("Color") { group("Color Management") }
-    }
-
-    // MARK: Finish
-
-    /// Finishing edits on the scan, after the film. They shape the tones the
-    /// film produced; detail the paper clipped comes back only in Camera.
-    @ViewBuilder private var finishTab: some View {
-        Section {
-            ToneCurveBox(model: model)
-            ForEach(toneControls) { control($0) }
-        } header: { Text("Tone") } footer: {
-            Text("Adjusts the finished scan. To recover a clipped highlight, use Exposure in Camera.")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-        Section("Border") {
-            Toggle("Add border", isOn: model.border(\.enabled))
-            Group {
-                let photo = model.photoSize == .zero ? nil : model.photoSize
-                BorderStylePicker(selection: model.border(\.style), photo: photo, colors: (model.border.color, model.border.lineColor))
-                if let photo, !BorderStyle.film35.fits(photo) {
-                    Text("35mm needs a 3:2 or 3:4 photograph. This one is \(Self.ratio(photo)); crop it to 3:2 or 4:3 to use it.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                borderControls
-                Toggle("Extend to 3:4 for Instagram", isOn: model.border(\.instagram))
-                    .help("Adds white above and below, or at the sides, so Instagram shows the whole photograph in a 3:4 portrait post.")
+        InkSection("Levels") {
+            control(.toggle("White correction", "scanner.white_correction"))
+            dependent(on: "scanner.white_correction") {
+                control(.slider("White level", "scanner.white_level", 0.5...1, 0.01))
             }
-            .disabled(!model.border.enabled)
+            control(.toggle("Black correction", "scanner.black_correction"))
+            dependent(on: "scanner.black_correction") {
+                control(.slider("Black level", "scanner.black_level", 0...0.5, 0.01))
+            }
         }
+        InkSection("Tone", footer: "These shape the tones the film produced. To recover a clipped highlight, use Exposure in Camera.") {
+            ForEach(toneControls) { control($0) }
+        }
+        module("Border", enable: model.border(\.enabled), summary: model.border.style.title) {
+            let photo = model.photoSize == .zero ? nil : model.photoSize
+            BorderStylePicker(selection: model.border(\.style), photo: photo, colors: (model.border.color, model.border.lineColor))
+            if let photo, !BorderStyle.film35.fits(photo) {
+                InkNote("35mm needs a 3:2 or 3:4 photograph. This one is \(Self.ratio(photo)); crop it to 3:2 or 4:3 to use it.")
+            }
+            borderControls
+            Toggle("Extend to 3:4 for Instagram", isOn: model.border(\.instagram))
+                .help("Adds white above and below, or at the sides, so Instagram shows the whole photograph in a 3:4 portrait post.")
+        }
+        group("Color Management")
     }
 
     // MARK: Export
 
     @ViewBuilder private var exportTab: some View {
-        ImageSizeSection(model: model)
-        fileSection
-        Section("Output") {
-            Picker("Colour space", selection: Binding(get: { model.previewSpace }, set: model.choosePreviewSpace)) {
-                ForEach(SaveSettings.colorSpaces, id: \.self) { Text($0).tag($0) }
-            }
-            .help("The preview develops in this colour space, and exports are written in it. ProPhoto RGB needs 16 bits.")
-            Toggle("Encode with the colour space’s curve", isOn: model.toggle("io.output_cctf_encoding"))
-                .help("Off writes linear values, for further processing.")
-            Toggle("Include border", isOn: model.border(\.export))
-                .help("Adds the border to exported photographs and saved previews.")
-                .disabled(!model.border.enabled)
-        }
-        Section("Export") {
-            Picker("Engine", selection: Binding(get: { model.exportEngine }, set: { model.exportEngine = $0 })) {
-                ForEach(ExportEngine.allCases, id: \.rawValue) { engine in
-                    Text(engine.title).tag(engine)
-                }
-            }
-            .help("Reference develops the photo again with extra precision. Fast uses the preview's result and looks the same.")
-            Picker("Size", selection: Binding(get: { model.exportSize.edge }, set: { model.exportSize.edge = $0 })) {
+        InkSection("Resolution", footer: "Develop size is applied first, so film simulation, halation and grain render at it.") {
+            ImageSizeRows(model: model)
+            ChoiceRow("Export at", selection: Binding(get: { model.exportSize.edge }, set: { model.exportSize.edge = $0 })) {
                 ForEach(ExportSize.Edge.allCases, id: \.rawValue) { edge in
                     Text(edge.title).tag(edge)
                 }
@@ -948,64 +1170,67 @@ struct AdjustmentInspector: View {
                         .multilineTextAlignment(.trailing)
                         .frame(width: 72)
                         .accessibilityLabel(model.exportSize.edge == .long ? "Long edge in pixels" : "Short edge in pixels")
-                        Text("px").foregroundStyle(.secondary)
+                        Text("px").foregroundStyle(Ink.dim)
                     }
                 } label: {
                     Text(model.exportSize.edge == .long ? "Long edge" : "Short edge")
                 }
             }
         }
-        Section("Performance") {
+        InkSection("File") {
+            fileRows
+            ChoiceRow("Colour space", selection: Binding(get: { model.previewSpace }, set: model.choosePreviewSpace)) {
+                ForEach(SaveSettings.colorSpaces, id: \.self) { Text($0).tag($0) }
+            }
+            .help("The preview develops in this colour space, and exports are written in it. ProPhoto RGB needs 16 bits.")
+            Toggle("Encode with the colour space’s curve", isOn: model.toggle("io.output_cctf_encoding"))
+                .help("Off writes linear values, for further processing.")
+            Toggle("Include border", isOn: model.border(\.export))
+                .help("Adds the border to exported photographs and saved previews.")
+                .disabled(!model.border.enabled)
+        }
+        module("Performance", summary: model.exportEngine.title) {
+            ChoiceRow("Engine", selection: Binding(get: { model.exportEngine }, set: { model.exportEngine = $0 })) {
+                ForEach(ExportEngine.allCases, id: \.rawValue) { engine in
+                    Text(engine.title).tag(engine)
+                }
+            }
+            .help("Reference develops the photo again with extra precision. Fast uses the preview's result and looks the same.")
             Toggle("Limit preview to 12 MP", isOn: Binding(get: { model.limitsPreview }, set: model.limitPreview))
                 .help("Develops the preview faster on large photographs. Export keeps the full Image Size.")
             Toggle("Use less memory for export", isOn: model.toggle("settings.serial_grain"))
                 .help("Processes grain channels one at a time. Same result, less memory, longer export.")
         }
-        exportButton
     }
 
-    @ViewBuilder private var fileSection: some View {
-        Section("File") {
-            Picker("Format", selection: Binding(get: { model.exportFormat }, set: { model.exportFormat = $0 })) {
-                ForEach(OutputFormat.allCases, id: \.rawValue) { format in
-                    Text(format.title).tag(format)
-                }
-            }
-            .help("The file type, and the extension the save panel offers.")
-            Picker("Bit depth", selection: Binding(get: { model.exportBitDepth }, set: { model.exportBitDepth = $0 })) {
-                Text("8-bit").tag(8)
-                Text("16-bit").tag(16)
-            }
-            .disabled(model.exportFormat == .jpeg)
-            .help(model.exportFormat == .jpeg ? "JPEG is 8-bit only." : "Bits per channel, for PNG and TIFF.")
-            if model.exportFormat == .jpeg {
-                LabeledContent {
-                    HStack(spacing: 8) {
-                        Slider(value: Binding(get: { Double(model.exportQuality) },
-                                              set: { model.exportQuality = Int($0.rounded()) }),
-                               in: Double(SaveSettings.qualityRange.lowerBound)...Double(SaveSettings.qualityRange.upperBound),
-                               step: 1)
-                        .frame(width: 140)
-                        Text("\(model.exportQuality)").monospacedDigit().frame(width: 28, alignment: .trailing)
-                    }
-                } label: { Text("JPEG quality") }
-            }
-            if model.exportBitDepth == 8, model.previewSpace == SaveSettings.colorSpaces[SaveSettings.prophoto] {
-                Text("ProPhoto RGB needs 16 bits; exports use Adobe RGB (1998) at 8 bits.")
-                    .font(.caption).foregroundStyle(.secondary)
+    @ViewBuilder private var fileRows: some View {
+        ChoiceRow("Format", selection: Binding(get: { model.exportFormat }, set: { model.exportFormat = $0 })) {
+            ForEach(OutputFormat.allCases, id: \.rawValue) { format in
+                Text(format.title).tag(format)
             }
         }
-    }
-
-    private var exportButton: some View {
-        Section {
-            Button { model.savePanel(export: true) } label: {
-                Text("Export Image…").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(model.source == nil || !model.ready || model.exporting || model.saving)
-            .help("Export the photograph (⇧⌘E).")
+        .help("The file type, and the extension the save panel offers.")
+        ChoiceRow("Bit depth", selection: Binding(get: { model.exportBitDepth }, set: { model.exportBitDepth = $0 })) {
+            Text("8-bit").tag(8)
+            Text("16-bit").tag(16)
+        }
+        .disabled(model.exportFormat == .jpeg)
+        .help(model.exportFormat == .jpeg ? "JPEG is 8-bit only." : "Bits per channel, for PNG and TIFF.")
+        if model.exportFormat == .jpeg {
+            LabeledContent {
+                HStack(spacing: 8) {
+                    Slider(value: Binding(get: { Double(model.exportQuality) },
+                                          set: { model.exportQuality = Int($0.rounded()) }),
+                           in: Double(SaveSettings.qualityRange.lowerBound)...Double(SaveSettings.qualityRange.upperBound),
+                           step: 1)
+                    .controlSize(.small)
+                    .frame(width: 140)
+                    Text("\(model.exportQuality)").font(Ink.print(14)).monospacedDigit().frame(width: 28, alignment: .trailing)
+                }
+            } label: { Text("JPEG quality") }
+        }
+        if model.exportBitDepth == 8, model.previewSpace == SaveSettings.colorSpaces[SaveSettings.prophoto] {
+            InkNote("ProPhoto RGB needs 16 bits; exports use Adobe RGB (1998) at 8 bits.")
         }
     }
 
@@ -1013,8 +1238,8 @@ struct AdjustmentInspector: View {
     /// profile and tags, as an assumed colour space, or (Manual) by the input
     /// colour space and curve, as Negs 0.8 read every file.
     @ViewBuilder private var inputColour: some View {
-        disclosure("Input Colour", symbol: "eyedropper") {
-            Picker("Read as", selection: model.inputInterpretation) {
+        module("Input Colour") {
+            ChoiceRow("Read as", selection: model.inputInterpretation) {
                 Text("Automatic").tag("auto")
                 Section("Assume") {
                     ForEach(["sRGB", "Display P3", "Adobe RGB (1998)", "ProPhoto RGB", "ITU-R BT.2020"], id: \.self) { Text($0).tag("assume:" + $0) }
@@ -1037,7 +1262,7 @@ struct AdjustmentInspector: View {
                     if colour["automatic"].string != colour["summary"].string { Text("Automatic: \(colour["automatic"].string)") }
                     if !colour["warning"].string.isEmpty { Text(colour["warning"].string).foregroundStyle(.orange) }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(Ink.dim)
             }
         }
     }
@@ -1078,44 +1303,142 @@ struct AdjustmentInspector: View {
         return String(format: "%.2f:1", Double(ratio))
     }
 
-    /// One effect group's disclosure, by title, so each tab can order them.
-    @ViewBuilder private func group(_ title: String) -> some View {
-        if let group = adjustmentGroups.first(where: { $0.title == title }) {
-            disclosure(group.title, symbol: group.symbol, enable: group.enable) {
-                ForEach(group.controls) { control($0) }
-                    .disabled(group.enable.map { !model.value($0).bool } ?? false)
+    /// A control that only counts while `path` is on: hidden otherwise, or
+    /// dimmed in the all-controls column, which shows everything.
+    @ViewBuilder private func dependent<Content: View>(on path: String, @ViewBuilder content: () -> Content) -> some View {
+        let on = model.value(path).bool
+        if on || everything {
+            content().opacity(on ? 1 : 0.5).disabled(!on)
+        }
+    }
+
+    /// A control's value as text, for a collapsed module's summary.
+    private func summary(of control: Adjustment?) -> String? {
+        switch control {
+        case .slider(_, let path, _, let step):
+            let decimals = max(0, Int(-log10(step).rounded(.down)))
+            return model.value(path).double.formatted(.number.precision(.fractionLength(0...decimals)))
+        case .choice(_, let path, _): return optionTitle(model.value(path).string)
+        case .stockSlider(_, let path, let index, let range, let step, _):
+            return model.stockNumber(path, index, range: range, step: step).wrappedValue.formatted(.number.precision(.fractionLength(0...2)))
+        case .linked(_, _, let lanes, _, _, _):
+            return lanes.first.map { model.laneValue($0).formatted(.number.precision(.fractionLength(0...2))) }
+        case .toggle(_, let path): return model.value(path).bool ? "On" : "Off"
+        case nil: return nil
+        }
+    }
+
+    private func isEdited(_ controls: [Adjustment]) -> Bool {
+        controls.contains { control in
+            switch control {
+            case .slider(_, let path, _, _), .toggle(_, let path), .choice(_, let path, _): model.isModified(path)
+            case .stockSlider(_, let path, let index, _, _, _): model.isStockModified(path, index)
+            case .linked(_, _, let lanes, _, _, _): lanes.contains(where: model.isLaneModified)
             }
         }
     }
 
-    private func disclosure<Content: View>(_ title: String, symbol: String, enable: String? = nil, @ViewBuilder content: @escaping () -> Content) -> some View {
-        let isExpanded = Binding(
-            get: { expanded.split(separator: ",").contains(Substring(title)) },
-            set: { open in
-                var titles = expanded.split(separator: ",").map(String.init).filter { $0 != title }
-                if open { titles.append(title) }
-                expanded = titles.joined(separator: ",")
-            })
-        return DisclosureGroup(isExpanded: isExpanded) {
-            content()
-        } label: {
-            HStack {
-                Label(title, systemImage: symbol)
-                Spacer()
-                if let enable {
-                    Toggle(title, isOn: model.toggle(enable)).labelsHidden().toggleStyle(.switch).controlSize(.mini)
+    /// One effect group's module, by title, so each tab can order them. Its
+    /// first controls show; the rest wait behind "more controls".
+    @ViewBuilder private func group(_ title: String) -> some View {
+        if let group = adjustmentGroups.first(where: { $0.title == title }) {
+            let primary = min(group.primary ?? group.controls.count, group.controls.count)
+            let rest = Array(group.controls[primary...])
+            let showingRest = everything || expandedMore.split(separator: ",").contains(Substring(title))
+            // A filter's name and its strength say something; two numbers in a row don't.
+            let picks: [Adjustment] = { if case .choice = group.controls.first { return Array(group.controls.prefix(2)) }; return Array(group.controls.prefix(1)) }()
+            module(group.title, enable: group.enable.map { model.toggle($0) },
+                   summary: picks.compactMap(summary(of:)).joined(separator: " · "),
+                   edited: isEdited(group.controls)) {
+                ForEach(group.controls.prefix(primary)) { control($0) }
+                if !rest.isEmpty {
+                    if showingRest { ForEach(rest) { control($0) } }
+                    if !everything {
+                        Button(showingRest ? "Fewer controls" : "\(rest.count) more controls") {
+                            var titles = expandedMore.split(separator: ",").map(String.init).filter { $0 != title }
+                            if !showingRest { titles.append(title) }
+                            expandedMore = titles.joined(separator: ",")
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11)).foregroundStyle(Ink.dim)
+                        .frame(height: 24)
+                        .accessibilityAddTraits(showingRest ? .isSelected : [])
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // As in Photos, clicking the title toggles the group, not only the chevron.
-            .contentShape(Rectangle())
-            .onTapGesture { withAnimation { isExpanded.wrappedValue.toggle() } }
         }
+    }
+
+    /// A foldable module: a title with a summary while closed, and a switch if
+    /// the effect can be turned off. Clicking a switched-off module's title
+    /// turns it on. The all-controls column keeps every module open.
+    private func module<Content: View>(_ title: String, enable: Binding<Bool>? = nil, summary: String? = nil, edited: Bool = false,
+                                       @ViewBuilder content: @escaping () -> Content) -> some View {
+        let isOpen = expanded.split(separator: ",").contains(Substring(title))
+        let on = enable?.wrappedValue ?? true
+        let foldKey = "module:" + title
+        let showsBody = everything ? !allFolds.contains(foldKey) : isOpen && on
+        func setOpen(_ open: Bool) {
+            var titles = expanded.split(separator: ",").map(String.init).filter { $0 != title }
+            if open { titles.append(title) }
+            expanded = titles.joined(separator: ",")
+        }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Button {
+                    guard !everything else { return }
+                    if !on { enable?.wrappedValue = true; setOpen(true) } else { setOpen(!isOpen) }
+                } label: {
+                    HStack(spacing: 8) {
+                        if !everything {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(Ink.dim)
+                                .rotationEffect(.degrees(showsBody ? 90 : 0))
+                                .frame(width: 10)
+                        }
+                        Text(title)
+                            .font(.system(size: 12.5, weight: on ? .semibold : .medium))
+                            .foregroundStyle(on ? Ink.paper : Ink.dim)
+                            .lineLimit(1).layoutPriority(1)
+                        if edited, !showsBody { Circle().fill(Ink.amber).frame(width: 4, height: 4).accessibilityHidden(true) }
+                        Spacer(minLength: 8)
+                        if !showsBody {
+                            Text(on ? summary ?? "" : "Off")
+                                .font(.system(size: 11)).foregroundStyle(Ink.dim)
+                                .lineLimit(1).truncationMode(.tail)
+                        }
+                        if everything, !showsBody { FoldChevron() }
+                    }
+                    .frame(height: 36)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture(count: 2).onEnded { if everything { allFolds.toggle(foldKey) } })
+                .accessibilityLabel(title)
+                .accessibilityValue(on ? (showsBody ? "Expanded" : "Collapsed") : "Off")
+                if let enable {
+                    InkSwitch(isOn: Binding(get: { enable.wrappedValue }, set: { turning in
+                        enable.wrappedValue = turning
+                        if turning { setOpen(true) }
+                    }))
+                    .accessibilityLabel("Enable \(title)")
+                }
+            }
+            if showsBody {
+                VStack(alignment: .leading, spacing: 0) { content() }
+                    .opacity(on ? 1 : 0.5)
+                    .disabled(!on)
+                    .padding(.bottom, 8)
+            }
+        }
+        .padding(.horizontal, InkLayout.gutter)
+        .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
     }
 
     @ViewBuilder private func developmentTime(stock: Stock?, path: String, label: String) -> some View {
         if let stock, stock.times.count > 1 {
-            Picker(label, selection: Binding(get: { model.value(path).double }, set: { model.set(path, $0 == 0 ? .null : .number($0)) })) {
+            ChoiceRow(label, selection: Binding(get: { model.value(path).double }, set: { model.set(path, $0 == 0 ? .null : .number($0)) })) {
                 Text("Profile default").tag(0.0)
                 ForEach(stock.times, id: \.self) { Text("\($0.formatted()) min").tag($0) }
             }

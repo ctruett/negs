@@ -96,6 +96,11 @@ final class RenderedPreviewCacheTests: XCTestCase {
 }
 
 @MainActor final class RenderedPreviewLifecycleTests: XCTestCase {
+    /// Image Size is remembered across launches; a run before this one must
+    /// not decide whether the restored frame matches.
+    override func setUp() { UserDefaults.standard.removeObject(forKey: "imageSize") }
+    override func tearDown() { UserDefaults.standard.removeObject(forKey: "imageSize") }
+
     func testStartupUsesExactFinishedFrameAndInterruptedEditFallsBackToRawPreview() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let data = dir.appendingPathComponent("data")

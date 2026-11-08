@@ -7,7 +7,7 @@ use spektrafilm_core::{
     image_size,
     params::RuntimeParams,
     pipeline::Pipeline,
-    post::{AnchorCurve, PostParams, PostProcess},
+    post::{PostParams, PostProcess},
     presets,
     preview::*,
     profile,
@@ -20,7 +20,7 @@ use spektrafilm_io::{
     resize::{self, Fit},
 };
 use spektrafilm_core::stages::scanning::convert_output;
-use spektrafilm_math::{colorspace::RgbColourspace, image::ImageBuf};
+use spektrafilm_math::{colorspace::RgbColourspace, image::ImageBuf, precision::to_f32};
 use std::{
     io::{BufRead, Write},
     path::{Path, PathBuf},
@@ -78,14 +78,31 @@ enum Command {
         #[serde(default)]
         include_finish: bool,
     },
-    /// The mean L\* of a circle of the render `render_id`, as a pin reads it
-    /// (`spektrafilm_core::post::measured_lstar`): `x` and `y` are fractions of
-    /// the uncropped photograph, `radius` a fraction of its shorter side.
-    SampleTone {
-        render_id: u64,
-        x: f64,
-        y: f64,
-        radius: f64,
+    /// A reading of the open photograph against the zones: where the area
+    /// prints now, in L\*, and the stops of exposure that print it at each
+    /// target. The corners are fractions of the uncropped photograph from its
+    /// top left.
+    ZoneReadout {
+        film: String,
+        paper: String,
+        params: Box<RuntimeParams>,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        targets: Vec<f64>,
+    },
+    /// The Custom RAW white balance that makes an area of the photograph
+    /// neutral: the area's mean, from the RAW developed at the neutral base.
+    /// The corners are fractions of the uncropped photograph from its top left;
+    /// equal corners pick the few pixels around a point.
+    WbPick {
+        input: PathBuf,
+        params: Box<RuntimeParams>,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
     },
     Original {
         input: PathBuf,
@@ -171,6 +188,39 @@ enum Command {
     },
 }
 
+/// The mean colour of an area, leaving out pixels near clipping, which would
+/// pull it towards the clipped channel; all of them if nothing else is left.
+fn area_colour(image: &ImageBuf, corners: [(f64, f64); 2]) -> Option<[f64; 3]> {
+    let (width, height) = (f64::from(image.width), f64::from(image.height));
+    let to_px = |v: f64, size: f64| (v.clamp(0.0, 1.0) * size).min(size - 1.0).max(0.0) as u32;
+    let (mut x0, mut x1) = (to_px(corners[0].0, width), to_px(corners[1].0, width));
+    let (mut y0, mut y1) = (to_px(corners[0].1, height), to_px(corners[1].1, height));
+    if x0 > x1 { std::mem::swap(&mut x0, &mut x1) }
+    if y0 > y1 { std::mem::swap(&mut y0, &mut y1) }
+    // A click: the few pixels around it.
+    if x1 - x0 < 3 && y1 - y0 < 3 {
+        (x0, x1) = (x0.saturating_sub(2), (x1 + 2).min(image.width - 1));
+        (y0, y1) = (y0.saturating_sub(2), (y1 + 2).min(image.height - 1));
+    }
+    let area = f64::from(x1 - x0 + 1) * f64::from(y1 - y0 + 1);
+    let stride = (area / 250_000.0).sqrt().ceil().max(1.0) as usize;
+    let mean = |skip_clipped: bool| {
+        let (mut sum, mut count) = ([0.0f64; 3], 0u32);
+        for y in (y0..=y1).step_by(stride) {
+            for x in (x0..=x1).step_by(stride) {
+                let px = image.get(x, y).map(|v| f64::from(to_f32(v)));
+                if skip_clipped && px.iter().any(|&v| v >= 0.95) {
+                    continue;
+                }
+                for c in 0..3 { sum[c] += px[c]; }
+                count += 1;
+            }
+        }
+        (count > 0).then(|| sum.map(|v| v / f64::from(count)))
+    };
+    mean(true).or_else(|| mean(false))
+}
+
 #[derive(Default)]
 struct Session {
     source_generation: u64,
@@ -192,6 +242,9 @@ struct Session {
     metering: Option<ImageBuf>,
     pipeline: Option<(String, Pipeline)>,
     output: Option<Rendered>,
+    /// A small copy of the RAW developed at the neutral base, for picking
+    /// white balance: the file and lens correction it was read with.
+    wb_base: Option<(PathBuf, spektrafilm_io::LensCorrection, ImageBuf)>,
     /// The source reduced for stock and preset thumbnails.
     thumbnail_source: Option<((u32, u32), ImageBuf)>,
     /// Calibrated pipelines for thumbnails, most recent last. A stock's
@@ -485,6 +538,15 @@ impl Session {
         }))
     }
 
+    /// What the photograph meters at, as the last render applied it, with
+    /// auto exposure on.
+    fn autoexposure_ev(&self, params: &RuntimeParams) -> Option<f64> {
+        if !params.camera.auto_exposure {
+            return None;
+        }
+        Some(self.pipeline.as_ref()?.1.frame_autoexposure_ev(self.metering.as_ref()?))
+    }
+
     fn handle(&mut self, request: Request, data: &Path) -> Result<Value> {
         match request.command {
             Command::Catalog => catalog(data),
@@ -518,15 +580,39 @@ impl Session {
                     .map_err(anyhow::Error::msg)?;
                 Ok(json!({"text": text}))
             }
-            Command::SampleTone { render_id, x, y, radius } => {
-                let Rendered { id, encoding, post, image, .. } =
-                    self.output.as_ref().context("No preview to measure")?;
-                ensure!(*id == render_id, "The preview changed; wait for the current render and try again");
-                let lstar = spektrafilm_core::post::measured_lstar(
-                    image, post, encoding.encoded, encoding.space.name, (x, y), radius,
+            Command::WbPick { input, params, x0, y0, x1, y1 } => {
+                let started = Instant::now();
+                ensure!(spektrafilm_io::is_raw(&input), "White balance can be picked on RAW files");
+                let lens = params.io.lens_correction;
+                let current = self.wb_base.as_ref().is_some_and(|(path, l, _)| *path == input && *l == lens);
+                if !current {
+                    let loaded = spektrafilm_io::load_image_colour_limited(
+                        &input, spektrafilm_io::Formats::Any, spektrafilm_io::NEUTRAL_BASE, lens,
+                        &params.io.input_interpretation, 1600,
+                    )?;
+                    self.wb_base = Some((input.clone(), lens, loaded.image));
+                }
+                let image = &self.wb_base.as_ref().expect("just read").2;
+                let colour = area_colour(image, [(x0, y0), (x1, y1)]).context("That area is outside the photograph")?;
+                let (picked, exact) = spektrafilm_io::neutral_white_balance(colour)
+                    .context("That area has no light in one of its colours; pick something grey or white")?;
+                Ok(json!({"temperature": picked.temperature, "tint": picked.tint, "exact": exact,
+                          "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0}))
+            }
+            Command::ZoneReadout { film, paper, params, x0, y0, x1, y1, targets } => {
+                let started = Instant::now();
+                let autoexposure_ev = self.autoexposure_ev(&params);
+                let source = self.source.as_ref().context("No photograph to read")?;
+                let image = match &self.scaled {
+                    Some((_, scaled)) if !params.prep.is_identity() => scaled,
+                    _ => &source.image,
+                };
+                let reading = spektrafilm_core::zones::readout(
+                    data, &film, &paper, &params, autoexposure_ev, image, [(x0, y0), (x1, y1)], &targets,
                 )
-                .context("That point is outside the photograph")?;
-                Ok(json!({"lstar": lstar}))
+                .map_err(anyhow::Error::msg)?;
+                Ok(json!({"printed": reading.printed, "shifts": reading.shifts,
+                          "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0}))
             }
             Command::Original { input, params, limit_preview, preview_path } => {
                 ensure!(input != preview_path, "Choose a different preview path to preserve the source");
@@ -713,7 +799,6 @@ impl Session {
                 if let Some(last) = reused {
                     write_display(&last.image, last.encoding, &post, &preview_path)?;
                     let mut response = last.response.clone();
-                    response["ignored_pins"] = ignored_pins(&post);
                     // Edge rounding moves the crop's pixels with its position.
                     response["photo_crop_width"] = json!(size.photo.0);
                     response["photo_crop_height"] = json!(size.photo.1);
@@ -794,7 +879,6 @@ impl Session {
                     "output_color_space": encoding.space.name,
                     "display_color_space": DisplaySpace::of(encoding).name(),
                     "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0,
-                    "ignored_pins": ignored_pins(&post),
                 });
                 self.output = Some(Rendered {
                     id: request.id,
@@ -825,11 +909,6 @@ fn parse_request(line: &str) -> Result<Request> {
 /// Writes the preview for the app as raw RGBA, avoiding PNG compression on
 /// every slider edit. Save keeps the float output, independent of this proxy.
 /// The bytes are in `DisplaySpace::of(encoding)`.
-/// The pins the tone curve can't honour, for the app to mark.
-fn ignored_pins(post: &PostParams) -> Value {
-    json!(AnchorCurve::new(&post.tone_anchors).ignored())
-}
-
 fn write_display(
     image: &ImageBuf,
     encoding: Encoding,
@@ -1125,58 +1204,6 @@ mod tests {
             paper: "kodak_portra_endura".into(), params: Box::new(params), limit_preview: false,
             preview_path: preview.into(), interactive_scale, crop,
         }
-    }
-
-    #[test]
-    fn render_reports_ignored_pins_when_reusing_the_scan() {
-        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let dir = std::env::temp_dir().join(format!("negs-ignored-pins-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let pixels = (0..32 * 24 * 3).map(|i| ((i * 37) % 255) as spektrafilm_math::Scalar / 255.0).collect();
-        spektrafilm_io::save_image(&ImageBuf::from_data(32, 24, pixels), &dir.join("input.png"), None).unwrap();
-        let mut session = Session::default();
-        let mut send = |id, command| session.handle(Request { id, command }, &data).unwrap();
-        let anchor = |input, target| spektrafilm_core::post::ToneAnchor { input, target, source: None };
-        let with = |anchors| {
-            let mut params = RuntimeParams::default();
-            params.post.tone_anchors = anchors;
-            let Command::Render { input, source_generation, film, paper, limit_preview, preview_path, interactive_scale, crop, .. } =
-                render(&dir.join("input.png"), &dir.join("preview.rgba"), None, None, None) else { unreachable!() };
-            Command::Render { input, source_generation, film, paper, params: Box::new(params), limit_preview, preview_path, interactive_scale, crop }
-        };
-        assert_eq!(send(1, with(vec![])).get("ignored_pins"), Some(&json!([])));
-        // Only Post changes, so this render reuses the scan.
-        let crossed = send(2, with(vec![anchor(25.0, 60.0), anchor(50.0, 20.0)]));
-        assert_eq!(crossed["ignored_pins"], json!([1]));
-        std::fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
-    fn sample_tone_reads_the_render_before_its_pins() {
-        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let dir = std::env::temp_dir().join(format!("negs-sample-tone-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let (input, preview) = (dir.join("input.png"), dir.join("preview.rgba"));
-        let pixels = (0..32 * 24 * 3).map(|i| ((i * 37) % 255) as spektrafilm_math::Scalar / 255.0).collect();
-        spektrafilm_io::save_image(&ImageBuf::from_data(32, 24, pixels), &input, None).unwrap();
-        let mut session = Session::default();
-        let mut send = |id, command| session.handle(Request { id, command }, &data);
-        send(1, render(&input, &preview, None, None, None)).unwrap();
-        let sample = |id, x| Command::SampleTone { render_id: id, x, y: 0.5, radius: 0.1 };
-        let before = send(2, sample(1, 0.5)).unwrap()["lstar"].as_f64().unwrap();
-
-        // A render that only adds a pin is the same scan: the tone reads the same.
-        let mut params = RuntimeParams::default();
-        params.post.tone_anchors = vec![spektrafilm_core::post::ToneAnchor { input: 60.0, target: 10.0, source: None }];
-        let Command::Render { input: i, source_generation, film, paper, limit_preview, preview_path, interactive_scale, crop, .. } =
-            render(&input, &preview, None, None, None) else { unreachable!() };
-        send(3, Command::Render { input: i, source_generation, film, paper, params: Box::new(params), limit_preview, preview_path, interactive_scale, crop }).unwrap();
-        let after = send(4, sample(3, 0.5)).unwrap()["lstar"].as_f64().unwrap();
-        assert!((before - after).abs() < 1e-6, "{before} vs {after}");
-
-        assert!(send(5, sample(1, 0.5)).unwrap_err().to_string().contains("preview changed"));
-        assert!(send(6, sample(3, 1.5)).is_err());
-        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

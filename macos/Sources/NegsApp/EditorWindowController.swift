@@ -45,12 +45,12 @@ import SwiftUI
         // so the column starts empty and fills in once the window is on screen.
         panel = NSHostingController(rootView: InspectorPanel(model: model, built: false))
         panel.sizingOptions = []
-        panel.view.frame.size = NSSize(width: 340, height: 860)
+        panel.view.frame.size = NSSize(width: 360, height: 860)
         canvasItem = NSSplitViewItem(viewController: canvas)
         canvasItem.minimumThickness = 680
         inspector = NSSplitViewItem(inspectorWithViewController: panel)
-        // Wide enough for the six workflow tabs and their labels.
-        inspector.minimumThickness = 340
+        // Wide enough for a label, a usable slider and a value on one row.
+        inspector.minimumThickness = 360
         inspector.maximumThickness = 440
         inspector.isCollapsed = !model.inspectorVisible
         // Below the title bar, across the window.
@@ -69,11 +69,17 @@ import SwiftUI
         window.backgroundColor = .black
         window.titlebarAppearsTransparent = true
         window.isRestorable = false
+        let viewSwitch = NSTitlebarAccessoryViewController()
+        viewSwitch.layoutAttribute = .trailing
+        let switchHost = NSHostingView(rootView: ViewSwitch(model: model))
+        switchHost.frame.size = switchHost.fittingSize
+        viewSwitch.view = switchHost
+        window.addTitlebarAccessoryViewController(viewSwitch)
         // Place the window before adding its content, so the first layout is at the final size.
         if !window.setFrameUsingName("editor") { window.center() }
         // The split view cannot keep both columns at their minimums in a
         // narrower window, so the window itself enforces their sum.
-        let minimum = NSSize(width: 680 + 340 + split.splitView.dividerThickness, height: 560)
+        let minimum = NSSize(width: 680 + 360 + split.splitView.dividerThickness, height: 560)
         window.contentMinSize = minimum
         let restored = window.contentRect(forFrameRect: window.frame).size
         if restored.width < minimum.width || restored.height < minimum.height {
@@ -101,7 +107,7 @@ import SwiftUI
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self else { return false }
-                return self.holdOriginal(event) || self.togglePins(event) || self.toggleGridKey(event) || self.toggleImageOnlyKey(event) || self.stepPhotographKey(event)
+                return self.holdOriginal(event) || self.zoneKey(event) || self.toggleGridKey(event) || self.toggleImageOnlyKey(event) || self.stepPhotographKey(event)
             } ? nil : event
         }
         // The title bar hides in full screen, so the status bar carries the title there.
@@ -183,19 +189,23 @@ import SwiftUI
         return true
     }
 
-    /// Whether a key press is the bare Tab that shows or hides the pins. It stands
-    /// down while a field is being edited, so Tab still moves between fields.
-    static func togglesPins(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, firstResponder: NSResponder?) -> Bool {
-        keyCode == 48 && modifiers.isDisjoint(with: [.shift, .control, .option, .command]) && !(firstResponder is NSText)
+    /// The zone a key press places the zone reading on: a bare 0 to 7, or with
+    /// ⇧ for the middle of the zone. Nil for any other key, or while a field is
+    /// being edited, so the digits still type.
+    static func zoneKey(characters: String?, modifiers: NSEvent.ModifierFlags, firstResponder: NSResponder?) -> (zone: Int, centre: Bool)? {
+        guard modifiers.isDisjoint(with: [.control, .option, .command]), !(firstResponder is NSText),
+              let characters, characters.count == 1, let zone = Int(characters),
+              ZoneScale.zones.indices.contains(zone) else { return nil }
+        return (zone, modifiers.contains(.shift))
     }
 
-    /// Handled here rather than by the menu alone, because Tab otherwise moves
-    /// the keyboard focus before a menu shortcut sees it. True if it was Tab.
-    private func togglePins(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown, event.window === window, model.source != nil, !model.cropping,
-              Self.togglesPins(keyCode: event.keyCode, modifiers: event.modifierFlags, firstResponder: window?.firstResponder)
+    /// True if it was a zone key and there's a reading to place.
+    private func zoneKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, event.window === window, model.canPlaceZone,
+              let key = Self.zoneKey(characters: event.charactersIgnoringModifiers, modifiers: event.modifierFlags,
+                                     firstResponder: window?.firstResponder)
         else { return false }
-        if !event.isARepeat { model.pinsVisible.toggle() }
+        if !event.isARepeat { model.placeReading(onZone: key.zone, centre: key.centre) }
         return true
     }
 

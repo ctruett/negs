@@ -24,9 +24,10 @@ import UniformTypeIdentifiers
     /// How many had to be developed rather than read from the disk cache.
     @ObservationIgnored private(set) var developedCount = 0
 
-    /// How far either side of the centre to develop: the neighbours the arrow keys
-    /// reach next, or what the grid has on screen and just beyond it.
-    nonisolated static let openReach = 4
+    /// How far either side of the centre to develop: what the film strip has on
+    /// screen, and the neighbours the arrow keys reach next, or what the grid has
+    /// on screen and just beyond it.
+    nonisolated static let openReach = 8
     nonisolated static let gridReach = 32
     var reach = RollDeveloper.openReach {
         didSet { if reach != oldValue { wake() } }

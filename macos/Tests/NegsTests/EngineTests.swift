@@ -28,7 +28,22 @@ final class EngineTests: XCTestCase {
         let defaults = catalog["defaults"]
         let stocks = catalog["profiles"].array.map(Stock.init)
         for control in adjustmentGroups.flatMap(\.controls) + scanDetailControls {
-            if case .balancePrint = control { continue }
+            if case .linked(_, _, let lanes, let range, _, _) = control {
+                for lane in lanes {
+                    if let index = lane.stockIndex {
+                        XCTAssertEqual(defaults[lane.path], .null, lane.path)
+                        let field = String(lane.path.split(separator: ".").last!)
+                        for stock in stocks where !stock.paper {
+                            let preset = stock.grain[field].array.map(\.double)
+                            XCTAssertEqual(preset.count, 3, "\(stock.id) \(field)")
+                            XCTAssertTrue(preset.indices.contains(index) && range.contains(preset[index]), "\(stock.id) \(lane.id)")
+                        }
+                    } else {
+                        XCTAssertTrue(range.contains(defaults[lane.path].double), lane.path)
+                    }
+                }
+                continue
+            }
             if case .stockSlider(_, let path, let index, let range, _, _) = control {
                 // Null until edited; every film's preset fills the lane.
                 XCTAssertEqual(defaults[path], .null, path)
@@ -45,7 +60,7 @@ final class EngineTests: XCTestCase {
             case .slider(_, _, let range, _): XCTAssertTrue(range.contains(defaults[control.id].double), control.id)
             case .toggle: if case .bool = defaults[control.id] {} else { XCTFail(control.id) }
             case .choice(_, _, let options): XCTAssertTrue(options.contains(defaults[control.id].string), control.id)
-            case .stockSlider, .balancePrint: break
+            case .stockSlider, .linked: break
             }
         }
         XCTAssertEqual(stocks.first { $0.id == "kodak_gold_200" }?.target, "kodak_portra_endura")

@@ -10,7 +10,7 @@ final class PhotoExifTests: XCTestCase {
 
     /// The camera and lens above, as film edge print is, without saying the make twice.
     func testTheTopLineNamesTheCameraAndLens() {
-        XCTAssertEqual(sample.cameraLine, "NIKON D750   50.0 MM F/1.8")
+        XCTAssertEqual(sample.cameraLine, "NIKON D750")
         var canon = sample
         canon.make = "Canon"; canon.model = "EOS R5"; canon.lens = nil
         XCTAssertEqual(canon.cameraLine, "CANON EOS R5")
@@ -18,7 +18,7 @@ final class PhotoExifTests: XCTestCase {
 
     /// The exposure and date below.
     func testTheBottomLineGivesTheExposureAndDate() {
-        XCTAssertEqual(sample.exposureLine, "ISO 400   1/125   f/2.8   50 MM   2026-11-04")
+        XCTAssertEqual(sample.exposureLine, "ISO 400   1/125   f/2.8   50 MM")
         XCTAssertEqual(PhotoExif.shutter(2), "2S")
         XCTAssertEqual(PhotoExif.shutter(0.004), "1/250")
     }
@@ -52,8 +52,8 @@ final class PhotoExifTests: XCTestCase {
                                              kCGImagePropertyExifDateTimeOriginal: "2026:11:04 09:30:12", kCGImagePropertyExifLensModel: "50.0 mm f/1.8"],
         ])
         let read = try XCTUnwrap(PhotoExif.read(tagged))
-        XCTAssertEqual(read.cameraLine, "NIKON D750   50.0 MM F/1.8")
-        XCTAssertEqual(read.exposureLine, "ISO 400   1/125   f/2.8   50 MM   2026-11-04")
+        XCTAssertEqual(read.cameraLine, "NIKON D750")
+        XCTAssertEqual(read.exposureLine, "ISO 400   1/125   f/2.8   50 MM")
         XCTAssertNil(PhotoExif.read(try write("plain.jpg", [:])))
     }
 
@@ -83,19 +83,25 @@ final class PhotoExifTests: XCTestCase {
         let (scroll, photo) = try canvas()
         XCTAssertEqual(scroll.magnification, 600.0 / 4000, accuracy: 0.001, "No details, no room kept")
         scroll.exif = PhotoExif(model: "D750", iso: 400)
-        let margin = PinOverlayView.exifMargin
+        let margin = CanvasOverlayView.exifMargin
         XCTAssertEqual(scroll.magnification, (600 - margin * 2) / 4000, accuracy: 0.001)
         let overlay = scroll.overlay
         overlay.redraw()
         let rect = overlay.convert(photo.bounds, from: photo)
-        let lines = try XCTUnwrap(overlay.exifFrames)
-        XCTAssertLessThanOrEqual(lines.exposure.maxY, rect.minY, "Below it")
-        XCTAssertGreaterThanOrEqual(lines.exposure.minY, 0, "On the canvas")
-        XCTAssertEqual(lines.exposure.minX, rect.minX, accuracy: 1, "The exposure at its left")
-        XCTAssertEqual(lines.camera.minY, lines.exposure.minY, accuracy: 0.5, "The camera on the same row")
-        XCTAssertEqual(lines.camera.maxX, rect.maxX, accuracy: 1, "At its right")
-        XCTAssertEqual(overlay.exifLines?.camera, "D750")
-        XCTAssertEqual(overlay.exifLines?.exposure, "ISO 400")
+        let line = try XCTUnwrap(overlay.detailsFrame)
+        XCTAssertEqual(line.minY, rect.maxY + CanvasOverlayView.exifGap, accuracy: 0.5, "Above it")
+        XCTAssertLessThanOrEqual(line.maxY, overlay.bounds.height, "On the canvas")
+        XCTAssertEqual(line.minX, rect.minX, accuracy: 1, "From its left")
+        overlay.showFileName("DSC_0001.NEF")
+        XCTAssertEqual(overlay.detailsLine, "D750   |   ISO 400   |   DSC_0001.NEF")
+    }
+
+    /// Camera, exposure and file name, leaving out whichever it hasn't got.
+    func testTheDetailsLineHasNoDateAndSkipsWhatsMissing() {
+        let exif = PhotoExif(model: "D850", iso: 64, exposure: 1.0 / 80, aperture: 8, focalLength: 28, taken: "2026:10:30 14:55:53")
+        XCTAssertEqual(PhotoExif.detailsLine(exif, fileName: "a.nef"), "D850   |   ISO 64   1/80   f/8   28 MM   |   a.nef")
+        XCTAssertEqual(PhotoExif.detailsLine(nil, fileName: "a.nef"), "a.nef")
+        XCTAssertEqual(PhotoExif.detailsLine(nil, fileName: nil), "")
     }
 
     /// When the canvas changes size, as when the film strip shows or hides, the
@@ -109,11 +115,10 @@ final class PhotoExifTests: XCTestCase {
             scroll.layout()
             let overlay = scroll.overlay
             let rect = overlay.convert(photo.bounds, from: photo)
-            let lines = try XCTUnwrap(overlay.exifFrames)
+            let line = try XCTUnwrap(overlay.detailsFrame)
             XCTAssertEqual(overlay.bounds.height, height, accuracy: 0.5)
-            XCTAssertEqual(lines.camera.maxY, rect.minY - PinOverlayView.exifGap, accuracy: 0.5, "Camera, at \(height)")
-            XCTAssertEqual(lines.exposure.maxY, rect.minY - PinOverlayView.exifGap, accuracy: 0.5, "Below, at \(height)")
-            XCTAssertEqual(lines.exposure.minX, rect.minX, accuracy: 0.5, "At its left, at \(height)")
+            XCTAssertEqual(line.minY, rect.maxY + CanvasOverlayView.exifGap, accuracy: 0.5, "Above, at \(height)")
+            XCTAssertEqual(line.minX, rect.minX, accuracy: 0.5, "At its left, at \(height)")
         }
     }
 
@@ -137,22 +142,20 @@ final class PhotoExifTests: XCTestCase {
                 scroll.layout()
                 let overlay = scroll.overlay
                 let rect = overlay.convert(photo.bounds, from: photo)
-                let lines = try XCTUnwrap(overlay.exifFrames)
+                let line = try XCTUnwrap(overlay.detailsFrame)
                 XCTAssertEqual(rect.midY, height / 2, accuracy: 1, "Still centred, fitted \(fitted), at \(height)")
-                XCTAssertEqual(lines.camera.maxY, rect.minY - PinOverlayView.exifGap, accuracy: 0.5, "Above, fitted \(fitted), at \(height)")
-                XCTAssertEqual(lines.exposure.maxY, rect.minY - PinOverlayView.exifGap, accuracy: 0.5, "Below, fitted \(fitted), at \(height)")
+                XCTAssertEqual(line.minY, rect.maxY + CanvasOverlayView.exifGap, accuracy: 0.5, "Above, fitted \(fitted), at \(height)")
             }
         }
     }
 
-    func testZoomedInTheLinesStayOnTheCanvas() throws {
+    /// With no room above the photograph, the line goes rather than cover it.
+    func testZoomedInTheLineDoesntCoverThePhotograph() throws {
         let (scroll, _) = try canvas()
         scroll.exif = PhotoExif(model: "D750", iso: 400)
         scroll.setFitting(false)
         scroll.magnification = 1
         scroll.overlay.redraw()
-        let lines = try XCTUnwrap(scroll.overlay.exifFrames)
-        XCTAssertLessThanOrEqual(lines.camera.maxY, scroll.overlay.bounds.height)
-        XCTAssertGreaterThanOrEqual(lines.exposure.minY, 0)
+        XCTAssertNil(scroll.overlay.detailsFrame)
     }
 }

@@ -228,8 +228,8 @@ struct StockEntry {
 
 // MARK: Views
 
-/// A Film or Paper foldout: the current stock's name on the header, a
-/// two-column grid of tiles under the menu's headings inside.
+/// The Film or Paper card, which opens a two-column grid of tiles under the
+/// menu's headings.
 struct StockFoldout: View {
     let model: EditorModel
     let paper: Bool
@@ -242,17 +242,21 @@ struct StockFoldout: View {
                 if paper { previews.paperOpen = open } else { previews.filmOpen = open }
                 model.pumpPreviews()
             })
-        DisclosureGroup(isExpanded: isExpanded) {
-            StockGrid(model: model, paper: paper)
+        Button {
+            isExpanded.wrappedValue.toggle()
         } label: {
-            HStack {
-                Text(paper ? "Paper" : "Film")
-                Spacer()
-                Text(paper ? model.paperName : model.filmName)
-                    .foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+            StockCard(name: paper ? model.paperName : model.filmName, kind: paper ? "Paper" : "Film stock", open: isExpanded.wrappedValue)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(paper ? "Paper" : "Film")
+        .accessibilityValue(paper ? model.paperName : model.filmName)
+        // Beside the sidebar, since the card stays put above the tabs.
+        .popover(isPresented: isExpanded, arrowEdge: .leading) {
+            ScrollView(.vertical) {
+                StockGrid(model: model, paper: paper).padding(12)
             }
-            .contentShape(Rectangle())
-            .onTapGesture { withAnimation { isExpanded.wrappedValue.toggle() } }
+            .frame(width: 360, height: 560)
+            .environment(\.colorScheme, .dark)
         }
     }
 }

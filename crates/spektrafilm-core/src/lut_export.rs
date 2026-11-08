@@ -153,3 +153,4 @@ mod tests {
         assert_eq!(grid.get(2, 8), [from_f64(1.0); 3]);
     }
 }
+

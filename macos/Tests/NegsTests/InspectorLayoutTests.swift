@@ -184,14 +184,14 @@ import XCTest
         XCTAssertEqual(scroll.contentView.bounds.origin.y, initialOrigin, accuracy: 1, "Releasing a slider must keep the inspector's scroll position")
         XCTAssertEqual(sliderY(), interactiveY, accuracy: 1, "Releasing a slider must keep the slider in place")
 
-        // A pin fills the zone caption and draws on the canvas; both reserve
+        // A reading fills the histogram's numbers and caption, which reserve
         // their space already.
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
-        try await waitUntil { model.pins.count == 1 }
+        model.pickZone(from: CGPoint(x: 0.45, y: 0.45), to: CGPoint(x: 0.55, y: 0.55))
+        try await waitUntil { model.canPlaceZone }
         try await Task.sleep(for: .milliseconds(200))
         try capture("pick")
-        XCTAssertEqual(document.frame.height, initialHeight, accuracy: 1, "A pin must not resize the inspector form")
-        XCTAssertEqual(sliderY(), interactiveY, accuracy: 1, "A pin must keep sliders under the pointer")
+        XCTAssertEqual(document.frame.height, initialHeight, accuracy: 1, "A reading must not resize the inspector form")
+        XCTAssertEqual(sliderY(), interactiveY, accuracy: 1, "A reading must keep sliders under the pointer")
     }
 
     private func waitUntil(_ predicate: () -> Bool) async throws {

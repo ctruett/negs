@@ -23,19 +23,21 @@ import XCTest
 
     // MARK: The gesture map
 
-    func testADoubleClickWinsOverAPin() {
-        XCTAssertEqual(CanvasGesture.start(clickCount: 2, pinUnderPointer: 3), .zoomToggle)
+    func testADoubleClickZooms() {
+        XCTAssertEqual(CanvasGesture.start(clickCount: 2), .zoomToggle)
     }
 
     func testAPlainPressPans() {
-        XCTAssertEqual(CanvasGesture.start(clickCount: 1, pinUnderPointer: nil), .pan)
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1), .pan)
     }
 
-    func testClickingAPinSelectsIt() {
-        XCTAssertEqual(
-            CanvasGesture.start(clickCount: 1, pinUnderPointer: 3),
-            .selectPin(3)
-        )
+    /// ⌃ reads a tone against the zones ahead of a double-click's zoom, and
+    /// with ⌥ a larger patch. ⌘ is the white balance's, ahead of both.
+    func testControlReadsAZone() {
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1, control: true), .pickZone(large: false))
+        XCTAssertEqual(CanvasGesture.start(clickCount: 2, control: true), .pickZone(large: false))
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1, control: true, option: true), .pickZone(large: true))
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1, command: true, control: true), .pickWhiteBalance)
     }
 
     // MARK: The coordinate map
@@ -110,10 +112,6 @@ extension CanvasGestureTests {
     }
     // MARK: The overlay
 
-    private func marker(_ index: Int = 0, zone: Int = 5, at unit: CGPoint = CGPoint(x: 0.5, y: 0.5), radius: Double = 0, selected: Bool = false, ignored: Bool = false) -> TonePinMarker {
-        TonePinMarker(index: index, zone: zone, source: PinSource(centre: unit, radius: radius), selected: selected, ignored: ignored)
-    }
-
     private func makeCanvas(rotation: Int = 0, crop: CropSettings = CropSettings(), viewport: CGFloat = 600, frame: CGSize? = nil) -> (ImageScrollView, PhotographView) {
         _ = NSApplication.shared
         let scroll = ImageScrollView(frame: NSRect(x: 0, y: 0, width: viewport, height: viewport))
@@ -137,7 +135,7 @@ extension CanvasGestureTests {
     /// after the overlay, which must still end up on top and tracking the clip.
     func testTheOverlayStaysOnTopOfTheAppsScrollViewSetup() throws {
         _ = NSApplication.shared
-        let scroll = ImageScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 200))
+        let scroll = ImageScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 600))
         scroll.contentView = CenteringClipView()
         scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.autohidesScrollers = true; scroll.scrollerStyle = .overlay
@@ -149,138 +147,11 @@ extension CanvasGestureTests {
         view.layout()
         XCTAssertTrue(scroll.subviews.last === scroll.overlay, "\(scroll.subviews)")
         XCTAssertEqual(scroll.overlay.frame, scroll.bounds)
-        scroll.showPins([marker()], dragged: nil)
-        let before = try XCTUnwrap(scroll.overlay.links[0]).to
-        scroll.contentView.scroll(to: CGPoint(x: 40, y: 20))
-        XCTAssertEqual(try XCTUnwrap(scroll.overlay.links[0]).to.x, before.x - 40, accuracy: 0.5, "It follows the app's own clip view")
-    }
-
-    func testAMarkerKeepsItsSizeAtAnyZoomRotationAndBorder() throws {
-        for (rotation, frame) in [(0, nil), (1, nil), (0, CGSize(width: 800, height: 600))] as [(Int, CGSize?)] {
-            let (scroll, view) = makeCanvas(rotation: rotation, frame: frame)
-            scroll.showPins([marker()], dragged: nil)
-            for zoom: CGFloat in [0.25, 1, 2] {
-                scroll.magnification = zoom
-                view.layout()
-                let chip = try XCTUnwrap(scroll.overlay.chipLayer(0))
-                XCTAssertEqual(chip.bounds.width, ZoneGeometry.markerDiameter + 3)
-                XCTAssertEqual(chip.affineTransform(), .identity, "Upright, untouched by the photograph")
-            }
-        }
-    }
-
-    /// The marker is smaller than the old chip, so a small circle still shows.
-    func testACircleSmallerThanTheOldChipStillShows() {
-        let (scroll, _) = makeCanvas()
-        scroll.showPins([marker(radius: 0.03)], dragged: nil) // 9 points at 1:1
-        XCTAssertEqual(scroll.overlay.drawnCircles, 1)
-        scroll.showPins([marker(radius: 0)], dragged: nil)
-        XCTAssertEqual(scroll.overlay.drawnCircles, 0)
-    }
-
-    /// The numeral sits beside the marker, off the spot it measures, and can be
-    /// clicked like the marker.
-    func testTheLabelSitsBesideTheMarker() throws {
-        let (scroll, view) = makeCanvas()
-        let unit = CGPoint(x: 0.5, y: 0.5)
-        scroll.showPins([marker(at: unit)], dragged: nil)
-        let centre = overlayPoint(unit, scroll, view)
-        let label = try XCTUnwrap(scroll.overlay.labelFrame(0))
-        XCTAssertGreaterThan(label.minX, centre.x + ZoneGeometry.markerDiameter / 2)
-        XCTAssertEqual(label.midY, centre.y, accuracy: 0.5)
-        XCTAssertEqual(scroll.overlay.pin(at: CGPoint(x: label.midX, y: label.midY)), 0)
-        XCTAssertEqual(scroll.overlay.pin(at: centre), 0)
-    }
-
-    /// Near the canvas's right edge the label moves to the marker's left.
-    func testTheLabelStaysOnTheCanvas() throws {
-        let (scroll, view) = makeCanvas(viewport: 410)
-        let unit = CGPoint(x: 0.99, y: 0.5)
-        scroll.showPins([marker(at: unit)], dragged: nil)
-        let centre = overlayPoint(unit, scroll, view)
-        XCTAssertLessThan(centre.x, scroll.overlay.bounds.width)
-        let label = try XCTUnwrap(scroll.overlay.labelFrame(0))
-        XCTAssertLessThan(label.maxX, centre.x)
-    }
-
-    func testAChipSitsWhereItsToneWasMeasured() throws {
-        for rotation in [0, 1] {
-            let (scroll, view) = makeCanvas(rotation: rotation)
-            for zoom: CGFloat in [0.5, 2] {
-                scroll.magnification = zoom
-                let unit = CGPoint(x: 0.3, y: 0.7)
-                scroll.showPins([marker(at: unit)], dragged: nil)
-                let chip = try XCTUnwrap(scroll.overlay.chipLayer(0))
-                let expected = view.convert(view.layer!.convert(CGPoint(x: unit.x * size.width, y: (1 - unit.y) * size.height), from: view.photographLayer), to: scroll.overlay)
-                XCTAssertEqual(chip.position.x, expected.x, accuracy: 0.5, "rotation \(rotation) zoom \(zoom)")
-                XCTAssertEqual(chip.position.y, expected.y, accuracy: 0.5, "rotation \(rotation) zoom \(zoom)")
-            }
-        }
-    }
-
-    /// Zone 0's tile is the bottom row and 10's the top; a link starts at its
-    /// tile, on the edge against the photograph.
-    func testALinkRunsFromTheTileToThePin() throws {
-        XCTAssertEqual(ZoneGeometry.tileCentreY(zone: 10, height: 1100), 50)
-        XCTAssertEqual(ZoneGeometry.tileCentreY(zone: 0, height: 1100), 1050)
-        let (scroll, view) = makeCanvas()
-        let unit = CGPoint(x: 0.5, y: 0.5)
-        scroll.showPins([marker(zone: 10, at: unit)], dragged: nil)
-        let link = try XCTUnwrap(scroll.overlay.links[0])
-        let tile = try XCTUnwrap(scroll.overlay.zonePlacement).tile(zone: 10)
-        XCTAssertEqual(link.from.x, tile.x, accuracy: 0.01)
-        XCTAssertEqual(link.from.y, scroll.overlay.bounds.height - tile.y, accuracy: 0.01, "Layers are y-up, so the top row is high")
-        XCTAssertEqual(link.to.x, overlayPoint(unit, scroll, view).x, accuracy: 0.5)
-    }
-
-    func testALinkFollowsPanAndZoom() throws {
-        let (scroll, view) = makeCanvas(viewport: 200)
-        let unit = CGPoint(x: 0.5, y: 0.5)
-        scroll.showPins([marker(at: unit)], dragged: nil)
-        let start = try XCTUnwrap(scroll.overlay.links[0]).to
-        scroll.contentView.scroll(to: CGPoint(x: 80, y: 30))
-        let panned = try XCTUnwrap(scroll.overlay.links[0]).to
-        XCTAssertEqual(panned.x, start.x - 80, accuracy: 0.5)
-        XCTAssertEqual(panned.y, start.y - 30, accuracy: 0.5)
-        scroll.magnification = 2
-        XCTAssertEqual(try XCTUnwrap(scroll.overlay.links[0]).to.x, overlayPoint(unit, scroll, view).x, accuracy: 0.5)
-    }
-
-    func testAPinOutsideTheCropIsHidden() {
-        let crop = CropSettings(rect: CGRect(x: 0, y: 0, width: 0.4, height: 1))
-        let (scroll, _) = makeCanvas(crop: crop)
-        scroll.showPins([marker(at: CGPoint(x: 0.8, y: 0.5))], dragged: nil)
-        XCTAssertNil(scroll.overlay.chipLayer(0))
-        XCTAssertNil(scroll.overlay.links[0])
-        XCTAssertNil(scroll.overlay.pin(at: .zero))
-    }
-
-    /// Only the chip takes the pointer: a plain drag inside a large circle pans.
-    func testARingDoesNotTakeThePointer() throws {
-        let (scroll, view) = makeCanvas()
-        let unit = CGPoint(x: 0.5, y: 0.5)
-        scroll.showPins([marker(at: unit, radius: 0.4)], dragged: nil)
-        let point = overlayPoint(unit, scroll, view)
-        XCTAssertEqual(scroll.overlay.pin(at: point), 0)
-        XCTAssertNil(scroll.overlay.pin(at: CGPoint(x: point.x, y: point.y + 30)))
-    }
-
-    func testIgnoredLinksAreRed() {
-        let (scroll, _) = makeCanvas()
-        scroll.showPins([marker()], dragged: nil)
-        XCTAssertFalse(scroll.overlay.isShowingIgnoredLink)
-        scroll.showPins([marker(ignored: true)], dragged: nil)
-        XCTAssertTrue(scroll.overlay.isShowingIgnoredLink)
-    }
-
-    func testADraggedZoneFollowsThePointerFromTheTop() throws {
-        let (scroll, _) = makeCanvas()
-        scroll.showPins([], dragged: ZoneDrag(zone: 3, point: CGPoint(x: 100, y: 40)))
-        let centre = try XCTUnwrap(scroll.overlay.dragChipCentre)
-        XCTAssertEqual(centre.x, 100)
-        XCTAssertEqual(centre.y, scroll.overlay.bounds.height - 40)
-        scroll.showPins([], dragged: nil)
-        XCTAssertNil(scroll.overlay.dragChipCentre)
+        scroll.overlay.showFileName("ramp.png")
+        let before = try XCTUnwrap(scroll.overlay.detailsFrame)
+        scroll.contentView.scroll(to: CGPoint(x: 40, y: 0))
+        XCTAssertEqual(try XCTUnwrap(scroll.overlay.detailsFrame).minX, max(before.minX - 40, CanvasOverlayView.exifGap * 2), accuracy: 0.5,
+                       "It follows the app's own clip view")
     }
 
     // MARK: Pointer and wheel
@@ -290,96 +161,31 @@ extension CanvasGestureTests {
         return try XCTUnwrap(NSEvent(cgEvent: event))
     }
 
-    private func mouse(_ type: NSEvent.EventType, at point: CGPoint) throws -> NSEvent {
-        try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+    private func mouse(_ type: NSEvent.EventType, at point: CGPoint, flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
+        try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
     }
 
-    /// Pushing the wheel up, away from you, grows the circle. Pulling it down
-    /// shrinks it to one pixel, and it never passes half the photograph.
-    func testScrollingScalesTheCircleWithinItsLimits() {
-        XCTAssertGreaterThan(SampleSize.radius(from: 0.1, scrollDelta: 10, precise: true), 0.1)
-        XCTAssertLessThan(SampleSize.radius(from: 0.1, scrollDelta: -10, precise: true), 0.1)
-        XCTAssertGreaterThan(SampleSize.radius(from: 0.1, scrollDelta: 1, precise: false), SampleSize.radius(from: 0.1, scrollDelta: 1, precise: true))
-        XCTAssertEqual(SampleSize.radius(from: 0.5, scrollDelta: 100, precise: true), 0.5)
-        XCTAssertEqual(SampleSize.radius(from: SampleSize.smallest, scrollDelta: -100, precise: true), 0)
-        XCTAssertEqual(SampleSize.radius(from: 0, scrollDelta: 1, precise: true), SampleSize.smallest)
-    }
-
-    /// The direction follows the hand, not the natural scrolling setting: a
-    /// wheel pulled down reports a negative delta with it off, and a positive
-    /// one, flagged inverted, with it on.
-    func testTheWheelsDirectionIgnoresNaturalScrolling() {
-        XCTAssertEqual(SampleSize.handDelta(scrollingDeltaY: -3, inverted: false), -3)
-        XCTAssertEqual(SampleSize.handDelta(scrollingDeltaY: 3, inverted: true), -3)
-    }
-
-    /// With a pin selected the wheel sizes it; otherwise it pans as ever.
-    func testScrollResizesOnlyWithAPinSelected() throws {
-        let (scroll, _) = makeCanvas(viewport: 200)
-        var steps: [Double] = []
-        scroll.onScrollPin = { delta, _ in steps.append(delta) }
-        scroll.showPins([marker()], dragged: nil)
-        scroll.scrollWheel(with: try scrollEvent(-30))
-        XCTAssertTrue(steps.isEmpty)
-        scroll.showPins([marker(selected: true)], dragged: nil)
-        let held = scroll.contentView.bounds.origin
-        scroll.scrollWheel(with: try scrollEvent(-30))
-        XCTAssertEqual(steps.count, 1)
-        XCTAssertEqual(scroll.contentView.bounds.origin, held, "It doesn't pan while sizing")
-    }
-
-    /// A click inside a pin's circle selects it; the marker isn't the only target.
-    func testClickingInsideACircleSelectsThePin() throws {
-        let (scroll, view) = makeCanvas()
-        var selections: [Int?] = []
-        view.onSelectPin = { selections.append($0) }
-        scroll.showPins([marker(at: CGPoint(x: 0.5, y: 0.5), radius: 0.4)], dragged: nil)
-        let inside = viewPoint(CGPoint(x: 0.5, y: 0.3), in: view)
-        view.mouseDown(with: try mouse(.leftMouseDown, at: inside))
-        view.mouseUp(with: try mouse(.leftMouseUp, at: inside))
-        XCTAssertEqual(selections, [0])
-    }
-
-    /// A drag that starts inside a circle still pans, and selects nothing.
-    func testDraggingInsideACircleDoesNotSelect() throws {
-        let (scroll, view) = makeCanvas()
-        var selections: [Int?] = []
-        view.onSelectPin = { selections.append($0) }
-        scroll.showPins([marker(at: CGPoint(x: 0.5, y: 0.5), radius: 0.4)], dragged: nil)
-        let inside = viewPoint(CGPoint(x: 0.5, y: 0.3), in: view)
-        let away = CGPoint(x: inside.x + 20, y: inside.y)
-        view.mouseDown(with: try mouse(.leftMouseDown, at: inside))
-        view.mouseDragged(with: try mouse(.leftMouseDragged, at: away))
-        view.mouseUp(with: try mouse(.leftMouseUp, at: away))
-        XCTAssertEqual(selections, [])
-    }
-
-    /// A hand's small wobble during a click is still a click.
-    func testASmallWobbleIsStillAClick() throws {
-        let (scroll, view) = makeCanvas()
-        var selections: [Int?] = []
-        view.onSelectPin = { selections.append($0) }
-        scroll.showPins([marker(at: CGPoint(x: 0.5, y: 0.5), radius: 0.4)], dragged: nil)
-        let inside = viewPoint(CGPoint(x: 0.5, y: 0.3), in: view)
-        let wobble = CGPoint(x: inside.x + 1, y: inside.y + 1)
-        view.mouseDown(with: try mouse(.leftMouseDown, at: inside))
-        view.mouseDragged(with: try mouse(.leftMouseDragged, at: wobble))
-        view.mouseUp(with: try mouse(.leftMouseUp, at: wobble))
-        XCTAssertEqual(selections, [0])
-    }
-
-    /// Where circles overlap, the smallest under the pointer wins, so a small
-    /// circle inside a big one can still be reached.
-    func testTheSmallestOverlappingCircleWins() throws {
-        let (scroll, view) = makeCanvas()
-        let centre = CGPoint(x: 0.5, y: 0.5)
-        scroll.showPins([marker(0, at: centre, radius: 0.3), marker(1, zone: 7, at: centre, radius: 0.1)], dragged: nil)
-        let point = scroll.overlay.convert(viewPoint(CGPoint(x: 0.5, y: 0.5), in: view), from: view)
-        let near = CGPoint(x: point.x, y: point.y + 20)   // inside both
-        let far = CGPoint(x: point.x, y: point.y + 60)    // inside the big one only
-        XCTAssertEqual(scroll.overlay.pinCircle(at: near), 1)
-        XCTAssertEqual(scroll.overlay.pinCircle(at: far), 0)
-        XCTAssertNil(scroll.overlay.pinCircle(at: CGPoint(x: point.x, y: point.y + 120)))
+    /// A ⌃-click reads 3 × 3 of the preview's pixels around it, ⌃⌥ 7 × 7, and
+    /// a ⌃-drag the box it draws.
+    func testControlClickAndDragReportTheAreaToRead() throws {
+        let (_, view) = makeCanvas()
+        var areas: [(CGPoint, CGPoint)] = []
+        view.onPickZone = { areas.append(($0, $1)) }
+        let centre = viewPoint(CGPoint(x: 0.5, y: 0.5), in: view)
+        for flags in [[.control], [.control, .option]] as [NSEvent.ModifierFlags] {
+            view.mouseDown(with: try mouse(.leftMouseDown, at: centre, flags: flags))
+            view.mouseUp(with: try mouse(.leftMouseUp, at: centre, flags: flags))
+        }
+        let corner = viewPoint(CGPoint(x: 0.75, y: 0.75), in: view)
+        view.mouseDown(with: try mouse(.leftMouseDown, at: centre, flags: .control))
+        view.mouseDragged(with: try mouse(.leftMouseDragged, at: corner, flags: .control))
+        view.mouseUp(with: try mouse(.leftMouseUp, at: corner, flags: .control))
+        XCTAssertEqual(areas.count, 3)
+        XCTAssertEqual(areas[0].1.x - areas[0].0.x, 3 / size.width, accuracy: 1e-3)
+        XCTAssertEqual(areas[1].1.y - areas[1].0.y, 7 / size.height, accuracy: 1e-3)
+        XCTAssertEqual(areas[2].0.x, 0.5, accuracy: 0.01)
+        XCTAssertEqual(areas[2].1.x, 0.75, accuracy: 0.01)
+        XCTAssertEqual(areas[2].1.y, 0.75, accuracy: 0.01)
     }
 
     /// The photograph takes the keyboard focus when it appears, so with Keyboard
@@ -404,17 +210,6 @@ extension CanvasGestureTests {
         XCTAssertTrue(window.makeFirstResponder(text))
         host.addSubview(PhotographView(frame: NSRect(x: 0, y: 40, width: 100, height: 100)))
         XCTAssertTrue(window.firstResponder === text)
-    }
-
-    func testClickingEmptyPhotographDeselects() throws {
-        let (scroll, view) = makeCanvas()
-        var selections: [Int?] = []
-        view.onSelectPin = { selections.append($0) }
-        scroll.showPins([marker(selected: true)], dragged: nil)
-        let empty = viewPoint(CGPoint(x: 0.1, y: 0.1), in: view)
-        view.mouseDown(with: try mouse(.leftMouseDown, at: empty))
-        view.mouseUp(with: try mouse(.leftMouseUp, at: empty))
-        XCTAssertEqual(selections, [nil])
     }
 
     /// A drop maps from the canvas's top left to the photograph; the border and

@@ -5,14 +5,18 @@ import XCTest
 
 @MainActor final class SimpleInspectorTests: XCTestCase {
     private var savedMode: Any?
+    private var savedExpanded: Any?
 
     override func setUp() async throws {
         savedMode = UserDefaults.standard.object(forKey: "inspectorMode")
+        savedExpanded = UserDefaults.standard.object(forKey: "expandedAdjustments")
         UserDefaults.standard.removeObject(forKey: "inspectorMode")
+        UserDefaults.standard.set("Detail,Grain,Halation", forKey: "expandedAdjustments")
     }
 
     override func tearDown() async throws {
         UserDefaults.standard.set(savedMode, forKey: "inspectorMode")
+        UserDefaults.standard.set(savedExpanded, forKey: "expandedAdjustments")
     }
 
     /// Advanced until someone chooses otherwise, and remembered after that.
@@ -41,6 +45,43 @@ import XCTest
         ])
     }
 
+    /// Every tab, for looking at, when snapshots are asked for.
+    func testSnapshotsOfEveryPage() throws {
+        guard ProcessInfo.processInfo.environment["NEGS_INSPECTOR_LAYOUT_SNAPSHOTS"] != nil else { throw XCTSkip("Only for snapshots") }
+        _ = NSApplication.shared
+        let model = EditorModel()
+        defer { model.shutdown() }
+        model.showPane(.adjustments)
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        EdgePrint.registerFont(data: root.appendingPathComponent("data"))
+        model.set("post.blacks", .number(-24))
+        func snap(_ name: String, height: CGFloat = 900) throws {
+            let host = NSHostingView(rootView: InspectorPanel(model: model))
+            host.appearance = NSAppearance(named: .darkAqua)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            defer { window.orderOut(nil) }
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+            host.layoutSubtreeIfNeeded()
+            let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            let folder = ProcessInfo.processInfo.environment["NEGS_INSPECTOR_LAYOUT_SNAPSHOTS"]!
+            try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: folder).appendingPathComponent("page-\(name).png"))
+        }
+        model.inspectorMode = .advanced
+        for tab in InspectorTab.allCases {
+            model.inspectorTab = tab
+            try snap(tab.rawValue)
+        }
+        model.inspectorMode = .simple
+        try snap("simple")
+        model.inspectorMode = .all
+        try snap("all", height: 2000)
+    }
+
     /// White balance names its modes plainly.
     func testDaylightIsJustDaylight() {
         XCTAssertEqual(optionTitle("daylight"), "Daylight")
@@ -62,6 +103,28 @@ import XCTest
         XCTAssertEqual(found["Unsharp amount"]?.maxValue, 2)
     }
 
+    /// The all-controls column shows every control at once, with no tabs, even
+    /// the ones that are hidden while what they depend on is off.
+    func testAllControlsShowsEverySliderInOneColumn() throws {
+        _ = NSApplication.shared
+        let model = EditorModel()
+        defer { model.shutdown() }
+        model.inspectorMode = .all
+        let host = NSHostingView(rootView: AdjustmentInspector(model: model))
+        host.appearance = NSAppearance(named: .darkAqua)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 6000), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.orderOut(nil) }
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+        host.layoutSubtreeIfNeeded()
+        let shown = Set(sliders(in: host).map { $0.accessibilityLabel() ?? "" })
+        for label in ["Exposure (EV)", "Strength", "Bloom size", "Clump size (nm)", "Bounce decay", "Red", "Blue", "Print exposure", "Preflash yellow", "White level", "Black level", "Blacks"] {
+            XCTAssertTrue(shown.contains(label), label)
+        }
+    }
+
     /// Advanced keeps showing one tab at a time, and follows the tab bar's choice.
     func testAdvancedStillShowsOneTabAtATime() throws {
         _ = NSApplication.shared
@@ -77,9 +140,10 @@ import XCTest
         let camera = labels(.camera)
         XCTAssertTrue(camera.contains("Exposure (EV)"))
         XCTAssertFalse(camera.contains("Brightness"))
-        let finish = labels(.finish)
-        XCTAssertTrue(finish.contains("Brightness"))
-        XCTAssertFalse(finish.contains("Exposure (EV)"))
+        XCTAssertTrue(camera.contains("Zone Shift (EV)"))
+        let scan = labels(.scan)
+        XCTAssertTrue(scan.contains("Brightness"))
+        XCTAssertFalse(scan.contains("Exposure (EV)"))
     }
 
     /// With the film scanned directly there's no print, so its controls are

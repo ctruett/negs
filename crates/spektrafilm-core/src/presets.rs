@@ -120,9 +120,6 @@ pub struct Preset {
     /// Finish (post-scan) settings written by Negs when the user asks to
     /// include them. Python's GUI state has no such section.
     pub finish: Option<crate::post::PostParams>,
-    /// The tone curve written by Negs, as plain points. A file from before
-    /// there was one, or from Python, has none and leaves the photograph's alone.
-    pub tone_curve: Option<Vec<crate::post::ToneAnchor>>,
     /// Midtone Detail, the one Prep setting with a control. A file without it
     /// leaves the photograph's alone.
     pub midtone_detail: Option<f32>,
@@ -139,13 +136,8 @@ pub fn import(text: &str, data_dir: &Path) -> Result<Preset, String> {
                 .map_err(|error| format!("Invalid Finish settings: {error}"))
         })
         .transpose()?;
-    let tone_curve = file
-        .get("negs_tone_curve")
-        .map(|value| {
-            serde_json::from_value(value.clone())
-                .map_err(|error| format!("Invalid tone curve: {error}"))
-        })
-        .transpose()?;
+    // Files from earlier versions may carry `negs_tone_curve`: it's left
+    // unread, so a preset never brings curve points to a photograph.
     let midtone_detail = file
         .get("negs_midtone_detail")
         .map(|value| {
@@ -163,7 +155,7 @@ pub fn import(text: &str, data_dir: &Path) -> Result<Preset, String> {
     check(&state, &params)?;
     params.film_render.development_time = listed_time(&film_stock, params.film_render.development_time);
     params.print_render.development_time = listed_time(&paper_stock, params.print_render.development_time);
-    Ok(Preset { film, paper, params, finish, tone_curve, midtone_detail })
+    Ok(Preset { film, paper, params, finish, midtone_detail })
 }
 
 /// A development time as the stock's family lists it: the entry the engine
@@ -206,12 +198,12 @@ pub fn apply_with_finish(preset: &Preset, current: &RuntimeParams, include_finis
     let mut applied: RuntimeParams =
         serde_json::from_value(params).expect("kept values come from RuntimeParams");
     if let Some(finish) = finish {
-        // Pins belong to the photograph they were measured on.
-        applied.post = crate::post::PostParams { tone_anchors: applied.post.tone_anchors, ..finish };
-    }
-    if let Some(curve) = &preset.tone_curve {
-        let pins = current.post.tone_anchors.iter().filter(|anchor| anchor.source.is_some());
-        applied.post.tone_anchors = pins.chain(curve).copied().collect();
+        // The photograph keeps its own curve points.
+        applied.post = crate::post::PostParams {
+            tone_anchors: applied.post.tone_anchors,
+            pins_before_film: current.post.pins_before_film,
+            ..finish
+        };
     }
     if let Some(detail) = preset.midtone_detail {
         applied.prep.midtone_detail = detail;
@@ -226,22 +218,9 @@ pub fn export(film_id: &str, paper_id: &str, params: &RuntimeParams, data_dir: &
     export_with_finish(film_id, paper_id, params, data_dir, false)
 }
 
-/// The photograph's curve as points any photograph can take: what the curve
-/// actually uses, no longer tied to where the tones were measured.
-fn plain_curve(anchors: &[crate::post::ToneAnchor]) -> Vec<crate::post::ToneAnchor> {
-    let curve = crate::post::AnchorCurve::new(anchors);
-    anchors
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| !curve.ignored().contains(index))
-        .map(|(_, anchor)| crate::post::ToneAnchor { source: None, ..*anchor })
-        .collect()
-}
-
 /// [`export`] with Negs's own optional Finish section. Python ignores the
-/// extra top-level keys; Negs applies Finish only when the setting asks. The
-/// tone curve is always written, an empty one too, so that applying the preset
-/// gives the same picture whatever was applied before it.
+/// extra top-level keys; Negs applies Finish only when the setting asks. Curve
+/// points stay with the photograph.
 pub fn export_with_finish(film_id: &str, paper_id: &str, params: &RuntimeParams, data_dir: &Path,
                           include_finish: bool) -> Result<String, String> {
     let film = load_stock(data_dir, film_id, false)?;
@@ -284,18 +263,14 @@ pub fn export_with_finish(film_id: &str, paper_id: &str, params: &RuntimeParams,
     if include_finish {
         // Pins belong to the photograph they were measured on.
         let mut finish = serde_json::to_value(&params.post).expect("PostParams serializes");
-        finish.as_object_mut().expect("PostParams is an object").remove("tone_anchors");
+        let finish_keys = finish.as_object_mut().expect("PostParams is an object");
+        finish_keys.remove("tone_anchors");
+        finish_keys.remove("pins_before_film");
         state
             .as_object_mut()
             .expect("the preset state is an object")
             .insert("negs_finish".into(), finish);
     }
-    // Through text, so its values are their shortest decimals like the rest.
-    let curve = serde_json::to_string(&plain_curve(&params.post.tone_anchors)).expect("anchors serialize");
-    state
-        .as_object_mut()
-        .expect("the preset state is an object")
-        .insert("negs_tone_curve".into(), serde_json::from_str(&curve).expect("serde_json reads its own output"));
     let detail = serde_json::to_string(&params.prep.midtone_detail).expect("numbers serialize");
     state
         .as_object_mut()
@@ -838,49 +813,6 @@ mod tests {
     }
 
     #[test]
-    fn the_tone_curve_is_saved_as_plain_points_and_replaces_only_plain_points() {
-        use crate::post::{AnchorSource, ToneAnchor};
-        let data = data_dir();
-        let source = Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 });
-        let mut saved = RuntimeParams::default();
-        saved.post.tone_anchors = vec![
-            ToneAnchor { input: 30.0, target: 20.0, source },
-            ToneAnchor { input: 70.0, target: 80.0, source: None },
-            // Falling, so the curve can't honour it.
-            ToneAnchor { input: 40.0, target: 90.0, source: None },
-        ];
-        let ignored = crate::post::AnchorCurve::new(&saved.post.tone_anchors).ignored().to_vec();
-        assert!(!ignored.is_empty(), "the test needs an anchor the curve drops");
-
-        let text = export("kodak_portra_400", "kodak_supra_endura", &saved, &data).unwrap();
-        let preset = import(&text, &data).unwrap();
-        let curve = preset.tone_curve.clone().unwrap();
-        assert_eq!(curve.len(), 3 - ignored.len());
-        assert!(curve.iter().all(|anchor| anchor.source.is_none()));
-        assert!(curve.iter().any(|anchor| anchor.input == 30.0 && anchor.target == 20.0), "a pin becomes a point");
-        assert_eq!(crate::post::AnchorCurve::new(&curve), crate::post::AnchorCurve::new(&saved.post.tone_anchors));
-
-        let mine = ToneAnchor { input: 50.0, target: 50.0, source };
-        let mut current = RuntimeParams::default();
-        current.post.tone_anchors = vec![mine, ToneAnchor { input: 10.0, target: 5.0, source: None }];
-        let applied = apply_with_finish(&preset, &current, false);
-        assert_eq!(applied.post.tone_anchors[0], mine, "the photograph's pin stays");
-        assert_eq!(applied.post.tone_anchors[1..], curve[..], "its plain points give way");
-
-        // With no curve to save, it still clears: the picture doesn't depend on what came before.
-        let empty = import(&export("kodak_portra_400", "kodak_supra_endura", &RuntimeParams::default(), &data).unwrap(), &data).unwrap();
-        assert_eq!(empty.tone_curve, Some(Vec::new()));
-        assert_eq!(apply_with_finish(&empty, &current, false).post.tone_anchors, vec![mine]);
-
-        // A file from before there was a curve leaves it all alone.
-        let old = import(DEFAULT_GUI_STATE, &data).unwrap();
-        assert!(old.tone_curve.is_none());
-        assert_eq!(apply_with_finish(&old, &current, false).post.tone_anchors, current.post.tone_anchors);
-
-        assert!(import(&text.replacen("\"negs_tone_curve\": [", "\"negs_tone_curve\": [\"no\",", 1), &data).unwrap_err().contains("tone curve"));
-    }
-
-    #[test]
     fn midtone_detail_is_saved_and_replaces_the_photograph_s() {
         let data = data_dir();
         let mut saved = RuntimeParams::default();
@@ -971,8 +903,20 @@ mod tests {
         }];
         let applied = apply_with_finish(&preset, &current, true);
         assert_eq!(applied.post.contrast, 25.0);
-        // Its pin stays, and the saved one comes only from the curve, as a plain point.
-        assert_eq!(applied.post.tone_anchors, vec![current.post.tone_anchors[0], pin(40.0, 20.0)]);
+        // Its own points stay, and the preset brings none.
+        assert_eq!(applied.post.tone_anchors, current.post.tone_anchors);
+
+        // The zone curve the pins made, and how they work, stay with it too.
+        saved.post.pins_before_film = true;
+        let text = export_with_finish("kodak_portra_400", "kodak_portra_endura", &saved, &data, true).unwrap();
+        assert!(!text.contains("pins_before_film"), "{text}");
+        current.post.pins_before_film = true;
+        current.prep.zone_curve = crate::zones::ZoneCurve::from_knots(&[(-1.0, 0.5)]).unwrap();
+        let applied = apply_with_finish(&import(&text, &data).unwrap(), &current, true);
+        assert!(applied.post.pins_before_film);
+        assert_eq!(applied.prep.zone_curve, current.prep.zone_curve);
+        current.post.pins_before_film = false;
+        assert!(!apply_with_finish(&preset, &current, true).post.pins_before_film);
     }
 
     #[test]

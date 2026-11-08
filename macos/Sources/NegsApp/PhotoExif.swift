@@ -16,28 +16,34 @@ struct PhotoExif: Equatable, Sendable {
     /// `yyyy:MM:dd HH:mm:ss`, as EXIF has it.
     var taken: String?
 
-    /// The camera and lens.
+    /// The camera.
     var cameraLine: String {
         var camera = model ?? ""
         // "NIKON CORPORATION", "NIKON D750": the model usually says the make already.
         if let make, !make.isEmpty, !camera.localizedCaseInsensitiveContains(make.split(separator: " ").first ?? "") {
             camera = camera.isEmpty ? make : "\(make.split(separator: " ").first ?? "") \(camera)"
         }
-        return [camera, lens ?? ""].filter { !$0.isEmpty }.joined(separator: "   ").uppercased()
+        return camera.uppercased()
     }
 
-    /// The exposure and date.
+    /// The exposure.
     var exposureLine: String {
         var parts: [String] = []
         if let iso { parts.append("ISO \(iso)") }
         if let exposure, exposure > 0 { parts.append(Self.shutter(exposure)) }
         if let aperture, aperture > 0 { parts.append("f/\(Self.trimmed(aperture))") }
         if let focalLength, focalLength > 0 { parts.append("\(Self.trimmed(focalLength)) MM") }
-        if let taken, taken.count >= 10 { parts.append(taken.prefix(10).replacingOccurrences(of: ":", with: "-")) }
         return parts.joined(separator: "   ")
     }
 
     var isEmpty: Bool { cameraLine.isEmpty && exposureLine.isEmpty }
+
+    /// The line above the photograph: camera, exposure and file name, with
+    /// whichever it has.
+    static func detailsLine(_ exif: PhotoExif?, fileName: String?) -> String {
+        [exif?.cameraLine ?? "", exif?.exposureLine ?? "", fileName ?? ""]
+            .filter { !$0.isEmpty }.joined(separator: "   |   ")
+    }
 
     static func shutter(_ seconds: Double) -> String {
         if seconds >= 0.3 { return "\(trimmed(seconds))S" }
@@ -78,14 +84,23 @@ private extension String {
 /// The film's edge print: its font and colour, for anything printed like it.
 enum EdgePrint {
     static let fontName = "BarlowCondensed-SemiBold"
+    /// A lighter cut, for names read at a larger size.
+    static let mediumFontName = "BarlowCondensed-Medium"
     static let colour = NSColor(srgbRed: 0.97, green: 0.63, blue: 0.2, alpha: 1)
     /// The app's accent, everywhere: amber on black.
     static let amber = Color(nsColor: colour)
 
-    /// Makes the bundled font available to this process. Once is enough.
+    /// Makes the bundled fonts available to this process. Once is enough.
     static func registerFont(data: URL) {
-        let url = data.appendingPathComponent("fonts/BarlowCondensed-SemiBold.ttf") as CFURL
-        CTFontManagerRegisterFontsForURL(url, .process, nil)
+        for name in [fontName, mediumFontName] {
+            let url = data.appendingPathComponent("fonts/\(name).ttf") as CFURL
+            CTFontManagerRegisterFontsForURL(url, .process, nil)
+        }
+    }
+
+    /// The lighter cut, or the edge print's own font if it's missing.
+    static func mediumFont(size: CGFloat) -> NSFont {
+        NSFont(name: mediumFontName, size: size) ?? font(size: size)
     }
 
     /// The edge print's font, or a condensed system one if the font is missing.

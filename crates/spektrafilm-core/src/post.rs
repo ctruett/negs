@@ -42,6 +42,12 @@ pub struct PostParams {
     /// curve that can set the black and white points (see [`AnchorCurve`]).
     #[serde(default)]
     pub tone_anchors: Vec<ToneAnchor>,
+    /// The pins bend the scene's exposure before the film (Prep's zone curve,
+    /// see [`crate::zones`]) rather than this curve, which keeps only the
+    /// points set by hand. Off for edits made before, whose pins keep bending
+    /// this curve until one is placed, moved or removed.
+    #[serde(default)]
+    pub pins_before_film: bool,
 }
 
 /// One pin of the tone curve, in CIE Lab lightness.
@@ -148,6 +154,17 @@ fn lookup(table: &[f32], x: f32) -> f32 {
     table[i] + (table[i + 1] - table[i]) * f
 }
 
+/// The L\* a scan's pixel prints at, after `post`: as [`measured_lstar`] reads a
+/// tone, with whatever curve `post` holds.
+pub(crate) fn printed_lstar(post: &PostProcess, rgb: [f32; 3], encoded: bool, color_space: &str) -> f64 {
+    let transfer = Transfer(RgbColourspace::output(color_space));
+    let luma = luminance_weights(color_space);
+    let (lo, hi) = crate::pipeline::display_range(encoded);
+    let out = post.apply_rgb(rgb.map(|v| v.clamp(to_f32(lo), to_f32(hi))));
+    let linear = out.map(|v| if encoded { transfer.decode(f64::from(v)) } else { f64::from(v) });
+    lstar_of((0..3).map(|c| f64::from(luma[c]) * linear[c]).sum())
+}
+
 /// CIE Lab lightness of a linear luminance, and its inverse.
 fn lstar_of(y: f64) -> f64 {
     if y > 216.0 / 24389.0 {
@@ -173,15 +190,21 @@ fn luminance_of(value: f64) -> f64 {
 /// flattens into a point it sets, so there's no corner there. With no pins it is
 /// the identity.
 ///
-/// Between the pins it is a monotone cubic (Fritsch and Butland's tangents):
-/// the slope has no corners, every pin lands exactly, and it never overshoots
-/// or turns back between two pins.
+/// A pin measured on the photograph is soft: it pulls the curve towards its
+/// target, within [`SOFT_SLOPE`], so pins close together blend rather than
+/// stretching some tones and crushing others, which is what posterizes. Pins with
+/// room land exactly, as does a point set by hand, which has no `source`.
+///
+/// Between the knots it is a monotone cubic (Fritsch and Butland's tangents):
+/// the slope has no corners, and it never overshoots or turns back between two.
 #[derive(Debug, Clone, Default)]
 pub struct AnchorCurve {
     black: f64,
     white: f64,
-    /// Interior pins, strictly between the ends and rising.
+    /// Interior pins, strictly between the ends and rising, where they print.
     points: Vec<(f64, f64)>,
+    /// What's moved from its target, by [`target_key`], and where it printed.
+    moved: BTreeMap<i64, f64>,
     /// The slope at each knot: the black point, the pins, the white point.
     tangents: Vec<f64>,
     /// The anchors the curve can't honour, as indices into those it was given.
@@ -195,20 +218,42 @@ impl PartialEq for AnchorCurve {
     }
 }
 
+/// How steep or flat soft pins may make the curve, as L\* out per L\* in. Past
+/// about 2 a gradient starts to show steps and grain; near 0 tones merge.
+/// The app's `ToneCurve` has the same numbers.
+pub const SOFT_SLOPE: (f64, f64) = (0.35, 1.8);
+
+/// Targets are read to the half L\*, so pins on one are one reading.
+fn target_key(target: f32) -> i64 {
+    (f64::from(target.clamp(0.0, 100.0)) * 2.0).round() as i64
+}
+
 impl AnchorCurve {
     pub fn new(anchors: &[ToneAnchor]) -> Self {
+        Self::build(anchors, false)
+    }
+
+    /// The curve an edit's Post uses: when its pins bend the exposure before the
+    /// film, they're left out, and only the points set by hand bend it.
+    pub fn for_post(post: &PostParams) -> Self {
+        Self::build(&post.tone_anchors, post.pins_before_film)
+    }
+
+    fn build(anchors: &[ToneAnchor], without_pins: bool) -> Self {
         // Pins on one target are one reading of that tone: their average prints
         // there. Only the targets matter, never the order.
         let mut ignored = Vec::new();
         let mut zones: BTreeMap<i64, (f64, Vec<usize>)> = BTreeMap::new();
         for (index, anchor) in anchors.iter().enumerate() {
+            if without_pins && anchor.source.is_some() {
+                continue;
+            }
             let input = f64::from(anchor.input);
             if !input.is_finite() || !anchor.target.is_finite() || !(0.0..100.0).contains(&input) {
                 ignored.push(index);
                 continue;
             }
-            let key = (f64::from(anchor.target.clamp(0.0, 100.0)) * 2.0).round() as i64;
-            let zone = zones.entry(key).or_default();
+            let zone = zones.entry(target_key(anchor.target)).or_default();
             zone.0 += input;
             zone.1.push(index);
         }
@@ -236,6 +281,7 @@ impl AnchorCurve {
         // turn it back is dropped; the lowest input is kept.
         interior.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)));
         let mut points: Vec<(f64, f64)> = Vec::with_capacity(interior.len());
+        let mut soft: Vec<bool> = Vec::with_capacity(interior.len());
         for (input, target, mut pins) in interior {
             let inside = input > black + 0.5 && input < white - 0.5;
             let rising = points
@@ -243,13 +289,83 @@ impl AnchorCurve {
                 .is_none_or(|&(i, t)| input - i >= 0.5 && target - t >= 0.5);
             if inside && rising {
                 points.push((input, target));
+                soft.push(pins.iter().any(|&index| anchors[index].source.is_some()));
             } else {
                 ignored.append(&mut pins);
             }
         }
         ignored.sort_unstable();
-        let tangents = Self::tangents(black, white, &points);
-        Self { black, white, points, tangents, ignored }
+        let relaxed = Self::relaxed(black, white, &points, &soft);
+        let moved = points.iter().zip(&relaxed)
+            .filter(|(from, to)| from.1 != to.1)
+            .map(|(from, to)| ((from.1 * 2.0).round() as i64, to.1))
+            .collect();
+        let tangents = Self::tangents(black, white, &relaxed);
+        Self { black, white, points: relaxed, moved, tangents, ignored }
+    }
+
+    /// Where an anchor's target actually prints: the place a plain point has to
+    /// be for the same curve.
+    pub fn printed_target(&self, anchor: &ToneAnchor) -> f32 {
+        self.moved.get(&target_key(anchor.target)).map_or(anchor.target, |&target| target as f32)
+    }
+
+    /// The soft pins, moved as little as keeps every stretch of the curve within
+    /// [`SOFT_SLOPE`]; the ends and hard points stay. Worked from both ends and
+    /// averaged, so no pin wins for being first, and the limits, being convex,
+    /// still hold.
+    fn relaxed(black: f64, white: f64, points: &[(f64, f64)], soft: &[bool]) -> Vec<(f64, f64)> {
+        if !soft.contains(&true) {
+            return points.to_vec();
+        }
+        let (flat, steep) = SOFT_SLOPE;
+        let mut knots = Vec::with_capacity(points.len() + 2);
+        knots.push((black, 0.0, false));
+        knots.extend(points.iter().zip(soft).map(|(&(x, y), &s)| (x, y, s)));
+        knots.push((white, 100.0, false));
+        let count = knots.len();
+        // What the nearest fixed knots either side allow.
+        let mut bounds = vec![(0.0f64, 0.0f64); count];
+        for i in 0..count {
+            let (x, y, is_soft) = knots[i];
+            if !is_soft {
+                bounds[i] = (y, y);
+                continue;
+            }
+            let left = knots[..i].iter().rev().find(|k| !k.2).expect("the black point is fixed");
+            let right = knots[i + 1..].iter().find(|k| !k.2).expect("the white point is fixed");
+            let low = (left.1 + flat * (x - left.0)).max(right.1 - steep * (right.0 - x));
+            let high = (left.1 + steep * (x - left.0)).min(right.1 - flat * (right.0 - x));
+            // Hard points too close for the limits leave nothing to aim for: it stays.
+            let stay = y.clamp(left.1, right.1);
+            bounds[i] = if low <= high { (low, high) } else { (stay, stay) };
+        }
+        // Within what's allowed from its neighbour too, or if nothing is, its bounds.
+        let place = |y: f64, (low, high): (f64, f64), bound: (f64, f64)| {
+            if low <= high { y.clamp(low, high) } else { y.clamp(bound.0, bound.1) }
+        };
+        let mut forward = vec![0.0; count];
+        forward[0] = knots[0].1;
+        for i in 1..count {
+            let d = knots[i].0 - knots[i - 1].0;
+            let low = bounds[i].0.max(forward[i - 1] + flat * d);
+            let high = bounds[i].1.min(forward[i - 1] + steep * d);
+            forward[i] = if knots[i].2 { place(knots[i].1, (low, high), bounds[i]) } else { knots[i].1 };
+        }
+        let mut backward = vec![0.0; count];
+        backward[count - 1] = knots[count - 1].1;
+        for i in (0..count - 1).rev() {
+            let d = knots[i + 1].0 - knots[i].0;
+            let low = bounds[i].0.max(backward[i + 1] - steep * d);
+            let high = bounds[i].1.min(backward[i + 1] - flat * d);
+            backward[i] = if knots[i].2 { place(knots[i].1, (low, high), bounds[i]) } else { knots[i].1 };
+        }
+        // Between hard points too close for the limits, it must still rise.
+        let mut result: Vec<f64> = forward.iter().zip(&backward).map(|(a, b)| (a + b) / 2.0).collect();
+        for i in 1..count - 1 {
+            if knots[i].2 { result[i] = result[i].max(result[i - 1]).min(result[i + 1].max(result[i - 1])); }
+        }
+        (1..count - 1).map(|i| (knots[i].0, result[i])).collect()
     }
 
     /// Shape-preserving slopes for the knots. An end that's a black or white
@@ -277,6 +393,10 @@ impl AnchorCurve {
                 let (w0, w1) = (2.0 * h1 + h0, h1 + 2.0 * h0);
                 tangents[i] = (w0 + w1) / (w0 / slopes[i - 1] + w1 / slopes[i]);
             }
+            // The ends of the axis don't flatten, which would crush the deepest
+            // shadows and the brightest highlights together.
+            tangents[0] = tangents[0].max(slopes[0] / 2.0);
+            tangents[last + 1] = tangents[last + 1].max(slopes[last] / 2.0);
         }
         if black > 0.0 { tangents[0] = 0.0; }
         if white < 100.0 { tangents[last + 1] = 0.0; }
@@ -364,7 +484,7 @@ impl PostProcess {
             encode: samples(&|s| space.encode(s * s)),
             // The pins bend what the knobs produced.
             tone: {
-                let curve = AnchorCurve::new(&params.tone_anchors);
+                let curve = AnchorCurve::for_post(params);
                 samples(&|s| curve.map_luminance(srgb_decode(tone(params, srgb_encode(s * s)))))
             },
         }
@@ -495,13 +615,95 @@ pub fn measured_lstar(
 
 #[cfg(test)]
 mod tests {
+    /// The same curve with pins measured on the photograph, for the app's test.
+    #[test]
+    fn soft_pins_match_what_the_app_draws() {
+        let source = Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 });
+        let pin = |input, target| ToneAnchor { input, target, source };
+        let curve = AnchorCurve::new(&[pin(30.0, 36.0), pin(34.0, 49.5), pin(50.0, 66.5), pin(75.0, 88.0)]);
+        for (input, expected) in SOFT_EXPECTED {
+            assert!((curve.map(input) - expected).abs() < 1e-4, "{input}: {}", curve.map(input));
+        }
+    }
+    const SOFT_EXPECTED: [(f64, f64); 4] = [(10.0, 10.504084), (32.0, 42.77046), (60.0, 76.320166), (90.0, 96.210687)];
+
+    /// Pins close together blend, within the limits, and the curve keeps rising
+    /// and never flattens at the ends. A gentle pin lands exactly.
+    #[test]
+    fn soft_pins_stay_within_their_slopes() {
+        let source = Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 });
+        let pin = |input, target| ToneAnchor { input, target, source };
+        for pins in [
+            vec![pin(30.0, 36.0), pin(34.0, 49.5), pin(50.0, 66.5), pin(75.0, 88.0)],
+            vec![pin(15.0, 25.0), pin(25.0, 49.5), pin(60.0, 66.5)],
+            vec![pin(10.0, 5.0), pin(55.0, 66.5), pin(70.0, 88.0)],
+            vec![pin(95.0, 88.0)],
+        ] {
+            let curve = AnchorCurve::new(&pins);
+            let mut previous = curve.map(0.0);
+            for step in 1..=400 {
+                let value = curve.map(f64::from(step) / 4.0);
+                let slope = (value - previous) * 4.0;
+                assert!(slope > 0.05, "flat at {}: {slope}", f64::from(step) / 4.0);
+                assert!(slope < 2.5, "steep at {}: {slope}", f64::from(step) / 4.0);
+                previous = value;
+            }
+        }
+        let gentle = AnchorCurve::new(&[pin(45.0, 49.5)]);
+        assert!((gentle.map(45.0) - 49.5).abs() < 1e-9);
+    }
+
+    /// Through to 8-bit, a grey ramp keeps more of its levels with soft pins than
+    /// with the same pins forced to land exactly, and takes smaller steps.
+    #[test]
+    fn soft_pins_keep_a_gradient_smoother() {
+        let levels = |source| {
+            let pin = |input, target| ToneAnchor { input, target, source };
+            let post = PostProcess::new(&PostParams {
+                tone_anchors: vec![pin(30.0, 36.0), pin(34.0, 49.5), pin(50.0, 66.5), pin(75.0, 88.0)],
+                ..PostParams::default()
+            }, true, "sRGB");
+            let out: Vec<u8> = (0..=4095)
+                .map(|i| { let v = i as f32 / 4095.0; (post.apply_rgb([v, v, v])[0] * 255.0).round() as u8 })
+                .collect();
+            let jump = (0..=255).map(|i| (i * 4095 / 255) as usize).collect::<Vec<_>>()
+                .windows(2).map(|w| out[w[1]] - out[w[0]]).max().unwrap();
+            let mut distinct = out.clone();
+            distinct.dedup();
+            (distinct.len(), jump)
+        };
+        let hard = levels(None);
+        let soft = levels(Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 }));
+        assert!(soft.0 >= hard.0, "levels: {soft:?} {hard:?}");
+        assert!(soft.1 < hard.1, "steps: {soft:?} {hard:?}");
+    }
+
+    /// A point set by hand stays where it's put, however steep that makes it, and
+    /// a pin converted to a plain point keeps the curve the same.
+    #[test]
+    fn hard_points_land_exactly_and_plain_targets_keep_the_curve() {
+        let hard = |input, target| ToneAnchor { input, target, source: None };
+        let curve = AnchorCurve::new(&[hard(30.0, 36.0), hard(34.0, 49.5)]);
+        assert!((curve.map(30.0) - 36.0).abs() < 1e-9);
+        assert!((curve.map(34.0) - 49.5).abs() < 1e-9);
+        let source = Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 });
+        let pins = [ToneAnchor { input: 30.0, target: 36.0, source }, ToneAnchor { input: 34.0, target: 49.5, source }];
+        let soft = AnchorCurve::new(&pins);
+        assert!(soft.map(34.0) < 49.0, "It's moved");
+        let plain: Vec<ToneAnchor> = pins.iter().map(|a| ToneAnchor { target: soft.printed_target(a), source: None, ..*a }).collect();
+        let converted = AnchorCurve::new(&plain);
+        for input in [10.0, 30.0, 34.0] {
+            assert!((converted.map(input) - soft.map(input)).abs() < 1.0, "{input}");
+        }
+    }
+
     /// The Mac app draws this curve with its own `ToneCurve`, whose test holds
     /// it to these same numbers: change one and the other has to follow.
     #[test]
     fn the_curve_matches_what_the_app_draws() {
         let anchor = |input, target| ToneAnchor { input, target, source: None };
         let curve = AnchorCurve::new(&[anchor(25.0, 10.0), anchor(60.0, 70.0)]);
-        for (input, expected) in [(10.0, 2.01521), (40.0, 32.81935), (50.0, 54.01397), (80.0, 89.084586)] {
+        for (input, expected) in [(10.0, 2.73521), (40.0, 32.81935), (50.0, 54.01397), (80.0, 88.388158)] {
             assert!((curve.map(input) - expected).abs() < 1e-4, "{input}: {}", curve.map(input));
         }
         let ends = AnchorCurve::new(&[anchor(20.0, 0.0), anchor(45.0, 50.0), anchor(90.0, 100.0)]);

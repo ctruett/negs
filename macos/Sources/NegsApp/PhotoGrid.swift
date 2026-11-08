@@ -1,20 +1,21 @@
 import AppKit
 import SwiftUI
 
-/// Where things sit in the grid view: four columns of photographs on black, each
-/// with its camera details above and below it.
+/// Where things sit in the grid view: columns of photographs on black, each with
+/// its exposure under it.
 enum PhotoGridLayout {
+    /// The columns until someone chooses otherwise.
     static let columns = 4
     static let margin: CGFloat = 24, columnGap: CGFloat = 24, rowGap: CGFloat = 8
     /// A line of details, and its gap from the photograph.
     static let lineHeight: CGFloat = 16, lineGap: CGFloat = 4
 
-    static func cellWidth(available: CGFloat) -> CGFloat {
+    static func cellWidth(available: CGFloat, columns: Int = columns) -> CGFloat {
         max(((available - margin * 2 - columnGap * CGFloat(columns - 1)) / CGFloat(columns)).rounded(.down), 1)
     }
     /// Photographs fit a 3:2 box, so rows line up whatever their shape.
     static func boxHeight(cellWidth: CGFloat) -> CGFloat { (cellWidth * 2 / 3).rounded() }
-    static func cellHeight(cellWidth: CGFloat) -> CGFloat { boxHeight(cellWidth: cellWidth) + (lineHeight + lineGap) * 2 }
+    static func cellHeight(cellWidth: CGFloat) -> CGFloat { boxHeight(cellWidth: cellWidth) + lineHeight + lineGap }
 
     /// A photograph of `image`'s shape, fitted and centred in `box`.
     static func photoRect(image: CGSize, box: CGSize) -> CGRect {
@@ -46,13 +47,17 @@ struct PhotoGrid: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let width = PhotoGridLayout.cellWidth(available: geometry.size.width)
+            let columns = model.gridColumns
+            let width = PhotoGridLayout.cellWidth(available: geometry.size.width, columns: columns)
             ScrollViewReader { reader in
                 ScrollView(.vertical) {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: PhotoGridLayout.columnGap), count: PhotoGridLayout.columns),
+                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(width), spacing: PhotoGridLayout.columnGap), count: columns),
                               spacing: PhotoGridLayout.rowGap) {
                         ForEach(Array(shown.enumerated()), id: \.element.url) { index, file in
-                            PhotoGridCell(file: file, width: width, developed: model.rollDeveloper?.frames[file.url]) {
+                            PhotoGridCell(file: file, width: width, developed: model.rollDeveloper?.frames[file.url],
+                                          selected: model.gridSelection.contains(file.url)) { adding in
+                                model.clickInGrid(file.url, adding: adding)
+                            } open: {
                                 model.leaveGrid(opening: file.url)
                             }
                             .id(file.url)
@@ -98,7 +103,7 @@ struct PhotoGrid: View {
     }
 }
 
-@MainActor private final class VisibleCells {
+@MainActor final class VisibleCells {
     var indices: Set<Int> = []
     /// At the open photograph, where it starts.
     var settled = false
@@ -114,13 +119,16 @@ struct PhotoGrid: View {
     }
 }
 
-/// One photograph, with its details in amber above and below, starting at its left edge.
+/// One photograph with its exposure under it, starting at its left edge. The
+/// selection is what gets full amber.
 private struct PhotoGridCell: View {
     let file: PhotoFile
     let width: CGFloat
     /// The final edit, once it's been developed. The file's own preview shows
     /// before that, so the folder can be seen straight away.
     let developed: CGImage?
+    let selected: Bool
+    let click: (Bool) -> Void
     let open: () -> Void
     @State private var preview: CGImage?
     @State private var exif: PhotoExif?
@@ -131,7 +139,6 @@ private struct PhotoGridCell: View {
         let image = developed ?? preview
         let rect = PhotoGridLayout.photoRect(image: image.map { CGSize(width: $0.width, height: $0.height) } ?? CGSize(width: 3, height: 2), box: box)
         VStack(alignment: .leading, spacing: PhotoGridLayout.lineGap) {
-            line(image == nil ? nil : exif?.cameraLine, left: rect.minX, width: width)
             ZStack(alignment: .topLeading) {
                 if let image {
                     Image(decorative: image, scale: 1)
@@ -139,7 +146,13 @@ private struct PhotoGridCell: View {
                         .frame(width: rect.width, height: rect.height)
                         .offset(x: rect.minX, y: rect.minY)
                 }
-                DoubleClickArea(open: open)
+                if selected {
+                    Rectangle().strokeBorder(EdgePrint.amber, lineWidth: 2)
+                        .padding(-3)
+                        .frame(width: rect.width, height: rect.height)
+                        .offset(x: rect.minX, y: rect.minY)
+                }
+                DoubleClickArea(click: click, open: open)
                     .frame(width: rect.width, height: rect.height)
                     .offset(x: rect.minX, y: rect.minY)
             }
@@ -149,8 +162,9 @@ private struct PhotoGridCell: View {
         .frame(width: width, height: PhotoGridLayout.cellHeight(cellWidth: width), alignment: .topLeading)
         .accessibilityElement()
         .accessibilityLabel(file.name)
-        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
         .accessibilityAction(.default, open)
+        .accessibilityAction(named: "Select") { click(false) }
         .onAppear { visible = true }
         .onDisappear { visible = false }
         .task(id: visible && developed == nil ? file : nil) {
@@ -168,7 +182,7 @@ private struct PhotoGridCell: View {
     private func line(_ text: String?, left: CGFloat, width: CGFloat) -> some View {
         Text(text ?? "")
             .font(Font(EdgePrint.font(size: 12)))
-            .foregroundStyle(Color(nsColor: EdgePrint.colour))
+            .foregroundStyle(EdgePrint.amber.opacity(selected ? 1 : 0.62))
             .lineLimit(1)
             .truncationMode(.tail)
             .padding(.leading, left)
@@ -176,18 +190,24 @@ private struct PhotoGridCell: View {
     }
 }
 
-/// Opens on a double-click, in a window that isn't active too. Scrolling carries
-/// on to the scroll view around it.
+/// Selects on a click, saying whether ⌘ or ⇧ was down, and opens on a
+/// double-click, in a window that isn't active too. Scrolling carries on to the
+/// scroll view around it.
 struct DoubleClickArea: NSViewRepresentable {
+    var click: ((Bool) -> Void)?
     let open: () -> Void
     func makeNSView(context: Context) -> Area { Area() }
-    func updateNSView(_ view: Area, context: Context) { view.open = open }
+    func updateNSView(_ view: Area, context: Context) { view.click = click; view.open = open }
 
     final class Area: NSView {
+        var click: ((Bool) -> Void)?
         var open: (() -> Void)?
         override func isAccessibilityElement() -> Bool { false }
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
         override func mouseDown(with event: NSEvent) {}
-        override func mouseUp(with event: NSEvent) { if event.clickCount == 2 { open?() } }
+        override func mouseUp(with event: NSEvent) {
+            if event.clickCount == 2 { open?() }
+            else if event.clickCount == 1 { click?(!event.modifierFlags.isDisjoint(with: [.command, .shift])) }
+        }
     }
 }

@@ -4,8 +4,8 @@ import SwiftUI
 import XCTest
 @testable import NegsApp
 
-/// The pins end to end, through the release helper: measuring a tone, holding
-/// it, and aiming it at a zone.
+/// The editor end to end, through the release helper: zone readings, the
+/// film strip and grid, settings files and presets.
 @MainActor final class ZoneModelTests: XCTestCase {
     private var directory: URL!
     private var ramp: URL!
@@ -124,59 +124,6 @@ import XCTest
         try writeGradient(to: fifth)
         model.open(fifth)
         XCTAssertNotEqual(model.film, "kodak_doublex")
-    }
-
-    /// Saved with its pins as plain points, it comes back on any photograph,
-    /// beside that photograph's own pins, and with the default preset too.
-    func testAPresetSavesTheToneCurve() async throws {
-        let folder = directory.appendingPathComponent("presets", isDirectory: true)
-        let model = EditorModel(previewCache: RenderedPreviewCache(file: directory.appendingPathComponent("curve.cache")), presetLibrary: PresetLibrary(folder: folder))
-        defer { model.shutdown() }
-        await model.start(paths: try paths())
-        func waitUntil(_ condition: () -> Bool) async throws {
-            for _ in 0..<500 where !condition() { try await Task.sleep(for: .milliseconds(10)) }
-            XCTAssertTrue(condition(), "Timed out")
-        }
-        model.open(ramp)
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
-        XCTAssertEqual(model.pins.filter { $0.source != nil }.count, 1)
-        model.addCurvePoint(input: 80, target: 90)
-        XCTAssertEqual(model.pins.count, 2)
-        model.newPreset()
-        try await waitUntil { model.renamingPreset != nil }
-        let preset = try XCTUnwrap(model.presets.first)
-        model.renamePreset(preset, to: "Curve")
-        try await waitUntil { model.presets.first?.name == "Curve" && model.renamingPreset == nil }
-        let saved = try XCTUnwrap(model.presets.first)
-        let file = try JSONSerialization.jsonObject(with: Data(contentsOf: saved.url)) as? [String: Any]
-        let points = try XCTUnwrap(file?["negs_tone_curve"] as? [[String: Any]])
-        XCTAssertEqual(points.count, 2)
-        XCTAssertTrue(points.allSatisfy { $0["source"] == nil || $0["source"] is NSNull }, "\(points)")
-        XCTAssertEqual(file?["negs_midtone_detail"] as? Double, 0)
-
-        // On another photograph, as plain points.
-        model.open(other)
-        XCTAssertTrue(model.pins.isEmpty)
-        model.applyPreset(saved)
-        try await waitUntil { model.pins.count == 2 }
-        XCTAssertTrue(model.pins.allSatisfy { $0.source == nil })
-        // Its own pin stays when a preset is applied again.
-        await model.placeZone(3, at: CGPoint(x: 0.2, y: 0.5))
-        XCTAssertEqual(model.pins.count, 3)
-        model.addCurvePoint(input: 95, target: 98)
-        XCTAssertEqual(model.pins.count, 4)
-        model.applyPreset(saved)
-        try await waitUntil { model.pins.count == 3 }
-        XCTAssertEqual(model.pins.filter { $0.source != nil }.count, 1)
-
-        // Opening with the default preset brings the curve, not the pin.
-        model.setDefaultPreset(saved)
-        try await waitUntil { model.defaultPresetFile != nil }
-        let third = directory.appendingPathComponent("third.png")
-        try writeGradient(to: third)
-        model.open(third)
-        XCTAssertEqual(model.pins.count, 2)
-        XCTAssertTrue(model.pins.allSatisfy { $0.source == nil })
     }
 
     /// On a real RAW: saved, applied to another photograph, and opened with as
@@ -310,22 +257,6 @@ import XCTest
         while !predicate(), Date() < deadline { try await Task.sleep(for: .milliseconds(10)) }
         XCTAssertTrue(predicate(), "Timed out waiting for the engine")
     }
-    /// Drops a zone on `point` and waits for the render.
-    private func place(_ zone: Int, at point: CGPoint = CGPoint(x: 0.5, y: 0.5), on model: EditorModel) async throws {
-        model.sampleRadius = 0
-        await model.placeZone(zone, at: point)
-        try await waitUntil { model.previewCurrent }
-    }
-
-    /// The pins, in parameter order.
-    private func anchors(_ model: EditorModel) -> [(input: Double, target: Double)] {
-        let anchors = model.state.params["post.tone_anchors"].array
-        return anchors.indices.map { index in
-            (model.state.params["post.tone_anchors.\(index).input"].double,
-             model.state.params["post.tone_anchors.\(index).target"].double)
-        }
-    }
-
     /// The tone under a point of the preview, as the canvas measures it.
     private func lstar(_ model: EditorModel, at point: CGPoint = CGPoint(x: 0.5, y: 0.5)) throws -> Double {
         try XCTUnwrap(
@@ -335,229 +266,71 @@ import XCTest
 }
 
 extension ZoneModelTests {
-    private var dark: CGPoint { CGPoint(x: 0.25, y: 0.5) }
-    private var light: CGPoint { CGPoint(x: 0.75, y: 0.5) }
-
-    /// A dropped zone makes that spot's tone that zone.
-    func testPlacingAZoneMakesTheSpotThatTone() async throws {
+    /// A ⌃-pick reads the area. Placing it on a zone moves Zone Shift, as one
+    /// undo step, ends the reading, and it then prints there: at the zone's
+    /// start, or with ⇧ its middle.
+    func testAReadingPlacedOnAZonePrintsThere() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        try await place(5, on: model)
-        XCTAssertEqual(try lstar(model), ZoneScale.zones[5].target, accuracy: 1.5)
-        XCTAssertEqual(model.selectedPin, 0)
-        XCTAssertEqual(model.pinsToShow.first?.zone, 5)
+        let undo = UndoManager()
+        model.undoManager = undo
+        let area = (CGPoint(x: 0.48, y: 0.45), CGPoint(x: 0.52, y: 0.55))
+        func read() async throws -> ZoneReading {
+            model.pickZone(from: area.0, to: area.1)
+            try await waitUntil { model.canPlaceZone }
+            return try XCTUnwrap(model.zoneReading)
+        }
+        func settles(at target: Double) async throws {
+            try await waitUntil { model.previewCurrent }
+            let reading = try await read()
+            XCTAssertEqual(try XCTUnwrap(reading.printed), target, accuracy: 1)
+            XCTAssertEqual(try lstar(model), target, accuracy: 3)
+        }
+        let first = try await read()
+        XCTAssertEqual(try XCTUnwrap(first.printed), try lstar(model), accuracy: 3)
+        XCTAssertEqual(first.toStart.count, ZoneScale.zones.count)
+        XCTAssertLessThan(first.toStart[3], first.toStart[6], "A lighter zone takes more light")
+
+        model.placeReading(onZone: 6, centre: true)
+        XCTAssertEqual(undo.undoActionName, "Place on Zone VI")
+        XCTAssertNil(model.zoneReading, "Placed, the reading is done")
+        XCTAssertFalse(model.canPlaceZone)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, EditorModel.snap(first.toMiddle[6], to: EditorModel.zoneShiftRange, step: 0.01))
+        try await settles(at: ZoneScale.zones[6].target)
+        model.placeReading(onZone: 3, centre: false)
+        try await settles(at: ZoneScale.zones[3].start)
+        model.clearZoneReading()
+        undo.undo()
+        try await settles(at: ZoneScale.zones[6].target)
     }
 
-    /// Zone 0 on a lighter tone prints it in the middle of the zone's band, like
-    /// any other, with what's under it still darker rather than clipped.
-    func testZoneZeroPrintsInTheMiddleOfItsBand() async throws {
-        let model = try await makeModel()
+    /// The print's exposure compensation makes up for camera exposure, not for Zone Shift.
+    func testZoneShiftIsNotMadeUpForByThePrint() async throws {
+        let model = try await makeModel(compensation: true)
         defer { model.shutdown() }
-        let (spot, above) = (try lstar(model), try lstar(model, at: light))
-        XCTAssertGreaterThan(spot, 10)
-        try await place(0, on: model)
-        XCTAssertEqual(try lstar(model), ZoneScale.zones[0].target, accuracy: 1.5)
-        XCTAssertLessThanOrEqual(try lstar(model, at: dark), try lstar(model))
-        let raised = try lstar(model, at: light)
-        XCTAssertGreaterThan(raised, 1)
-        XCTAssertLessThan(raised, above)
+        model.pickZone(from: CGPoint(x: 0.45, y: 0.45), to: CGPoint(x: 0.55, y: 0.55))
+        try await waitUntil { model.canPlaceZone }
+        let before = try XCTUnwrap(model.zoneReading?.printed)
+        model.set(EditorModel.zoneShiftPath, .number(1))
+        try await waitUntil { model.previewCurrent && (model.zoneReading?.printed ?? before) > before + 5 }
     }
 
-    /// A second zone recalculates the curve from the tones before any pin, and
-    /// the first still lands.
-    func testASecondPinRecalculatesFromTheOriginalTones() async throws {
+    /// Esc and another photograph clear the reading, and without one the zone
+    /// keys and clicks do nothing.
+    func testAReadingGoesWithThePhotograph() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        let untouched = try lstar(model, at: light)
-        try await place(4, on: model)
-        try await place(7, at: light, on: model)
-        XCTAssertEqual(model.pins[1].input, untouched, accuracy: 1)
-        XCTAssertEqual(try lstar(model), ZoneScale.zones[4].target, accuracy: 1.5)
-        XCTAssertEqual(try lstar(model, at: light), ZoneScale.zones[7].target, accuracy: 1.5)
-    }
-
-    /// Dragging a zone again adds a pin, and the average of a zone's readings
-    /// prints as the zone.
-    func testPinsOnAZoneAverageTheirReadings() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let target = ZoneScale.zones[5].target
-        try await place(5, at: dark, on: model)
-        try await place(5, at: light, on: model)
-        XCTAssertEqual(model.pins.count, 2)
-        XCTAssertEqual(model.selectedPin, 1)
-        XCTAssertEqual(model.pinsToShow.map(\.zone), [5, 5])
-        XCTAssertEqual(model.pinsToShow.map(\.ignored), [false, false])
-        // The ramp's two spots straddle the average, which prints as the zone.
-        XCTAssertLessThan(try lstar(model, at: dark), target - 3)
-        XCTAssertGreaterThan(try lstar(model, at: light), target + 3)
-    }
-
-    /// Removing one of a zone's pins leaves the others averaging.
-    func testRemovingOnePinKeepsTheZonesOthers() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        try await place(5, at: dark, on: model)
-        try await place(5, at: light, on: model)
-        model.removeSelectedPin()
-        try await waitUntil { model.previewCurrent }
-        XCTAssertEqual(model.pins.count, 1)
-        XCTAssertEqual(try lstar(model, at: dark), ZoneScale.zones[5].target, accuracy: 1.5)
-    }
-
-    /// A drop while a render is running waits for it instead of vanishing.
-    func testPlacingDuringARenderWaitsAndLands() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        model.sampleRadius = 0
-        model.set("post.brightness", .number(20))
-        XCTAssertFalse(model.previewCurrent)
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
-        XCTAssertEqual(model.pins.count, 1)
-        try await waitUntil { model.previewCurrent }
-        XCTAssertEqual(try lstar(model), ZoneScale.zones[5].target, accuracy: 1.5)
-    }
-
-    /// A drop still waiting when another photograph opens lands on nothing.
-    func testOpeningAnotherPhotographDropsAWaitingPlacement() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        model.set("post.brightness", .number(20))
-        let waiting = Task { await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5)) }
-        await Task.yield()
+        model.placeReading(onZone: 5, centre: false)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
+        model.pickZone(from: CGPoint(x: 0.5, y: 0.5), to: CGPoint(x: 0.5, y: 0.5))
+        try await waitUntil { model.canPlaceZone }
+        model.clearZoneReading()
+        XCTAssertNil(model.zoneReading)
+        model.pickZone(from: CGPoint(x: 0.5, y: 0.5), to: CGPoint(x: 0.5, y: 0.5))
+        try await waitUntil { model.canPlaceZone }
         model.open(other)
-        await waiting.value
-        try await waitUntil { model.previewCurrent }
-        XCTAssertTrue(model.pins.isEmpty)
-    }
-
-    /// A burst of scrolling is one undo step that measures the new area, and
-    /// undoing restores both.
-    func testResizingIsOneUndoStepAndRemeasures() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let undo = UndoManager()
-        model.undoManager = undo
-        try await place(5, on: model)
-        let before = model.pins[0]
-        let centre = CGPoint(x: 0.2, y: 0.5)
-        await model.movePin(0, to: centre)
-        try await waitUntil { model.previewCurrent }
-        let moved = model.pins[0]
-        for _ in 0..<5 { model.resizeSelectedPin(scrollDelta: 60, precise: true) }
-        let shown = try XCTUnwrap(model.pinsToShow.first).source.radius
-        XCTAssertGreaterThan(shown, 0, "The circle follows the wheel at once")
-        XCTAssertEqual(model.pins[0].source?.radius, 0, "It isn't an edit yet")
-        try await waitUntil { model.pins[0].source?.radius == shown && model.previewCurrent }
-        XCTAssertEqual(undo.undoActionName, "Resize Tone Pin")
-        XCTAssertNotEqual(model.pins[0].input, moved.input, "The wider area averages other tones")
-        XCTAssertEqual(model.sampleRadius, shown, "The next pin starts at this size")
-        undo.undo()
-        try await waitUntil { model.previewCurrent }
-        XCTAssertEqual(model.pins[0].source?.radius, 0)
-        XCTAssertEqual(model.pins[0].input, moved.input)
-        XCTAssertNotEqual(before.source?.centre, moved.source?.centre)
-    }
-
-    func testScrollWithNoSelectionDoesNothing() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        try await place(5, on: model)
-        model.selectPin(nil)
-        model.resizeSelectedPin(scrollDelta: 60, precise: true)
-        XCTAssertEqual(model.pinsToShow.first?.source.radius, 0)
-        XCTAssertEqual(model.sampleRadius, 0)
-    }
-
-    func testUndoingAPlacementClearsTheSelection() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let undo = UndoManager()
-        model.undoManager = undo
-        try await place(5, on: model)
-        XCTAssertEqual(undo.undoActionName, "Place Tone Pin")
-        undo.undo()
-        try await waitUntil { model.previewCurrent }
-        XCTAssertTrue(model.pins.isEmpty)
-        XCTAssertNil(model.selectedPin)
-    }
-
-    func testRemovingAPinIsOneUndoStep() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let undo = UndoManager()
-        model.undoManager = undo
-        try await place(5, on: model)
-        model.removeSelectedPin()
-        try await waitUntil { model.previewCurrent }
-        XCTAssertTrue(model.pins.isEmpty)
-        XCTAssertEqual(undo.undoActionName, "Remove Tone Pin")
-        undo.undo()
-        try await waitUntil { model.previewCurrent }
-        XCTAssertEqual(model.pins.count, 1)
-    }
-
-    /// A pairing the curve can't honour is marked and has no effect, and works
-    /// again once a pin moves out of its way.
-    func testACrossedPinIsMarkedIgnoredAndRecovers() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        try await place(6, at: dark, on: model)
-        try await place(3, at: light, on: model)
-        XCTAssertEqual(model.pinsToShow.map(\.ignored), [false, true])
-        XCTAssertEqual(model.pins.count, 2, "It's never removed automatically")
-        await model.movePin(0, to: CGPoint(x: 0.9, y: 0.5))
-        try await waitUntil { model.previewCurrent }
-        XCTAssertEqual(model.pinsToShow.map(\.ignored), [false, false])
-        XCTAssertEqual(try lstar(model, at: light), ZoneScale.zones[3].target, accuracy: 1.5)
-    }
-
-    /// Tab hides the pins and lines, not what they do, and the panel stays.
-    func testHidingPinsKeepsThePanelAndTheEffect() async throws {
-        let model = try await makeModel()
-        let saved = UserDefaults.standard.object(forKey: "showTonePins")
-        defer {
-            model.shutdown()
-            UserDefaults.standard.set(saved, forKey: "showTonePins")
-        }
-        try await place(5, on: model)
-        let printed = try lstar(model)
-        model.pinsVisible = false
-        XCTAssertTrue(model.pinsToShow.isEmpty)
-        XCTAssertNil(model.selectedPin)
-        XCTAssertFalse(model.showsZonePanel, "The zones go with them")
-        XCTAssertEqual(model.pins.count, 1)
-        XCTAssertTrue(model.previewCurrent, "Hiding doesn't develop again")
-        XCTAssertEqual(try lstar(model), printed)
-        model.pinsVisible = true
-        XCTAssertEqual(model.pinsToShow.count, 1)
-        XCTAssertTrue(model.showsZonePanel)
-    }
-
-    /// A zone dropped while the pins are hidden brings them back, so the new
-    /// pin can be seen and sized.
-    func testDroppingAZoneShowsThePins() async throws {
-        let model = try await makeModel()
-        let saved = UserDefaults.standard.object(forKey: "showTonePins")
-        defer {
-            model.shutdown()
-            UserDefaults.standard.set(saved, forKey: "showTonePins")
-        }
-        model.pinsVisible = false
-        XCTAssertTrue(model.canPlaceZones)
-        try await place(5, on: model)
-        XCTAssertTrue(model.pinsVisible)
-        XCTAssertEqual(model.pinsToShow.first?.selected, true)
-    }
-
-    func testThePanelIsHiddenWhileCropping() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        XCTAssertTrue(model.showsZonePanel)
-        XCTAssertTrue(model.canPlaceZones)
-        model.beginCrop()
-        XCTAssertFalse(model.showsZonePanel)
-        XCTAssertFalse(model.canPlaceZones)
+        XCTAssertNil(model.zoneReading)
+        XCTAssertFalse(model.canPlaceZone)
     }
 
     /// Through a real window: the proof is the export's size whatever happens,
@@ -699,9 +472,9 @@ extension ZoneModelTests {
         XCTAssertEqual(canvas.bounds.height, height + FilmRollLayout.defaultStripHeight, accuracy: 1, "Hidden, the canvas takes its room")
     }
 
-    /// Real clicks: a single click opens nothing, and neither does double-clicking
-    /// the film around a frame. Double-clicking the photograph does.
-    func testOnlyADoubleClickOnThePhotographOpensIt() async throws {
+    /// Real clicks: one click on a photograph opens it, but clicking the film
+    /// around a frame or pointing at one doesn't.
+    func testOneClickOnThePhotographOpensIt() async throws {
         let model = try await makeModel()
         let saved = model.filmstripVisible
         defer { model.filmstripVisible = saved; model.shutdown() }
@@ -721,17 +494,13 @@ extension ZoneModelTests {
             }
             try await Task.sleep(for: .milliseconds(200))
         }
-        try await click(photo, times: 1)
-        XCTAssertEqual(model.source, ramp, "One click doesn't")
-        try await Task.sleep(for: .milliseconds(500))
-        try await click(gap, times: 2)
+        try await click(gap, times: 1)
         XCTAssertEqual(model.source, ramp, "The black around it doesn't")
         try send(.mouseMoved, photo, to: window)
         try await Task.sleep(for: .milliseconds(150))
         XCTAssertEqual(model.source, ramp, "Pointing at it doesn't")
-        try await Task.sleep(for: .milliseconds(500))
-        try await click(photo, times: 2)
-        XCTAssertEqual(model.source, other, "A double-click on the photograph does")
+        try await click(photo, times: 1)
+        XCTAssertEqual(model.source, other, "One click on the photograph does")
     }
 
     /// Real drags on the strip's top edge: it grows and shrinks within its limits,
@@ -882,7 +651,7 @@ extension ZoneModelTests {
     }
 
     /// ⌘D makes the current settings what the folder's unedited photographs open
-    /// with, without pins or crop. It's a snapshot, and it's remembered.
+    /// with, without Zone Shift or crop. It's a snapshot, and it's remembered.
     func testSettingTheFoldersDefault() async throws {
         let model = try await makeModel()
         let third = directory.appendingPathComponent("third.png")
@@ -902,12 +671,12 @@ extension ZoneModelTests {
         model.open(ramp)
         model.set("post.contrast", .number(contrast + 40))
         model.chooseFilm("kodak_ektar_100")
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
+        model.set(EditorModel.zoneShiftPath, .number(1))
         model.setFolderDefault()
         model.open(third)
         XCTAssertEqual(model.value("post.contrast").double, contrast + 40, "It opens with the default")
         XCTAssertEqual(model.film, "kodak_ektar_100")
-        XCTAssertTrue(model.pins.isEmpty, "Pins belong to their own photograph")
+XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0, "Zone Shift belongs to its own photograph")
         model.open(other)
         XCTAssertEqual(model.value("post.contrast").double, contrast + 10, "Its own edits win")
         // A later edit doesn't move the default, until it's set again.
@@ -927,120 +696,23 @@ extension ZoneModelTests {
         XCTAssertEqual(reopened.value("post.contrast").double, contrast + 40)
     }
 
-    /// Pins are points on the curve. Editing one takes its zone's pins off the
-    /// photograph, in one undo, leaving a plain point; points stop at their neighbours.
-    func testTheToneCurveEditsPinsAsPoints() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let undo = UndoManager()
-        model.undoManager = undo
-        // What a person does comes in separate events, each its own undo.
-        func nextEvent() { RunLoop.main.run(until: Date().addingTimeInterval(0.01)) }
-        await model.placeZone(5, at: CGPoint(x: 0.3, y: 0.5))
-        await model.placeZone(5, at: CGPoint(x: 0.7, y: 0.5))
-        await model.placeZone(7, at: CGPoint(x: 0.9, y: 0.5))
-        XCTAssertEqual(model.curvePoints.map(\.target), [50, 70], "A zone's pins are one point")
-        XCTAssertEqual(model.curvePoints[0].anchors.count, 2)
-        XCTAssertTrue(model.curvePoints.allSatisfy(\.pinned))
-        nextEvent()
-        let before = model.state
-        let zone5 = model.curvePoints[0]
-        let upper = model.curvePoints[1]
-        model.beginInteraction()
-        var held = model.moveCurvePoint(zone5.anchors, input: zone5.input, target: 55)
-        held = model.moveCurvePoint(held, input: zone5.input, target: 200)
-        model.endInteraction(action: "Edit Tone Curve")
-        nextEvent()
-        XCTAssertEqual(model.pins.count, 2)
-        XCTAssertEqual(model.pinsToShow.count, 1, "Only zone 7 is left on the photograph")
-        XCTAssertEqual(model.placedZones, [7], "Zone 5's marker goes with its pins")
-        XCTAssertNil(model.selectedZone, "A curve point selects no zone")
-        let moved = try XCTUnwrap(model.curvePoints.first)
-        XCTAssertFalse(moved.pinned)
-        XCTAssertEqual(moved.target, upper.target - 0.5, "It stops at its neighbour")
-        undo.undo()
-        XCTAssertEqual(model.state, before, "One undo brings both pins back")
-        XCTAssertEqual(model.placedZones, [5, 7])
-        // Added and removed.
-        let added = model.addCurvePoint(input: 5, target: 3)
-        XCTAssertEqual(model.curvePoints.first?.input, 5)
-        model.removeCurvePoint(added)
-        XCTAssertEqual(model.state, before)
-        // Copied to another photograph, the points are plain.
-        model.copyToneCurve()
-        XCTAssertTrue(model.canPasteToneCurve)
-        model.open(other)
-        model.pasteToneCurve()
-        XCTAssertEqual(model.curvePoints.map(\.target), [50, 70])
-        XCTAssertFalse(model.curvePoints.contains(where: \.pinned))
-        XCTAssertTrue(model.pinsToShow.isEmpty)
-        // Reset takes it all off, undoably.
-        nextEvent()
-        let pasted = model.state
-        model.resetToneCurve()
-        nextEvent()
-        XCTAssertTrue(model.pins.isEmpty)
-        undo.undo()
-        XCTAssertEqual(model.state, pasted)
-    }
-
-    /// Real mouse events, in the sidebar's Form: a click adds a point and holds
-    /// it for the drag, and letting go outside the box takes it off.
-    func testTheToneCurveBoxTakesTheMouse() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        let host = NSHostingView(rootView: Form { Section("Tone") { ToneCurveBox(model: model) } }.formStyle(.grouped))
-        let window = NSWindow(contentRect: NSRect(x: 80, y: 80, width: 400, height: 420), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.contentView = host
-        window.makeKeyAndOrderFront(nil)
-        defer { window.orderOut(nil) }
-        try await Task.sleep(for: .milliseconds(400))
-        func send(_ type: NSEvent.EventType, _ point: CGPoint) throws {
-            window.sendEvent(try XCTUnwrap(NSEvent.mouseEvent(
-                with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-                windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)))
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        }
-        // About the middle of the box, which is at the top of the page.
-        let start = CGPoint(x: 200, y: 420 - 130)
-        try send(.leftMouseDown, start)
-        XCTAssertEqual(model.curvePoints.count, 1, "The click adds one")
-        let first = try XCTUnwrap(model.curvePoints.first)
-        try send(.leftMouseDragged, CGPoint(x: start.x + 30, y: start.y + 30))
-        try send(.leftMouseUp, CGPoint(x: start.x + 30, y: start.y + 30))
-        let moved = try XCTUnwrap(model.curvePoints.first)
-        XCTAssertEqual(model.curvePoints.count, 1)
-        XCTAssertGreaterThan(moved.input, first.input)
-        XCTAssertGreaterThan(moved.target, first.target)
-        // Grabbed again by its handle, and dragged well out of the box.
-        let handle = CGPoint(x: start.x + 30, y: start.y + 30)
-        try send(.leftMouseDown, handle)
-        XCTAssertEqual(model.curvePoints.count, 1, "It takes hold rather than adding another")
-        try send(.leftMouseDragged, CGPoint(x: handle.x, y: 10))
-        try send(.leftMouseUp, CGPoint(x: handle.x, y: 10))
-        XCTAssertTrue(model.curvePoints.isEmpty)
-    }
-
-    /// A whole edit goes across, except what's particular to the photograph.
-    func testCopyingAnEditLeavesPinsAndCropBehind() async throws {
+    func testCopyingAnEditLeavesZoneShiftAndCropBehind() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
         let contrast = model.defaultValue("post.contrast").double
         model.set("post.contrast", .number(contrast + 30))
         model.chooseFilm("kodak_ektar_100")
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
+        model.set(EditorModel.zoneShiftPath, .number(1.5))
         model.set("io.rotate_cw", .number(1))
         model.copyEdit()
         XCTAssertTrue(model.canPasteEdit)
         model.open(other)
-        await model.placeZone(3, at: CGPoint(x: 0.5, y: 0.5))
+        model.set(EditorModel.zoneShiftPath, .number(-0.5))
         model.set(ImageSize.targetPath, .number(1234))
-        let pins = model.pins
         model.pasteEdit()
         XCTAssertEqual(model.value("post.contrast").double, contrast + 30)
         XCTAssertEqual(model.film, "kodak_ektar_100")
-        XCTAssertEqual(model.pins, pins, "Its own pins")
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, -0.5, "Its own Zone Shift")
         XCTAssertEqual(model.value("io.rotate_cw").double, 0, "Its own rotation")
         XCTAssertEqual(model.value(ImageSize.targetPath).double, 1234)
     }
@@ -1086,57 +758,10 @@ extension ZoneModelTests {
         XCTAssertEqual(model.source, other)
     }
 
-    /// In the window, the panel draws flush along the landscape photograph's top
-    /// and exactly as wide, with black at its left.
-    func testTheZonePanelSitsOnThePhotograph() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        model.set(ImageSize.targetPath, .number(1000))
-        try await waitUntil { model.previewCurrent }
-        let (controller, window, _) = try await openRoll(model)
-        defer { window.orderOut(nil) }
-        _ = controller
-        func all(_ v: NSView) -> [NSView] { [v] + v.subviews.flatMap(all) }
-        let content = try XCTUnwrap(window.contentView)
-        let canvas = try XCTUnwrap(all(content).compactMap { $0 as? ImageScrollView }.first)
-        let photo = try XCTUnwrap(canvas.documentView as? PhotographView)
-        let rect = canvas.overlay.convert(photo.bounds, from: photo)
-        let placement = try XCTUnwrap(model.zonePlacement)
-        XCTAssertTrue(placement.horizontal)
-        XCTAssertEqual(placement.frame.maxY, canvas.overlay.bounds.height - rect.maxY, accuracy: 0.5, "Flush with its top")
-        XCTAssertEqual(placement.frame.minX, max(rect.minX, 0), accuracy: 0.5)
-        XCTAssertEqual(placement.frame.maxX, min(rect.maxX, canvas.bounds.width), accuracy: 0.5, "As wide")
-        let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
-        content.cacheDisplay(in: content.bounds, to: bitmap)
-        func grey(_ canvasPoint: CGPoint) throws -> CGFloat {
-            let inWindow = canvas.convert(CGPoint(x: canvasPoint.x, y: canvasPoint.y), to: content)
-            let scale = CGFloat(bitmap.pixelsWide) / content.bounds.width
-            let y = content.isFlipped ? inWindow.y : content.bounds.height - inWindow.y
-            return try XCTUnwrap(bitmap.colorAt(x: Int(inWindow.x * scale), y: Int(y * scale))?.usingColorSpace(.sRGB)).redComponent
-        }
-        let tile = placement.frame.width / 11
-        func at(_ zone: CGFloat) -> CGPoint { CGPoint(x: placement.frame.minX + tile * (zone + 0.15), y: placement.frame.midY) }
-        XCTAssertLessThan(try grey(at(0)), 0.15, "Zone 0's tile")
-        XCTAssertGreaterThan(try grey(at(10)), 0.85, "Zone 10's tile")
-        // A real drag from a tile onto the photograph places a pin of that zone.
-        let from = canvas.convert(CGPoint(x: at(5).x + tile * 0.35, y: at(5).y), to: nil)
-        let to = canvas.convert(CGPoint(x: rect.midX, y: canvas.overlay.bounds.height - rect.midY), to: nil)
-        try send(.leftMouseDown, from, to: window)
-        try await Task.sleep(for: .milliseconds(50))
-        try send(.leftMouseDragged, CGPoint(x: (from.x + to.x) / 2, y: (from.y + to.y) / 2), to: window)
-        try await Task.sleep(for: .milliseconds(50))
-        try send(.leftMouseDragged, to, to: window)
-        try await Task.sleep(for: .milliseconds(50))
-        try send(.leftMouseUp, to, to: window)
-        try await waitUntil { !model.pins.isEmpty }
-        XCTAssertEqual(model.pins.first?.zone, 5)
-    }
-
     /// F leaves only the photograph, then brings back exactly what was showing.
     func testImageOnlyHidesEverythingAndComesBack() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        await model.placeZone(5, at: CGPoint(x: 0.5, y: 0.5))
         let (controller, window, roll) = try await openRoll(model)
         defer { window.orderOut(nil) }
         _ = controller
@@ -1145,13 +770,10 @@ extension ZoneModelTests {
         let split = try XCTUnwrap(window.contentViewController as? NSSplitViewController)
         let sidebar = try XCTUnwrap(split.splitViewItems.last)
         XCTAssertFalse(sidebar.isCollapsed)
-        XCTAssertFalse(model.pinsToShow.isEmpty)
         XCTAssertNotNil(roll.window)
         model.toggleImageOnly()
         try await Task.sleep(for: .milliseconds(400))
         XCTAssertTrue(model.imageOnly)
-        XCTAssertFalse(model.showsZonePanel)
-        XCTAssertTrue(model.pinsToShow.isEmpty)
         XCTAssertTrue(sidebar.isCollapsed)
         XCTAssertTrue(model.inspectorVisible, "Collapsing it for F isn't hiding it")
         XCTAssertNil(roll.window, "The strip's gone")
@@ -1166,8 +788,6 @@ extension ZoneModelTests {
         try await Task.sleep(for: .milliseconds(400))
         XCTAssertFalse(model.imageOnly)
         XCTAssertFalse(sidebar.isCollapsed)
-        XCTAssertTrue(model.showsZonePanel)
-        XCTAssertFalse(model.pinsToShow.isEmpty)
         XCTAssertEqual(window.standardWindowButton(.closeButton)?.isHidden, false)
         XCTAssertEqual(window.titleVisibility, .visible)
     }
@@ -1208,7 +828,6 @@ extension ZoneModelTests {
         model.toggleGrid()
         XCTAssertTrue(model.gridVisible)
         XCTAssertNotNil(model.rollDeveloper)
-        XCTAssertFalse(model.showsZonePanel)
         model.toggleGrid()
         XCTAssertFalse(model.gridVisible)
         XCTAssertNotNil(model.rollDeveloper, "It stays, so coming back doesn't start over")
@@ -1281,7 +900,8 @@ extension ZoneModelTests {
     }
 
     /// In a real window: four photographs across, each developing with its own
-    /// edit. One click does nothing; a double-click opens that photograph to edit.
+    /// edit. One click selects a photograph for the panel to edit, behind the grid; a
+    /// double-click opens it.
     func testTheGridOpensAPhotographOnADoubleClick() async throws {
         let model = try await makeModel()
         let saved = model.filmstripVisible
@@ -1308,12 +928,13 @@ extension ZoneModelTests {
         // The third photograph of the first row: other, ramp, z0.
         let top = document.convert(document.bounds, to: nil).maxY
         let point = CGPoint(x: bounds.minX + PhotoGridLayout.margin + (width + PhotoGridLayout.columnGap) * 2 + width / 2,
-                            y: top - PhotoGridLayout.margin - PhotoGridLayout.lineHeight - PhotoGridLayout.lineGap - PhotoGridLayout.boxHeight(cellWidth: width) / 2)
+                            y: top - PhotoGridLayout.margin - PhotoGridLayout.boxHeight(cellWidth: width) / 2)
         try send(.leftMouseDown, point, to: window, clicks: 1)
         try send(.leftMouseUp, point, to: window, clicks: 1)
         try await Task.sleep(for: .milliseconds(300))
-        XCTAssertTrue(model.gridVisible, "One click doesn't")
-        XCTAssertEqual(model.source, ramp)
+        XCTAssertTrue(model.gridVisible, "One click stays in the grid")
+        XCTAssertEqual(model.source, directory.appendingPathComponent("z0.png"), "It's the one the panel edits")
+        XCTAssertEqual(model.gridSelection, [directory.appendingPathComponent("z0.png")])
         for clicks in 1...2 {
             try send(.leftMouseDown, point, to: window, clicks: clicks)
             try send(.leftMouseUp, point, to: window, clicks: clicks)
@@ -1323,6 +944,108 @@ extension ZoneModelTests {
         try await waitUntil { model.previewCurrent }
         try await Task.sleep(for: .milliseconds(300))
         XCTAssertTrue(all(try XCTUnwrap(window.contentView)).contains { $0 is ImageScrollView }, "The photograph is back")
+    }
+
+    /// A developed photograph has its tones on the zone chart, and keeps them
+    /// when an edit leaves the tones exactly as they were.
+    func testTheZoneChartFollowsTheHistogram() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        try await waitUntil { model.previewCurrent }
+        try await waitUntil { model.histogram != nil }
+        let chart = try XCTUnwrap(model.zoneChart)
+        XCTAssertEqual(chart.shares.reduce(0, +), 1, accuracy: 1e-6)
+        XCTAssertGreaterThan(chart.luminance.reduce(0, +), 0)
+        // Developing the same tones again, as an edit that changes nothing visible does.
+        model.set("post.saturation", .number(0))
+        model.set("io.rotate_cw", .number(1))
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertNotNil(model.zoneChart)
+        model.open(other)
+        try await waitUntil { model.previewCurrent && model.histogram != nil }
+        XCTAssertNotNil(model.zoneChart, "A new photograph's")
+        model.open(ramp)
+        try await waitUntil { model.previewCurrent && model.histogram != nil }
+        XCTAssertNotNil(model.zoneChart, "Going back to one, from its cached frame")
+    }
+
+    /// The whole window, for looking at, when snapshots are asked for.
+    func testSnapshotsOfTheWindow() async throws {
+        guard let folder = ProcessInfo.processInfo.environment["NEGS_INSPECTOR_LAYOUT_SNAPSHOTS"] else { throw XCTSkip("Only for snapshots") }
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        model.showPane(.adjustments)
+        let (_, window, _) = try await openRoll(model, photos: 10)
+        defer { window.orderOut(nil) }
+        window.setContentSize(NSSize(width: 1440, height: 860))
+        func snap(_ name: String) throws {
+            let content = try XCTUnwrap(window.contentView?.superview ?? window.contentView)
+            let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+            content.cacheDisplay(in: content.bounds, to: bitmap)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: folder).appendingPathComponent("window-\(name).png"))
+        }
+        model.pickZone(from: CGPoint(x: 0.55, y: 0.4), to: CGPoint(x: 0.65, y: 0.6))
+        try await waitUntil({ model.canPlaceZone }, timeout: 30)
+        try await Task.sleep(for: .milliseconds(800))
+        try snap("zones")
+        model.toggleGrid()
+        try await waitUntil({ (model.rollDeveloper?.finished ?? 0) >= 10 }, timeout: 30)
+        model.clickInGrid(directory.appendingPathComponent("z0.png"), adding: true)
+        model.clickInGrid(directory.appendingPathComponent("z1.png"), adding: true)
+        try await Task.sleep(for: .milliseconds(800))
+        try snap("grid")
+        model.toggleGrid()
+    }
+
+    /// With several photographs selected in the grid, an edit reaches them all,
+    /// each keeping its own look otherwise. Pins stay on the photograph they're on.
+    func testAnEditReachesEveryPhotographSelectedInTheGrid() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let (_, window, _) = try await openRoll(model, photos: 3)
+        defer { window.orderOut(nil) }
+        let (first, second) = (directory.appendingPathComponent("z0.png"), directory.appendingPathComponent("z1.png"))
+        // The second already has an edit of its own, which it should keep.
+        var own = EditState(); own.film = model.state.film; own.paper = model.state.paper; own.params = model.state.params
+        own.params["post.whites"] = .number(30)
+        _ = try PhotoSettingsFile(image: second.lastPathComponent, state: own).write(beside: second)
+        model.toggleGrid()
+        model.clickInGrid(first, adding: true)
+        model.clickInGrid(second, adding: true)
+        XCTAssertEqual(model.gridSelection, [ramp, first, second])
+        model.set("post.blacks", .number(-24))
+        model.set(EditorModel.zoneShiftPath, .number(1))
+        model.toggleGrid()
+        XCTAssertEqual(model.gridSelection, [ramp], "Leaving the grid ends the selection")
+        let carried = try XCTUnwrap(PhotoSettingsFile.read(beside: first)).state
+        XCTAssertEqual(carried.params["post.blacks"], .number(-24))
+        XCTAssertNotEqual(carried.params[EditorModel.zoneShiftPath], .number(1), "Zone Shift stays behind")
+        let kept = try XCTUnwrap(PhotoSettingsFile.read(beside: second)).state
+        XCTAssertEqual(kept.params["post.blacks"], .number(-24))
+        XCTAssertEqual(kept.params["post.whites"], .number(30), "Its own edit stays")
+    }
+
+    /// A plain click narrows the selection back to one, and ⌘-clicking the open
+    /// photograph hands the panel to another.
+    func testClicksInTheGridChangeTheSelection() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        let (_, window, _) = try await openRoll(model, photos: 3)
+        defer { window.orderOut(nil) }
+        let (first, second) = (directory.appendingPathComponent("z0.png"), directory.appendingPathComponent("z1.png"))
+        model.toggleGrid()
+        model.clickInGrid(first, adding: true)
+        model.clickInGrid(first, adding: true)
+        XCTAssertEqual(model.gridSelection, [ramp], "⌘-clicking again takes it out")
+        model.clickInGrid(first, adding: true)
+        model.clickInGrid(ramp, adding: true)
+        XCTAssertEqual(model.source, first)
+        XCTAssertEqual(model.gridSelection, [first])
+        model.clickInGrid(second, adding: true)
+        model.clickInGrid(second, adding: false)
+        XCTAssertEqual(model.source, second)
+        XCTAssertEqual(model.gridSelection, [second])
+        model.toggleGrid()
     }
 
     /// Going back to a photograph shows its developed frame at once, with no gap
@@ -1376,6 +1099,8 @@ extension ZoneModelTests {
         XCTAssertTrue(second.image != nil || second.placeholder != nil, "Never blank: the last photograph holds until this one's read")
         try await waitUntil({ second.image != nil }, timeout: 5)
         XCTAssertTrue(second.showingCachedPreview, "From the disk, not a new develop")
+        XCTAssertNotNil(second.histogram, "With its tones")
+        XCTAssertNotNil(second.zoneChart, "On the zone chart too, however the histogram arrived")
     }
 
     /// The status bar's caption in full screen names the photograph and its stock.
@@ -1423,8 +1148,8 @@ extension ZoneModelTests {
         for index in 11...19 { XCTAssertNotNil(developer.frames[files[index].url], "\(index)") }
         XCTAssertNil(developer.frames[files[0].url])
         // The grid looks further, and only that much further.
-        developer.reach = 6
-        try await waitUntil({ developer.developedCount == 13 && !developer.isDeveloping }, timeout: 30)
+        developer.reach = RollDeveloper.openReach + 2
+        try await waitUntil({ developer.developedCount == (RollDeveloper.openReach + 2) * 2 + 1 && !developer.isDeveloping }, timeout: 30)
     }
 
     /// A file that can't develop is tried once, not over and over.
@@ -1705,29 +1430,17 @@ extension ZoneModelTests {
         }
     }
 
-    /// Pins from before zones held their own tone: each takes the zone its
-    /// target falls in.
-    func testSavedHoldingPinsTakeTheZoneTheirTargetFallsIn() async throws {
+    /// The menu command saves the photograph's edit, Zone Shift included, beside it.
+    func testSavingSettingsWritesTheEditBesideThePhotograph() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        model.set("post.tone_anchors", .array([.object([
-            "input": .number(30), "target": .number(30),
-            "source": .object(["x": .number(0.5), "y": .number(0.5), "radius": .number(0)])
-        ])]))
-        XCTAssertEqual(model.pinsToShow.first?.zone, ZoneScale.zone(forTarget: 30))
-    }
-
-    /// The menu command saves the photograph's edit, pins included, beside it.
-    func testSavingSettingsWritesThePinsBesideThePhotograph() async throws {
-        let model = try await makeModel()
-        defer { model.shutdown() }
-        try await place(5, on: model)
+        model.set(EditorModel.zoneShiftPath, .number(0.75))
         model.saveSettings()
         let file = directory.appendingPathComponent("ramp.json")
         let saved = try JSONDecoder().decode(PhotoSettingsFile.self, from: Data(contentsOf: file))
         XCTAssertEqual(saved.image, "ramp.png")
         XCTAssertEqual(saved.state, model.state)
-        XCTAssertEqual(saved.state.params["post.tone_anchors"].array.count, 1)
+        XCTAssertEqual(saved.state.params[EditorModel.zoneShiftPath].double, 0.75)
         XCTAssertEqual(model.status, "Saved ramp.json")
     }
 
@@ -1735,10 +1448,7 @@ extension ZoneModelTests {
     private func saved(on model: EditorModel, film: String? = nil, name: String = "other.json", image: String = "other.png") throws -> EditState {
         var state = model.state
         state.params["post.contrast"] = .number(33)
-        state.params["post.tone_anchors"] = .array([.object([
-            "input": .number(30), "target": .number(50),
-            "source": .object(["x": .number(0.5), "y": .number(0.5), "radius": .number(0.04)])
-        ])])
+        state.params[EditorModel.zoneShiftPath] = .number(0.5)
         state.crop = CropSettings(rect: CGRect(x: 0.1, y: 0.1, width: 0.5, height: 0.5))
         if let film { state.film = film }
         let data = try JSONEncoder().encode(PhotoSettingsFile(image: image, state: state))
@@ -1752,8 +1462,7 @@ extension ZoneModelTests {
         _ = try saved(on: model)
         model.open(other)
         XCTAssertEqual(model.value("post.contrast").double, 33)
-        XCTAssertEqual(model.pins.count, 1)
-        XCTAssertEqual(model.pins[0].zone, 5)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0.5)
         XCTAssertEqual(model.state.crop.rect.width, 0.5, accuracy: 1e-9)
         XCTAssertNil(model.error)
         try await waitUntil { model.previewCurrent }
@@ -1764,20 +1473,20 @@ extension ZoneModelTests {
         defer { model.shutdown() }
         _ = try saved(on: model, name: "other.png.json")
         model.open(other)
-        XCTAssertEqual(model.pins.count, 1)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0.5)
     }
 
     /// What a save writes, an open reads back unchanged.
     func testSavingThenReopeningRestoresTheEdit() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        try await place(5, on: model)
+        model.set(EditorModel.zoneShiftPath, .number(0.75))
         model.set("post.contrast", .number(12))
         model.saveSettings()
         let edited = model.state
         model.open(other)
         try await waitUntil { model.previewCurrent }
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         model.open(ramp)
         XCTAssertEqual(model.state, edited)
         try await waitUntil { model.previewCurrent }
@@ -1788,7 +1497,7 @@ extension ZoneModelTests {
         defer { model.shutdown() }
         _ = try saved(on: model, image: "other.nef")
         model.open(other)
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         XCTAssertNil(model.error)
     }
 
@@ -1797,7 +1506,7 @@ extension ZoneModelTests {
         defer { model.shutdown() }
         try Data("{\"mine\": true}".utf8).write(to: directory.appendingPathComponent("other.json"))
         model.open(other)
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         XCTAssertNil(model.error)
     }
 
@@ -1808,7 +1517,7 @@ extension ZoneModelTests {
         try Data("{\"negsSettings\": 1, \"image\": \"other.png\", \"state\": 7}".utf8).write(to: directory.appendingPathComponent("other.json"))
         model.open(other)
         XCTAssertEqual(model.source, other)
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         XCTAssertNotNil(model.error)
         model.error = nil
         try await waitUntil { model.previewCurrent }
@@ -1821,7 +1530,7 @@ extension ZoneModelTests {
         model.open(other)
         XCTAssertNotEqual(model.state.film, "no_such_film")
         XCTAssertTrue(model.films.contains { $0.id == model.state.film }, "It opens at the defaults")
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         XCTAssertTrue(try XCTUnwrap(model.error).contains("film"))
     }
 
@@ -1835,32 +1544,48 @@ extension ZoneModelTests {
         model.open(other)
         XCTAssertEqual(undo.undoActionName, "Load Settings")
         undo.undo()
-        XCTAssertTrue(model.pins.isEmpty)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
         XCTAssertNotEqual(model.value("post.contrast").double, 33)
         try await waitUntil { model.previewCurrent }
     }
 
-    /// A new photograph starts with no pins: they describe the tones of the
-    /// file they were measured on.
-    func testANewPhotographKeepsNoPins() async throws {
+    func testANewPhotographStartsWithoutZoneShift() async throws {
         let model = try await makeModel()
         defer { model.shutdown() }
-        try await place(5, on: model)
+        model.set(EditorModel.zoneShiftPath, .number(1))
         model.open(other)
         try await waitUntil { model.previewCurrent }
-        XCTAssertTrue(model.pins.isEmpty)
-        XCTAssertNil(model.selectedPin)
+        XCTAssertEqual(model.value(EditorModel.zoneShiftPath).double, 0)
     }
 
-    /// A saved session keeps its pins: an empty default array takes the saved
-    /// entries, so `post.tone_anchors` comes back whole.
-    func testSavedPinsSurviveRestoration() {
-        let pin = JSONValue.object([
-            "input": .number(49.2), "target": .number(36.35),
-            "source": .object(["x": .number(0.4), "y": .number(0.5), "radius": .number(0.02)])
+    /// An edit from before keeps its plain curve points, but its zone pins and
+    /// the curve they bent the scene with are left behind.
+    func testAnEarlierEditsPinsAreLeftBehind() async throws {
+        let model = try await makeModel()
+        defer { model.shutdown() }
+        var state = model.state
+        state.params["post.tone_anchors"] = .array([
+            .object(["input": .number(30), "target": .number(50),
+                     "source": .object(["x": .number(0.5), "y": .number(0.5), "radius": .number(0.04)])]),
+            .object(["input": .number(80), "target": .number(85)])
         ])
+        state.params[EditorModel.pinsBeforeFilmPath] = .bool(true)
+        state.params[EditorModel.zoneCurvePath] = .array([.array([.number(0), .number(0.5)])])
+        try JSONEncoder().encode(PhotoSettingsFile(image: "other.png", state: state)).write(to: directory.appendingPathComponent("other.json"))
+        model.open(other)
+        XCTAssertEqual(model.state.params["post.tone_anchors"].array, [.object(["input": .number(80), "target": .number(85)])])
+        XCTAssertEqual(model.state.params[EditorModel.zoneCurvePath].array, [])
+        XCTAssertFalse(model.state.params[EditorModel.pinsBeforeFilmPath].bool)
+        try await waitUntil { model.previewCurrent }
+        XCTAssertNil(model.error)
+    }
+
+    /// A saved session keeps its curve points: an empty default array takes
+    /// the saved entries, so `post.tone_anchors` comes back whole.
+    func testSavedCurvePointsSurviveRestoration() {
+        let point = JSONValue.object(["input": .number(49.2), "target": .number(36.35)])
         let defaults = JSONValue.object(["post": .object(["tone_anchors": .array([])])])
-        let saved = JSONValue.object(["post": .object(["tone_anchors": .array([pin])])])
+        let saved = JSONValue.object(["post": .object(["tone_anchors": .array([point])])])
         XCTAssertEqual(defaults.restoring(saved), saved)
     }
 }

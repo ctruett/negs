@@ -1,0 +1,299 @@
+import AppKit
+import SwiftUI
+
+/// The inspector's inks. Full amber means live or changed: the active tab, an
+/// edited value, a switch that's on, the primary action. Everything else stays
+/// in warm tints of it, so edits are what stand out on an untouched panel.
+enum Ink {
+    static let amber = EdgePrint.amber
+    /// What's being read: stock names, module titles, chosen options.
+    static let paper = Color(red: 0.957, green: 0.922, blue: 0.863)
+    /// Control labels.
+    static let label = Color(red: 0.737, green: 0.682, blue: 0.592)
+    /// Values at their default, section heads and captions.
+    static let dim = Color(red: 0.561, green: 0.510, blue: 0.431)
+    static let track = Color(red: 0.216, green: 0.196, blue: 0.165)
+    static let line = Color(red: 0.149, green: 0.133, blue: 0.110)
+    static let well = Color(red: 0.078, green: 0.071, blue: 0.063)
+
+    static let paperColour = NSColor(srgbRed: 0.957, green: 0.922, blue: 0.863, alpha: 1)
+    static let labelColour = NSColor(srgbRed: 0.737, green: 0.682, blue: 0.592, alpha: 1)
+    static let dimColour = NSColor(srgbRed: 0.561, green: 0.510, blue: 0.431, alpha: 1)
+    static let trackColour = NSColor(srgbRed: 0.216, green: 0.196, blue: 0.165, alpha: 1)
+
+    static func print(_ size: CGFloat) -> Font { Font(EdgePrint.font(size: size)) }
+}
+
+/// The inspector's measures.
+enum InkLayout {
+    static let gutter: CGFloat = 16
+    static let rowHeight: CGFloat = 28
+    static let labelWidth: CGFloat = 116
+    static let valueWidth: CGFloat = 40
+    static let resetWidth: CGFloat = 16
+    static let cardGap: CGFloat = 6
+}
+
+/// What's folded in the all-controls column, where a double-click on a
+/// heading folds that part away and another brings it back. Kept across launches.
+struct AllFolds {
+    static let key = "foldedInAllControls"
+    let storage: Binding<String>
+
+    private var keys: [String] { storage.wrappedValue.split(separator: "\n").map(String.init) }
+    func contains(_ key: String) -> Bool { keys.contains(key) }
+    func toggle(_ key: String) {
+        storage.wrappedValue = (contains(key) ? keys.filter { $0 != key } : keys + [key]).joined(separator: "\n")
+    }
+}
+
+/// The mark on a heading folded in the all-controls column.
+struct FoldChevron: View {
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(Ink.dim)
+            .frame(width: 10)
+    }
+}
+
+/// A titled run of rows, with a line under it. `action` sits opposite the title.
+/// In the all-controls column, a double-click on the title folds it.
+struct InkSection<Content: View, Action: View>: View {
+    let title: String?
+    var footer: String?
+    let action: Action
+    let content: Content
+    @Environment(\.inspectorShowsEverything) private var everything
+    @AppStorage(AllFolds.key) private var foldStorage = ""
+    private var folded: Bool { everything && title.map { AllFolds(storage: $foldStorage).contains("section:" + $0) } == true }
+
+    init(_ title: String? = nil, footer: String? = nil, @ViewBuilder action: () -> Action = { EmptyView() }, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.footer = footer
+        self.action = action()
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let title {
+                HStack {
+                    Text(title.uppercased())
+                        .font(Ink.print(13)).tracking(0.9).foregroundStyle(Ink.dim)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 8)
+                    action
+                    if folded { FoldChevron() }
+                }
+                .frame(height: 22)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { if everything { AllFolds(storage: $foldStorage).toggle("section:" + title) } }
+            }
+            if !folded {
+                content
+                if let footer { InkNote(footer) }
+            }
+        }
+        .padding(.horizontal, InkLayout.gutter)
+        .padding(.vertical, 8)
+        .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
+    }
+}
+
+/// A caption under a row.
+struct InkNote: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text).font(.system(size: 11)).foregroundStyle(Ink.dim)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.vertical, 4)
+    }
+}
+
+/// A small, quiet button, like Balance Print and Reset.
+struct InkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 11))
+            .foregroundStyle(configuration.isPressed ? Ink.paper : Ink.label)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Ink.track))
+            .contentShape(Rectangle())
+    }
+}
+
+/// A label with the amber switch opposite it.
+struct InkSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 12) {
+            configuration.label
+            Spacer(minLength: 0)
+            InkSwitch(isOn: configuration.$isOn)
+        }
+        .frame(minHeight: InkLayout.rowHeight)
+    }
+}
+
+/// The switch itself: amber when on, the track colour when off.
+struct InkSwitch: View {
+    @Binding var isOn: Bool
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule().fill(isOn ? Ink.amber : Ink.track)
+                Circle().fill(isOn ? Color.black : Ink.label).padding(2)
+            }
+            .frame(width: 26, height: 14)
+            .opacity(enabled ? 1 : 0.5)
+            .contentShape(Rectangle())
+            .animation(.easeOut(duration: 0.12), value: isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(.isToggle)
+        .accessibilityValue(isOn ? "On" : "Off")
+    }
+}
+
+/// A label with its content opposite, on a row's height.
+struct InkRowStyle: LabeledContentStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 12) {
+            configuration.label
+            Spacer(minLength: 0)
+            configuration.content.foregroundStyle(Ink.paper)
+        }
+        .frame(minHeight: InkLayout.rowHeight)
+    }
+}
+
+/// A pop-up on a row: its title, and the chosen option in paper opposite.
+struct ChoiceRow<Selection: Hashable, Options: View>: View {
+    let title: String
+    let selection: Binding<Selection>
+    let options: Options
+
+    init(_ title: String, selection: Binding<Selection>, @ViewBuilder options: () -> Options) {
+        self.title = title
+        self.selection = selection
+        self.options = options()
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title).lineLimit(1)
+            Spacer(minLength: 0)
+            Picker(title, selection: selection) { options }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .buttonStyle(.borderless)
+                .foregroundStyle(Ink.paper)
+                .tint(Ink.paper)
+                .fixedSize()
+        }
+        .frame(minHeight: InkLayout.rowHeight)
+    }
+}
+
+/// A card for the film or the paper: the stock's name, and which it is.
+struct StockCard: View {
+    let name: String
+    let kind: String
+    var open = false
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(name)
+                    .font(Font(EdgePrint.mediumFont(size: 22))).foregroundStyle(Ink.paper)
+                    .lineLimit(1).truncationMode(.tail)
+                Text(kind).font(.system(size: 11)).foregroundStyle(Ink.dim)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 10, weight: .medium)).foregroundStyle(open ? Ink.amber : Ink.dim)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Ink.well, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(open ? Ink.amber : hovering ? Ink.dim : Ink.track))
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+    }
+}
+
+/// The stock card that opens a menu of the stocks, for when previews are off.
+/// The menu is AppKit's, so the inspector's control styles can't reach its rows.
+struct StockMenuCard: View {
+    let name: String
+    let kind: String
+    let label: String
+    let groups: [StockGroup]
+    let selected: String
+    let choose: (String) -> Void
+    @State private var anchor = MenuAnchor()
+
+    var body: some View {
+        Button {
+            anchor.show(StockMenu.make(groups: groups, selected: selected, choose: choose))
+        } label: {
+            StockCard(name: name, kind: kind)
+        }
+        .buttonStyle(.plain)
+        .background(MenuAnchor.Representable(anchor: anchor))
+        .accessibilityLabel(label)
+        .accessibilityValue(name)
+    }
+}
+
+/// Builds the menu of stocks: a heading for each group and a check on the chosen one.
+enum StockMenu {
+    private final class Action: NSObject {
+        let run: () -> Void
+        init(_ run: @escaping () -> Void) { self.run = run }
+        @objc func chooseStock() { run() }
+    }
+
+    static func make(groups: [StockGroup], selected: String, choose: @escaping (String) -> Void) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        menu.appearance = NSAppearance(named: .darkAqua)
+        for (index, group) in groups.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            menu.addItem(.sectionHeader(title: group.title))
+            for stock in group.stocks {
+                let action = Action { choose(stock.id) }
+                let item = NSMenuItem(title: stock.name, action: #selector(Action.chooseStock), keyEquivalent: "")
+                item.target = action
+                // A menu item only holds its target weakly.
+                item.representedObject = action
+                item.state = stock.id == selected ? .on : .off
+                menu.addItem(item)
+            }
+        }
+        return menu
+    }
+}
+
+/// Where a menu opens: just under the view it's attached to.
+final class MenuAnchor {
+    fileprivate weak var view: NSView?
+
+    func show(_ menu: NSMenu) {
+        guard let view else { return }
+        let y = view.isFlipped ? view.bounds.maxY + 4 : view.bounds.minY - 4
+        menu.popUp(positioning: nil, at: NSPoint(x: view.bounds.minX, y: y), in: view)
+    }
+
+    struct Representable: NSViewRepresentable {
+        let anchor: MenuAnchor
+        func makeNSView(context: Context) -> NSView { NSView() }
+        func updateNSView(_ view: NSView, context: Context) { anchor.view = view }
+    }
+}

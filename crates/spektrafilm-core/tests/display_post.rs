@@ -36,7 +36,7 @@ fn image() -> ImageBuf {
 }
 
 fn post(brightness: f32, contrast: f32, whites: f32, blacks: f32, saturation: f32) -> PostParams {
-    PostParams { brightness, contrast, whites, blacks, saturation, tone_anchors: Vec::new() }
+    PostParams { brightness, contrast, whites, blacks, saturation, tone_anchors: Vec::new(), pins_before_film: false }
 }
 
 #[test]

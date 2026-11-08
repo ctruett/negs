@@ -237,8 +237,13 @@ F shows only the photograph and its camera details: the zones, pins, film strip,
 bar, sidebar and window controls all go, and F again brings back what was showing. It's
 one keystroke either way, so the grid and cropping keep their own controls.
 
+The film and paper sit under the histogram, above the tabs, so they can be changed from any
+of them. Scan film directly stays on Film; while it's on, the paper card dims. With previews on, a
+card opens its grid in a popover beside the sidebar; with them off, a menu.
+
+View › All Controls runs every stage down one column with nothing folded, dimming what's off.
 Settings › Inspector or F4 chooses Advanced, the six workflow tabs and the default, or
-Simple, which replaces the tabs with one page: film, paper and print exposure; a RAW
+Simple, which replaces the tabs with one page: print exposure; a RAW
 file's white balance; the five tone sliders; Midtone Detail and the unsharp mask; Image Size; file format and
 bit depth; and the Export button. Simple reuses Advanced's controls and ranges and
 changes only what shows, so anything set in Advanced still applies, and Reset
@@ -248,18 +253,51 @@ JPEG inputs now use the same shared loader for CLI export as for preview.
 
 ## The zone system
 
-With a photograph open, the zone panel sits flush against it, along the top and exactly as wide for a landscape photograph, or down the left and exactly as tall for a portrait one, with a tile for each of Ansel Adams'
-eleven zones: 0 at the bottom, 10 at the top. The zones are evenly spaced in L\*, at
-zone × 10, which puts zone 5 at 18 % gray. On the negative a zone is a stop, but
-five stops above 18 % is far past white, so these are the tones a print compresses
-that range onto.
+With a photograph open, the zone panel sits flush against its bottom edge and exactly as wide, whatever its shape, with a tile for each of zones
+0 to VII: 0 at the bottom, VII at the top. Each is a stop apart in luminance, centred on
+18 % gray × 2^(n−5), so zone V is 18 % gray. They print at L\* 5, 10, 17, 25, 36, 50, 67 and
+88, and their bands, half a stop either side, tile the L\* axis from black to white. A pin
+saved on a higher zone of the earlier eleven keeps its tone, so it prints as it did, and reads as VII.
 
 To place a pin, drag a tile onto the photograph and let go. The averaged tone under
-the pin then prints as that zone, at the middle of its band: L\* 2.5 for zone 0 and
-97.5 for zone 10, whose bands stop at black and white, and ten times the zone between.
-Each further pin recalculates the curve. Dragging a zone again adds another pin, and the average of a zone's readings
-is what prints as that zone, which suits a tone that varies across a surface. A drop during a
+the pin then prints as that zone, at the middle of its band, as nearly as a smooth curve allows.
+Pins bend one curve on the light the film receives, before the film (`prep.zone_curve`, applied
+at the end of Prep), so the film's own toe and shoulder and the paper render the tones like any
+others, and nothing posterizes. No slider moves: not the print exposure, the camera EV nor the
+film's development. The engine (`spektrafilm_core::zones`) reads up to 49 pixels from under each pin, from
+the source after Prep, runs each through the film and paper one pixel at a time (so a textured
+spot prints as its pixels do, not as their average colour would), and finds the change of
+exposure, in stops, that prints their average at its zone; the pins on one zone average theirs. A monotone
+cubic through those changes, on the scene's log exposure, bends each pixel by its luminance and
+keeps its colour; past the darkest and lightest pins the change holds, so one pin is a plain
+exposure change. Each stretch of the curve stays within 0.35 to 1.8 stops out per stop in, so
+pins close together on different zones blend rather than stretching some tones and crushing
+others; the miss is then shared in L\*, so a pin in the film's shoulder, where a stop moves the
+print less, gives way more stops. Once the photograph develops the app measures where each zone's
+pins print, and if grain, halation or Midtone Detail moved a zone from what the solve predicted,
+it solves once more with that zone's target moved by the difference, the same for all its pins. A
+zone held back by the slope limit isn't pushed further. On the sample photographs two pins on
+different zones land within half an L\* when the slope allows it. Placing, moving, resizing or removing a pin, or
+changing the film or paper, solves again, and the curve joins that edit, so one undo takes back
+both. The status bar says where a zone's pins print. The tone curve box draws the zone curve's
+effect on neutral tones followed by the points set by hand, as one curve, with a diamond where
+each zone's pins print; the diamonds are not handles. Pins are not points on the tone curve,
+which keeps only the points set by hand; a preset saves those, not the pins or their curve,
+which stay with the photograph (as does a pasted edit or a batch). An edit made before this keeps
+its pins on the tone curve after the film, softened to a slope of 0.35 to 1.8, until a pin is
+placed, moved, resized or removed (`post.pins_before_film`); editing the points set by hand
+leaves them there. At most three zones can be placed, one pin each, since three tones well apart
+can always be met by one smooth curve. Once three are on the photograph the other tiles dim and
+can't be dragged, and their tooltip says to remove a zone first. Dragging a zone that's already
+placed moves its pin there, keeping its size; the circle's size is what averages a tone that varies
+across a surface. An older edit with more pins, or several on one zone, keeps them, and their
+readings still average per zone, but it can't add a zone until it's under three. A drop during a
 render waits for it and then measures.
+
+Click a tile, or a band of the histogram, to select that zone. Only the selected zone's pins
+draw lines to their tile, so the photograph isn't crossed by every pin at once. The status bar
+reads the selected or hovered zone: how many pins it has, what they average, where they print,
+and a button that takes them off.
 
 On the canvas:
 
@@ -310,22 +348,21 @@ photograph, never turned. Each frame is as long as its photograph needs at the s
 height, with only a small gap, from a shape read from the file's metadata when the folder is
 listed, so frames never change width. Dragging the
 strip's top edge sets its height, from 90 to 300 points and remembered; the canvas gives way
-and the window stays put. Settings › Film Strip can limit it to the folder's RAW files. The open photograph is at full brightness and the others are dimmed to 50 %. Clicking and
+and the window stays put. Settings › Film Strip can limit it to the folder's RAW files. Each frame shows the photograph's final edit once it's developed, and the file's own preview until then, following what's in view and the open photograph's edits. The open photograph is at full brightness and the others are dimmed to 50 %. A click opens a photograph. Clicking and
 dragging anywhere on it scrolls it (`FilmRollScroller`), and it coasts on from a
 flick, slowing at macOS's normal rate (0.998 of its speed kept per millisecond), until a
-press or an end of the roll stops it. A trackpad scrolls it natively. Double-clicking a
-photograph opens it; nothing else on the film does, and it doesn't respond to hovering.
+press or an end of the roll stops it. A trackpad scrolls it natively. Clicking a
+photograph opens it, unless the click only stopped the film coasting; nothing else on the film does, and it doesn't respond to hovering.
 The arrow keys step along the roll. Only the person moves the film: opening a photograph
 leaves it where it is, unless that frame is wholly out of view, when it comes just far
 enough in. That also shows the open photograph when a folder first appears.
 
 ## Camera details
 
-In the edit view, the photograph's camera and lens print above it and its exposure and date
-below, in the film's edge-print font (Barlow Condensed SemiBold, in `data/fonts`) and
-colour (`EdgePrint`). They're read from the file's metadata (`PhotoExif`), sit on the canvas
-overlay just outside the photograph, and stay on the canvas when it's zoomed past the edges.
-A fitted photograph leaves room for them; a file with no details leaves none.
+In the edit view, one line prints above the photograph: its camera, exposure and file name, in the
+film's edge-print font (Barlow Condensed SemiBold, in `data/fonts`) and colour (`EdgePrint`). They're
+read from the file's metadata (`PhotoExif`) and sit on the canvas overlay just outside the photograph,
+never on it: zoomed so far there's no room above it, the line hides. A fitted photograph leaves room for it.
 
 ## Amber on black
 
@@ -350,10 +387,16 @@ always follows, so anything that changed is corrected.
 
 ## Grid view
 
-G, or View › Grid View, swaps the zones, photograph and film strip for the folder in four
-columns on black, with each photograph's camera details in amber above and below it, as in
-the edit view. It starts at the open photograph and the sidebar stays. Double-clicking a
-photograph opens it to edit, and G goes back. It follows the film strip's RAW-only setting.
+G, View › Grid View, or the Grid and Photo switch in the title bar swaps the zones, photograph
+and film strip for the folder on black, in three to six columns set by the status bar's Thumbnail
+size slider, with each photograph's exposure under it. It starts at the open photograph. The
+sidebar shows the everyday controls, as in Simple, and says how many photographs it's editing.
+
+A click opens a photograph behind the grid for the sidebar to edit, in full amber. ⌘ or ⇧ and a
+click adds another to the selection or takes it out, and the open one stays the one being edited:
+what changes on it is written into the others' settings when edits pause and on leaving the grid,
+so each keeps its own look otherwise. Pins, the crop and rotation stay on their own photograph.
+Double-clicking a photograph opens it to edit, and G goes back. It follows the film strip's RAW-only setting.
 
 The grid shows at once, with no file opened for its shape: each photograph starts as its
 embedded preview (`PhotoThumbnails`) and becomes its final edit, its saved edit or what it would

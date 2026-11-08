@@ -172,6 +172,8 @@ struct EditorCanvas: View {
         VStack(spacing: 0) {
             if model.gridVisible, let source = model.source {
                 PhotoGrid(model: model, directory: source.deletingLastPathComponent())
+                    // A scroll view runs its rows up under the transparent title bar otherwise.
+                    .clipped()
             } else {
                 CanvasArea(model: model)
                     .dropDestination(for: URL.self) { urls, _ in
@@ -181,7 +183,6 @@ struct EditorCanvas: View {
                     .overlay {
                         if dropTargeted { RoundedRectangle(cornerRadius: 12).strokeBorder(EdgePrint.amber, lineWidth: 3).allowsHitTesting(false).padding(4) }
                     }
-                    .overlay(alignment: .topLeading) { if model.showsZonePanel { PlacedZonePanel(model: model) } }
                 if model.filmstripVisible, !model.imageOnly, let source = model.source {
                     PhotoBrowser(model: model, directory: source.deletingLastPathComponent())
                 }
@@ -239,7 +240,7 @@ struct InspectorPanel: View {
         .scrollContentBackground(.hidden)
         // Black, whatever the viewer's colour, with amber on it throughout.
         .background(Color.black.ignoresSafeArea())
-        .foregroundStyle(EdgePrint.amber)
+        .foregroundStyle(Ink.label)
         .tint(EdgePrint.amber)
         // Amber on black needs dark controls, whatever the system's set to.
         .environment(\.colorScheme, .dark)
@@ -255,22 +256,33 @@ struct PaneSwitch: View {
     let model: EditorModel
 
     var body: some View {
-        HStack(spacing: 18) {
+        HStack(spacing: 14) {
             ForEach([(InspectorPane.adjustments, "Adjustments"), (.presets, "Presets")], id: \.1) { pane, title in
                 let selected = model.inspectorPane == pane
                 Button { model.showPane(pane) } label: {
                     Text(title)
-                        .font(Font(EdgePrint.font(size: 15)))
-                        .foregroundStyle(EdgePrint.amber.opacity(selected ? 1 : 0.5))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(selected ? Ink.paper : Ink.dim)
+                        .frame(height: 40)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
             Spacer(minLength: 0)
+            if model.inspectorPane == .adjustments, model.cropSession == nil {
+                let edits = model.editCount
+                if edits > 0 {
+                    (Text("\(edits)").foregroundStyle(Ink.amber) + Text(edits == 1 ? " edit" : " edits").foregroundStyle(Ink.dim))
+                        .font(.system(size: 11)).monospacedDigit()
+                    Button("Reset", action: model.reset)
+                        .buttonStyle(InkButtonStyle())
+                        .help("Restore defaults on every tab while keeping the film, paper, rotation, crop, border, and Image Size. You can undo this.")
+                }
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.horizontal, InkLayout.gutter)
+        .frame(height: 40)
     }
 }
 
@@ -300,19 +312,13 @@ struct CanvasArea: View {
     private func canvas(_ image: AnyObject, size: CGSize, rotation: Int) -> some View {
         PreviewCanvas(image: image, size: size, rotation: rotation, crop: model.crop, border: model.border.shown(for: model.crop.size(of: size)), filmTexture: model.filmTexture,
                       filmStrip: model.filmStrip, zoomCommand: model.zoomCommand, fit: model.fitImage, scale: model.canvasScale,
-                      pins: model.pinsToShow,
-                      dragged: model.zoneDrag,
-                      draggedRadius: model.sampleRadius,
                       proofPixels: model.exportPixels,
                       zoomSteps: model.canvasZoomSteps,
                       exif: model.photoExif,
-                      showsZones: model.showsZonePanel,
-                      onZonePlacement: { model.zonePlacement = $0 },
-                      onSelectPin: { model.selectPin($0) },
-                      onMovePin: { index, centre in Task { await model.movePin(index, to: centre) } },
-                      onScrollPin: { model.resizeSelectedPin(scrollDelta: $0, precise: $1) },
-                      onEscapeKey: { model.clearToneSelection() },
-                      onDeleteKey: { model.removeSelectedPin() },
+                      fileName: model.imageOnly ? nil : model.source?.lastPathComponent,
+                      onPickWhiteBalance: { a, b in model.pickWhiteBalance(from: a, to: b) },
+                      onPickZone: { a, b in model.pickZone(from: a, to: b) },
+                      onEscapeKey: { model.clearZoneReading() },
                       onFitChanged: { model.fitImage = $0 })
     }
 }
@@ -381,7 +387,13 @@ struct StatusBar: View {
             if let caption = model.fullScreenCaption {
                 Text(caption).lineLimit(1).truncationMode(.middle).fontWeight(.semibold)
             }
-            Text(model.status).lineLimit(1).textSelection(.enabled)
+            if model.gridVisible {
+                Text(verbatim: "\(model.gridSelection.count) selected · ⌘-click to add to the selection").lineLimit(1)
+            } else if let reading = model.zoneReading, !model.cropping {
+                ZoneReadingLine(reading: reading)
+            } else {
+                Text(model.status).lineLimit(1).textSelection(.enabled)
+            }
             Spacer(minLength: 12)
             // Only while the grid's waiting on it: otherwise it's quietly behind the scenes.
             if model.gridVisible, let roll = model.rollDeveloper, roll.isDeveloping {
@@ -395,12 +407,101 @@ struct StatusBar: View {
                 }
                 Button("Cancel", action: model.cancelExport).controlSize(.small)
             }
-            if model.source != nil { OriginalButton(model: model) }
+            if model.gridVisible {
+                ThumbnailSizeSlider(model: model)
+            } else if model.source != nil {
+                if model.canZoom {
+                    StatusButton(title: "Fit", on: model.fitImage, help: "Fit the photograph in the window") { model.zoom(fit: true) }
+                    StatusButton(title: "100%", on: !model.fitImage, help: "Show the photograph at its export size") { model.zoom(fit: false) }
+                }
+                OriginalButton(model: model)
+            }
         }
-        .font(.caption).foregroundStyle(EdgePrint.amber)
+        .font(.system(size: 11)).foregroundStyle(Ink.dim)
         .padding(.horizontal, 14).frame(height: 28)
         .background(Color.black)
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// A quiet text button in the status bar; amber when its state is on.
+private struct StatusButton: View {
+    let title: String
+    var on = false
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 11))
+                .foregroundStyle(on ? Ink.amber : Ink.label)
+                .padding(.horizontal, 6).frame(height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// What the ⌃-picked area reads, and how to place it.
+private struct ZoneReadingLine: View {
+    let reading: ZoneReading
+
+    var body: some View {
+        if let printed = reading.printed, let zone = reading.zone {
+            Text(verbatim: "Reading in zone \(ZoneScale.zones[zone].numeral), L* \(Int(printed.rounded()))")
+                .monospacedDigit().fontWeight(.semibold).foregroundStyle(Ink.paper).lineLimit(1)
+            Text("Click a zone or press 0–7 to place it there, with ⇧ for the middle of the zone · Esc to clear")
+                .foregroundStyle(Ink.amber).lineLimit(1).truncationMode(.tail)
+        } else {
+            Text("Reading…").foregroundStyle(Ink.amber)
+        }
+    }
+}
+
+/// How large the grid's thumbnails are: fewer columns, larger.
+private struct ThumbnailSizeSlider: View {
+    let model: EditorModel
+
+    var body: some View {
+        let range = EditorModel.gridColumnRange
+        Text("Thumbnail size")
+        Slider(value: Binding(get: { Double(range.lowerBound + range.upperBound - model.gridColumns) },
+                              set: { model.gridColumns = range.lowerBound + range.upperBound - Int($0.rounded()) }),
+               in: Double(range.lowerBound)...Double(range.upperBound), step: 1)
+            .labelsHidden().controlSize(.mini).frame(width: 100)
+            .accessibilityLabel("Thumbnail size")
+    }
+}
+
+/// Grid or Photo, in the title bar.
+struct ViewSwitch: View {
+    let model: EditorModel
+
+    var body: some View {
+        HStack(spacing: 2) {
+            option("Grid", selected: model.gridVisible)
+            option("Photo", selected: !model.gridVisible)
+        }
+        .padding(.trailing, 8)
+        .frame(height: 28)
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func option(_ title: String, selected: Bool) -> some View {
+        Button { if !selected { model.toggleGrid() } } label: {
+            Text(title).font(.system(size: 12))
+                .foregroundStyle(selected ? Ink.amber : Ink.label)
+                .padding(.horizontal, 10).frame(height: 24)
+                .background(selected ? Ink.well : .clear, in: RoundedRectangle(cornerRadius: 4))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(model.source == nil || model.cropping)
+        .opacity(model.source == nil ? 0.5 : 1)
+        .help(title == "Grid" ? "Every photograph in the folder (G)" : "The open photograph (G)")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 

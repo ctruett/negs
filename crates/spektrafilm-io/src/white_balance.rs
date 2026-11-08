@@ -269,6 +269,51 @@ fn adjustment_matrix(temperature: f64, tint: f64) -> Matrix {
     )
 }
 
+/// The base a RAW is developed at before Temperature and Tint adapt it: D65,
+/// where the adjustment is the identity. A colour sampled from a RAW developed
+/// with this setting is what [`neutral`] takes.
+pub const NEUTRAL_BASE: RawWhiteBalance =
+    RawWhiteBalance { mode: RawWhiteBalanceMode::Custom, temperature: 6504.0, tint: 1.0 };
+
+/// The Custom white balance that makes `rgb`, a linear colour from a RAW
+/// developed at [`NEUTRAL_BASE`], neutral: the temperature that balances red
+/// against blue, and the tint that brings green to their mean. A colour past
+/// what the ranges reach gets the closest they allow, and `exact` says whether
+/// it came out neutral. None for a colour with no light in a channel.
+pub fn neutral(rgb: [f64; 3]) -> Option<(RawWhiteBalance, bool)> {
+    if rgb.iter().any(|v| !v.is_finite() || *v <= 1e-6) {
+        return None;
+    }
+    // Bisection: red rises against blue as the temperature rises, and green
+    // against their mean as the tint does. Differences, not ratios, since a
+    // channel can go negative at the ends of the ranges.
+    fn bisect(mut low: f64, mut high: f64, rising: bool, f: impl Fn(f64) -> f64) -> f64 {
+        for _ in 0..60 {
+            let mid = (low + high) / 2.0;
+            if (f(mid) > 0.0) == rising { high = mid } else { low = mid }
+        }
+        (low + high) / 2.0
+    }
+    let temperature_for = |tint: f64| {
+        bisect(1667f64.ln(), 25000f64.ln(), true, |t| {
+            let out = mv(adjustment_matrix(t.exp(), tint), rgb);
+            out[0] - out[2]
+        })
+        .exp()
+    };
+    let tint = bisect(0.01f64.ln(), 4f64.ln(), true, |k| {
+        let tint = k.exp();
+        let out = mv(adjustment_matrix(temperature_for(tint), tint), rgb);
+        out[1] - (out[0] + out[2]) / 2.0
+    })
+    .exp();
+    let temperature = temperature_for(tint);
+    let out = mv(adjustment_matrix(temperature, tint), rgb);
+    let spread = out.iter().cloned().fold(f64::MIN, f64::max) / out.iter().cloned().fold(f64::MAX, f64::min);
+    let exact = spread.is_finite() && spread > 0.0 && spread < 1.01;
+    Some((RawWhiteBalance { mode: RawWhiteBalanceMode::Custom, temperature, tint }, exact))
+}
+
 /// Apply the corrected upstream post-development WB before the loader's
 /// final negative clamp. A monochrome sensor has no chromatic balance.
 pub(crate) fn finish(
@@ -325,6 +370,33 @@ pub(crate) fn finish_rgb(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A grey photographed under a light becomes neutral, and the temperature
+    /// found is that light's.
+    #[test]
+    fn a_picked_grey_becomes_neutral() {
+        for (temperature, tint) in [(3200.0, 1.0), (5500.0, 1.0), (7500.0, 0.9), (4300.0, 1.2)] {
+            // What a neutral grey looks like at the base, lit so these settings fix it.
+            let grey = mv(inverse(adjustment_matrix(temperature, tint)), [0.18; 3]);
+            let (found, exact) = neutral(grey).unwrap();
+            assert!(exact);
+            assert!((found.temperature - temperature).abs() / temperature < 0.002, "{temperature}: {found:?}");
+            assert!((found.tint - tint).abs() < 0.002, "{tint}: {found:?}");
+            let out = mv(adjustment_matrix(found.temperature, found.tint), grey);
+            assert!((out[0] - out[1]).abs() < 1e-4 && (out[2] - out[1]).abs() < 1e-4, "{out:?}");
+            assert!(found.validate().is_ok());
+        }
+        // Already neutral at the base: D65.
+        let (base, _) = neutral([0.18; 3]).unwrap();
+        assert!((base.temperature - 6504.0).abs() < 15.0 && (base.tint - 1.0).abs() < 0.01, "{base:?}");
+        // No light in a channel: nothing to balance.
+        assert!(neutral([0.0, 0.1, 0.1]).is_none());
+        // However extreme, there's an answer within the sliders' ranges.
+        for colour in [[1.0, 0.0001, 1.0], [0.01, 1.0, 0.01], [1.0, 0.2, 0.001]] {
+            let (found, _) = neutral(colour).unwrap();
+            assert!(found.validate().is_ok(), "{colour:?}");
+        }
+    }
 
     #[test]
     fn modes_and_validation() {

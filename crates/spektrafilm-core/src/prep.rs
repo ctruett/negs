@@ -34,7 +34,13 @@ pub struct PrepParams {
     pub color_boost: f32,
     pub saturation: f32,
     pub midtone_detail: f32,
+    /// The zone pins' curve on the scene exposure, applied last, so the film's
+    /// toe and shoulder render the tones it places (see [`crate::zones`]).
+    pub zone_curve: crate::zones::ZoneCurve,
 }
+
+/// How far Prep's exposure, the Zone Shift, may go either way, in stops.
+pub const EXPOSURE_RANGE: f64 = 5.0;
 
 /// [`PrepParams`] as read, before validation.
 #[derive(Deserialize, Default)]
@@ -49,6 +55,7 @@ struct UncheckedPrepParams {
     color_boost: f32,
     saturation: f32,
     midtone_detail: f32,
+    zone_curve: crate::zones::ZoneCurve,
 }
 
 impl TryFrom<UncheckedPrepParams> for PrepParams {
@@ -64,6 +71,7 @@ impl TryFrom<UncheckedPrepParams> for PrepParams {
             color_boost: p.color_boost,
             saturation: p.saturation,
             midtone_detail: p.midtone_detail,
+            zone_curve: p.zone_curve,
         };
         params.validate()?;
         Ok(params)
@@ -76,8 +84,8 @@ impl PrepParams {
     }
 
     pub fn validate(&self) -> Result<(), String> {
-        if !self.exposure_ev.is_finite() || !(-3.0..=3.0).contains(&self.exposure_ev) {
-            return Err("Invalid Prep exposure_ev; expected a finite value from -3 to 3".into());
+        if !self.exposure_ev.is_finite() || !(-EXPOSURE_RANGE as f32..=EXPOSURE_RANGE as f32).contains(&self.exposure_ev) {
+            return Err(format!("Invalid Prep exposure_ev; expected a finite value from -{EXPOSURE_RANGE} to {EXPOSURE_RANGE}"));
         }
         for (name, value, min) in [
             ("highlights", self.highlights, -180.),
@@ -109,6 +117,7 @@ pub struct PreparedKey {
     autoexposure_ev: u64,
     exposure_compensation_ev: u32,
     prep: [u32; 9],
+    zone_curve: crate::zones::ZoneCurve,
 }
 
 impl PreparedKey {
@@ -125,6 +134,7 @@ impl PreparedKey {
                 p.color_boost, p.saturation, p.midtone_detail,
             ]
             .map(f32::to_bits),
+            zone_curve: p.zone_curve,
         }
     }
 }
@@ -326,6 +336,18 @@ pub fn apply_linear(
     input_color_space: &str,
 ) -> Result<(), String> {
     params.validate()?;
+    let curve = params.zone_curve;
+    let params = &PrepParams { zone_curve: Default::default(), ..*params };
+    apply_controls(image, params, input_color_space)?;
+    curve.apply(image, input_color_space)
+}
+
+/// [`apply_linear`] without the zone curve.
+fn apply_controls(
+    image: &mut ImageBuf,
+    params: &PrepParams,
+    input_color_space: &str,
+) -> Result<(), String> {
     if params.is_identity() {
         return Ok(());
     }
@@ -429,7 +451,7 @@ mod tests {
         let ok: PrepParams = serde_json::from_str(r#"{"highlights": -180}"#).unwrap();
         assert_eq!(ok.highlights, -180.0);
         assert!(serde_json::from_str::<PrepParams>(r#"{"gain": 101}"#).is_err());
-        assert!(serde_json::from_str::<PrepParams>(r#"{"exposure_ev": 3.5}"#).is_err());
+        assert!(serde_json::from_str::<PrepParams>(r#"{"exposure_ev": 5.5}"#).is_err());
         assert!(serde_json::from_str::<crate::params::RuntimeParams>(r#"{"prep": {"lift": -101}}"#).is_err());
     }
 

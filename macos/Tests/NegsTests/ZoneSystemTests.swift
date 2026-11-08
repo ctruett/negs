@@ -5,97 +5,86 @@ import XCTest
 
 /// The zones: where they sit on the L\* axis and the tones they print as.
 final class ZoneSystemTests: XCTestCase {
-    /// Adams' eleven zones, evenly spaced in lightness as a print shows them.
-    func testTheElevenZonesRunFromPureBlackToPureWhite() throws {
+    /// Zones 0 to VII, a stop apart, with their bands tiling the L* axis.
+    func testTheEightZonesRunFromPureBlackToLightTexture() {
         let zones = ZoneScale.zones
-        try XCTSkipUnless(zones.count == 11 || { XCTFail("\(zones.count) zones"); return false }())
-        for (index, zone) in zones.enumerated() {
-            XCTAssertEqual(zone.index, index)
-            XCTAssertEqual(zone.numeral, "\(index)")
-            if (1...9).contains(index) { XCTAssertEqual(zone.target, Double(index) * 10) }
+        XCTAssertEqual(zones.map(\.numeral), ["0", "I", "II", "III", "IV", "V", "VI", "VII"])
+        for (index, zone) in zones.enumerated() { XCTAssertEqual(zone.index, index) }
+        for (zone, target) in zip(zones, [5.1, 10.0, 16.7, 25.3, 36.0, 49.5, 66.5, 88.0]) {
+            XCTAssertEqual(zone.target, target, accuracy: 0.1, zone.numeral)
         }
-        // The end zones land in the middle of their bands, like the rest.
-        XCTAssertEqual(zones[0].target, 2.5)
-        XCTAssertEqual(zones[10].target, 97.5)
-        XCTAssertEqual(ZoneScale.zone(forTarget: zones[0].target), 0)
-        XCTAssertEqual(ZoneScale.zone(forTarget: zones[10].target), 10)
+        for (zone, high) in zip(zones, [7.2, 13.2, 20.8, 30.3, 42.4, 57.5, 76.6, 100.0]) {
+            XCTAssertEqual(zone.band.upperBound, high, accuracy: 0.1, zone.numeral)
+        }
+        XCTAssertEqual(zones[0].band.lowerBound, 0)
+        for (below, above) in zip(zones, zones.dropFirst()) {
+            XCTAssertEqual(below.band.upperBound, above.band.lowerBound, accuracy: 1e-9)
+        }
         XCTAssertEqual(zones[0].name, "Pure black")
         XCTAssertEqual(zones[5].name, "Middle gray")
-        XCTAssertEqual(zones[10].name, "Pure white")
+        XCTAssertEqual(zones[7].name, "Light texture")
     }
 
-    /// Zone 5 is 18 % gray, the point meters are calibrated to.
+    /// Zone V is 18 % gray, the point meters are calibrated to.
     func testZoneFiveIsEighteenPercentGray() {
         let y = pow((ZoneScale.zones[5].target + 16) / 116, 3)
         XCTAssertEqual(y, 0.18, accuracy: 0.005)
     }
 
-    func testATargetFallsInTheNearestZone() {
-        XCTAssertEqual(ZoneScale.zone(forTarget: 0), 0)
-        XCTAssertEqual(ZoneScale.zone(forTarget: 4.9), 0)
-        XCTAssertEqual(ZoneScale.zone(forTarget: 5.1), 1)
-        XCTAssertEqual(ZoneScale.zone(forTarget: 50), 5)
-        XCTAssertEqual(ZoneScale.zone(forTarget: 100), 10)
-        XCTAssertEqual(ZoneScale.zone(forTarget: 140), 10)
-        XCTAssertEqual(ZoneScale.zone(forTarget: -5), 0)
-    }
-
-    /// A tile's tooltip names the zone and says what belongs in it.
-    func testATilesTooltipDescribesTheZone() {
-        let tip = ZonePanel.tooltip(for: ZoneScale.zones[5])
-        XCTAssertTrue(tip.hasPrefix("Zone 5: Middle gray\n"), tip)
-        XCTAssertTrue(tip.contains("18% gray"), tip)
-        XCTAssertTrue(tip.contains("dark blue sky"), tip)
-        for zone in ZoneScale.zones {
-            XCTAssertFalse(zone.note.isEmpty, zone.numeral)
-            XCTAssertTrue(ZonePanel.tooltip(for: zone).contains(zone.note), zone.numeral)
+    /// A plain placement aims for a zone's start, ⇧ for its middle; zone 0
+    /// starts at black, which no exposure reaches, so it takes its middle.
+    func testAZoneStartsAtTheBottomOfItsBand() {
+        for zone in ZoneScale.zones.dropFirst() {
+            XCTAssertEqual(zone.start, zone.band.lowerBound, zone.numeral)
+            XCTAssertLessThan(zone.start, zone.target, zone.numeral)
         }
+        XCTAssertEqual(ZoneScale.zones[0].start, ZoneScale.zones[0].target)
+        XCTAssertEqual(ZoneScale.zones[5].start, 42.4, accuracy: 0.05)
     }
 
-    func testTileLabelsNameTheZoneAndWhetherItIsPlaced() {
-        XCTAssertEqual(ZonePanel.label(for: ZoneScale.zones[5], placed: true), "Zone 5, Middle gray, placed")
-        XCTAssertEqual(ZonePanel.label(for: ZoneScale.zones[0], placed: false), "Zone 0, Pure black, not placed")
-    }
-
-    /// The column is one scale, with no lines between its tiles.
-    @MainActor func testTheZoneColumnHasNoRowLines() throws {
-        _ = NSApplication.shared
-        let model = EditorModel()
-        defer { model.shutdown() }
-        let height = 550
-        let host = NSHostingView(rootView: ZonePanel(model: model).frame(height: CGFloat(height)).background(Color.white))
-        host.appearance = NSAppearance(named: .darkAqua)
-        host.frame = NSRect(x: 0, y: 0, width: ZoneGeometry.panelDepth, height: CGFloat(height))
-        host.layoutSubtreeIfNeeded()
-        let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let scale = bitmap.pixelsHigh / height
-        func grey(_ x: Int, _ y: Int) throws -> CGFloat {
-            try XCTUnwrap(bitmap.colorAt(x: x, y: y * scale)?.usingColorSpace(.sRGB)).redComponent * 255
+    /// The reading names the zone it prints in, by the bands' edges.
+    func testAReadingKnowsItsZone() {
+        var reading = ZoneReading(from: .zero, to: .zero)
+        XCTAssertNil(reading.zone)
+        XCTAssertFalse(reading.isRead)
+        for (lstar, zone) in [(0.0, 0), (7.3, 1), (50, 5), (57.6, 7 - 1), (99, 7), (100, 7)] {
+            reading.printed = lstar
+            XCTAssertEqual(reading.zone, zone, "L* \(lstar)")
         }
-        // Down a column clear of the numerals, the tone only ever falls: a row
-        // line would show as a dip darker than the tile below it.
-        var previous: CGFloat = 256
-        for y in 0..<height {
-            let value = try grey(4 * scale, y)
-            XCTAssertLessThanOrEqual(value, previous + 0.5, "A line at row \(y)")
-            previous = value
+        reading.toStart = Array(repeating: 0, count: 8); reading.toMiddle = Array(repeating: 0, count: 8)
+        XCTAssertTrue(reading.isRead)
+    }
+
+    /// Stops read as the zone system writes them, with a true minus.
+    func testStopsReadWithASignAndOneDecimal() {
+        XCTAssertEqual(ZoneHistogramView.stops(1.26), "+1.3")
+        XCTAssertEqual(ZoneHistogramView.stops(-0.74), "−0.7")
+        XCTAssertEqual(ZoneHistogramView.stops(0.04), "0.0")
+        XCTAssertEqual(ZoneHistogramView.stops(-0.04), "0.0")
+    }
+
+    /// 0 to 7 place the reading on that zone, ⇧ on its middle, and stand
+    /// down while typing in a field or with another modifier.
+    @MainActor func testNumberKeysPickAZoneOutsideTextFields() {
+        func key(_ characters: String?, _ modifiers: NSEvent.ModifierFlags = [], _ responder: NSResponder? = nil) -> [Int] {
+            EditorWindowController.zoneKey(characters: characters, modifiers: modifiers, firstResponder: responder)
+                .map { [$0.zone, $0.centre ? 1 : 0] } ?? []
         }
+        XCTAssertEqual(key("0"), [0, 0])
+        XCTAssertEqual(key("5", [], NSView()), [5, 0])
+        XCTAssertEqual(key("7", [.shift]), [7, 1], "⇧ for the middle")
+        XCTAssertEqual(key("3", [.capsLock]), [3, 0], "Caps Lock doesn't matter")
+        XCTAssertEqual(key("8"), [])
+        XCTAssertEqual(key("a"), [])
+        XCTAssertEqual(key("12"), [])
+        XCTAssertEqual(key(nil), [])
+        XCTAssertEqual(key("5", [], NSTextView()), [], "Typing in a field")
+        XCTAssertEqual(key("5", [.command]), [])
+        XCTAssertEqual(key("5", [.control]), [])
+        XCTAssertEqual(key("5", [.option]), [])
     }
 
-    /// Tab shows and hides the pins, and stands down while typing in a field.
-    @MainActor func testTabTogglesThePinsOutsideTextFields() {
-        let tab: UInt16 = 48
-        XCTAssertTrue(EditorWindowController.togglesPins(keyCode: tab, modifiers: [], firstResponder: NSView()))
-        XCTAssertTrue(EditorWindowController.togglesPins(keyCode: tab, modifiers: [], firstResponder: nil))
-        XCTAssertTrue(EditorWindowController.togglesPins(keyCode: tab, modifiers: [.capsLock], firstResponder: nil), "Caps Lock doesn't matter")
-        XCTAssertFalse(EditorWindowController.togglesPins(keyCode: tab, modifiers: [], firstResponder: NSTextView()))
-        XCTAssertFalse(EditorWindowController.togglesPins(keyCode: tab, modifiers: [.shift], firstResponder: nil), "Shift-Tab keeps its meaning")
-        XCTAssertFalse(EditorWindowController.togglesPins(keyCode: tab, modifiers: [.control], firstResponder: nil))
-        XCTAssertFalse(EditorWindowController.togglesPins(keyCode: 6, modifiers: [], firstResponder: nil), "Z no longer does")
-    }
-
-    /// Delete has no modifier, so it stands down while typing in a field.
+    /// A bare key stands down while typing in a field.
     @MainActor func testBareKeysStandDownWhileEditingText() {
         XCTAssertFalse(MainMenu.bareKeysAllowed(firstResponder: NSTextView()))
         XCTAssertTrue(MainMenu.bareKeysAllowed(firstResponder: NSView()))
@@ -105,7 +94,7 @@ final class ZoneSystemTests: XCTestCase {
     /// The same numbers as the engine's `the_curve_matches_what_the_app_draws`.
     func testTheCurveMatchesTheEngine() {
         let curve = ToneCurve(anchors: [(25, 10), (60, 70)])
-        for (input, expected) in [(10.0, 2.01521), (40, 32.81935), (50, 54.01397), (80, 89.084586)] {
+        for (input, expected) in [(10.0, 2.73521), (40, 32.81935), (50, 54.01397), (80, 88.388158)] {
             XCTAssertEqual(curve.map(input), expected, accuracy: 1e-4)
         }
         let ends = ToneCurve(anchors: [(20, 0), (45, 50), (90, 100)])
@@ -115,25 +104,17 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertEqual(ToneCurve(anchors: []).map(33), 33, "Straight with nothing on it")
     }
 
-    /// Flush against a landscape photograph's top and exactly as wide, or a
-    /// portrait one's left and exactly as tall, with each tile facing it.
-    func testTheZonePanelFollowsThePhotograph() {
-        let canvas = CGSize(width: 1000, height: 800)
-        let landscape = ZoneGeometry.placement(photo: CGRect(x: 100, y: 200, width: 600, height: 400), canvas: canvas)
-        XCTAssertTrue(landscape.horizontal)
-        XCTAssertEqual(landscape.frame, CGRect(x: 100, y: 144, width: 600, height: 56))
-        XCTAssertEqual(landscape.tile(zone: 0).y, 200)
-        XCTAssertEqual(landscape.tile(zone: 0).x, 100 + 600.0 / 22, accuracy: 0.01)
-        XCTAssertEqual(landscape.tile(zone: 10).x, 700 - 600.0 / 22, accuracy: 0.01)
-        let portrait = ZoneGeometry.placement(photo: CGRect(x: 300, y: 100, width: 400, height: 600), canvas: canvas)
-        XCTAssertFalse(portrait.horizontal)
-        XCTAssertEqual(portrait.frame, CGRect(x: 244, y: 100, width: 56, height: 600))
-        XCTAssertEqual(portrait.tile(zone: 10).x, 300)
-        XCTAssertEqual(portrait.tile(zone: 10).y, 100 + 600.0 / 22, accuracy: 0.01, "White at the top")
-        XCTAssertEqual(portrait.tile(zone: 0).y, 700 - 600.0 / 22, accuracy: 0.01)
-        // A photograph past the canvas: the panel stays on it, over what's showing.
-        let large = ZoneGeometry.placement(photo: CGRect(x: -200, y: -100, width: 2000, height: 1000), canvas: canvas)
-        XCTAssertEqual(large.frame, CGRect(x: 0, y: 0, width: 1000, height: 56))
+    /// The same numbers as the engine's `soft_pins_match_what_the_app_draws`.
+    func testSoftPinsMatchTheEngine() {
+        let anchors: [(input: Double, target: Double)] = [(30, 36), (34, 49.5), (50, 66.5), (75, 88)]
+        let curve = ToneCurve(anchors: anchors, soft: [true, true, true, true])
+        for (input, expected) in [(10.0, 10.504084), (32, 42.77046), (60, 76.320166), (90, 96.210687)] {
+            XCTAssertEqual(curve.map(input), expected, accuracy: 1e-4)
+        }
+        // The same anchors set by hand land where they're put.
+        let hard = ToneCurve(anchors: anchors)
+        XCTAssertEqual(hard.map(34), 49.5, accuracy: 1e-9)
+        XCTAssertLessThan(curve.map(34), 49)
     }
 
     /// Centred with room to spare; off centre only to keep what's beside it clear.
@@ -160,13 +141,14 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertFalse(EditorWindowController.togglesImageOnly(keyCode: 5, modifiers: [], firstResponder: nil))
     }
 
-    func testGreysRiseFromBlackToPaperWhite() throws {
+    func testGreysRiseFromBlackToLightGray() throws {
         let levels = try ZoneScale.zones.map { zone -> CGFloat in
             try XCTUnwrap(ZoneScale.grey(zone.index).usingColorSpace(.sRGB)).redComponent
         }
-        XCTAssertEqual(try XCTUnwrap(levels.first), 0.03, accuracy: 0.02)
-        XCTAssertEqual(try XCTUnwrap(levels.last), 0.97, accuracy: 0.02)
+        XCTAssertEqual(try XCTUnwrap(levels.first), 0.067, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(levels.last), 0.867, accuracy: 0.01)
         XCTAssertEqual(levels, levels.sorted())
-        XCTAssertEqual(Set(levels).count, 11)
+        XCTAssertEqual(Set(levels).count, 8)
     }
+
 }

@@ -51,7 +51,15 @@ final class FilmRollTests: XCTestCase {
         XCTAssertEqual(FilmRollLayout.frameEdges(lengths: [10, 20, 5]), [0, 10, 30, 35])
     }
 
-    /// A double-click finds the photograph under it, whatever the frames' shapes,
+    /// One click opens a frame, but a drag doesn't, nor a click that stops the
+    /// coasting film, which wasn't aimed at a photograph.
+    func testAClickOpensUnlessItDraggedOrStoppedTheFilm() {
+        XCTAssertTrue(FilmMouseSurface.Surface.opens(dragged: false, stoppedTheFilm: false))
+        XCTAssertFalse(FilmMouseSurface.Surface.opens(dragged: true, stoppedTheFilm: false))
+        XCTAssertFalse(FilmMouseSurface.Surface.opens(dragged: false, stoppedTheFilm: true))
+    }
+
+    /// A click finds the photograph under it, whatever the frames' shapes,
     /// and only on the photograph.
     func testFindingThePhotographUnderAPoint() {
         // Landscape, portrait, landscape.
@@ -100,7 +108,7 @@ final class FilmRollTests: XCTestCase {
         XCTAssertEqual(width, 220)
         XCTAssertEqual(width * 4 + PhotoGridLayout.columnGap * 3 + PhotoGridLayout.margin * 2, 1000)
         XCTAssertEqual(PhotoGridLayout.boxHeight(cellWidth: 220), 147)
-        XCTAssertEqual(PhotoGridLayout.cellHeight(cellWidth: 220), 147 + 40)
+        XCTAssertEqual(PhotoGridLayout.cellHeight(cellWidth: 220), 147 + 20)
     }
 
     /// A photograph fits its box, centred, whatever its shape.

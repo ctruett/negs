@@ -221,12 +221,12 @@ struct EnclosingScrollFinder: NSViewRepresentable {
 }
 
 /// Takes the mouse over the strip: a drag scrolls and flicks the film, and a
-/// double-click reports where it was on the film. Scrolling passes straight
+/// click reports where it was on the film. Scrolling passes straight
 /// to the scroll view, so a trackpad keeps its own feel.
 struct FilmMouseSurface: NSViewRepresentable {
     let scroller: FilmRollScroller
     let enabled: Bool
-    /// A double-click that didn't drag, as a point on the film from its top left.
+    /// A click that didn't drag, as a point on the film from its top left.
     let open: (CGPoint) -> Void
 
     func makeNSView(context: Context) -> Surface { Surface() }
@@ -244,6 +244,11 @@ struct FilmMouseSurface: NSViewRepresentable {
         static let wobble: CGFloat = 3
         private var pressX: CGFloat?
         private var dragged = false
+        private var stoppedTheFilm = false
+
+        /// A click opens what's under it, unless it was a drag, or it only
+        /// caught the coasting film, where it can't have been aimed at a photograph.
+        static func opens(dragged: Bool, stoppedTheFilm: Bool) -> Bool { !dragged && !stoppedTheFilm }
 
         override var isFlipped: Bool { true }
         override func isAccessibilityElement() -> Bool { false }
@@ -252,6 +257,7 @@ struct FilmMouseSurface: NSViewRepresentable {
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func mouseDown(with event: NSEvent) {
+            stoppedTheFilm = scroller?.isCoasting ?? false
             scroller?.press()
             pressX = event.locationInWindow.x
             dragged = false
@@ -269,7 +275,7 @@ struct FilmMouseSurface: NSViewRepresentable {
             defer { pressX = nil; dragged = false }
             if dragged {
                 scroller?.release(time: event.timestamp)
-            } else if event.clickCount == 2, let scroller {
+            } else if Self.opens(dragged: dragged, stoppedTheFilm: stoppedTheFilm), let scroller {
                 let point = convert(event.locationInWindow, from: nil)
                 open?(CGPoint(x: point.x + scroller.offset, y: point.y))
             }
@@ -282,13 +288,16 @@ struct FilmMouseSurface: NSViewRepresentable {
     }
 }
 
-/// One frame of the strip: the photograph, on black, never turned, with only the
-/// gap around it whatever its shape.
+/// One frame of the strip: the photograph with its final edit once that's
+/// developed, and the file's own preview until then, on black, with only the gap
+/// around it whatever its shape.
 struct FilmFrame: View {
     let height: CGFloat
     /// Its length along the strip, from its photograph's shape.
     let length: CGFloat
     let file: PhotoFile
+    /// The final edit, once it's been developed.
+    let developed: CGImage?
     let selected: Bool
     let open: () -> Void
     @State private var embedded: CGImage?
@@ -299,7 +308,7 @@ struct FilmFrame: View {
         let gate = FilmRollLayout.gate(frame: frame)
         ZStack {
             Color.black
-            if let image = embedded {
+            if let image = developed ?? embedded {
                 Image(decorative: image, scale: 1)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -314,8 +323,8 @@ struct FilmFrame: View {
         .accessibilityAction(.default, open)
         .onAppear { visible = true }
         .onDisappear { visible = false; embedded = nil }
-        .task(id: visible ? file : nil) {
-            guard visible else { return }
+        .task(id: visible && developed == nil ? file : nil) {
+            guard visible, developed == nil, embedded == nil else { return }
             let request = Task.detached(priority: .utility) { await PhotoThumbnails.shared.image(for: file) }
             let result = await withTaskCancellationHandler {
                 await request.value

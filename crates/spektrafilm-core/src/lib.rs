@@ -20,6 +20,7 @@ pub mod prep;
 pub mod presets;
 pub mod print_balance;
 pub mod print_morph;
+pub mod zones;
 pub mod profile;
 pub mod spectral_service;
 pub mod stages;

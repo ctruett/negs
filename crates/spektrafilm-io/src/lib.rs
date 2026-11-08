@@ -32,7 +32,7 @@ pub use colour::{InputColour, InputInterpretation, InputMode};
 pub use metadata::{ImageMetadata, read_metadata};
 pub use save::save_image;
 pub use raw::LensCorrection;
-pub use white_balance::{RawWhiteBalance, RawWhiteBalanceMode};
+pub use white_balance::{neutral as neutral_white_balance, RawWhiteBalance, RawWhiteBalanceMode, NEUTRAL_BASE};
 
 use std::path::Path;
 

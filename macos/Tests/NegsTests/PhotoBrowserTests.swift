@@ -218,7 +218,7 @@ final class PhotoBrowserTests: XCTestCase {
                     to: directory.appendingPathComponent("Photo18a.png"))
                 try await Task.sleep(nanoseconds: 700_000_000)
                 XCTAssertEqual(model.source?.lastPathComponent, "Photo18.png")
-                // Double-click the new frame, which sorts just after the open one.
+                // Click the new frame, which sorts just after the open one.
                 let split = try XCTUnwrap(window.contentViewController as? NSSplitViewController)
                 let canvas = try XCTUnwrap(split.splitView.subviews.first)
                 // The new frame may be out of view: bring it to the strip's left end.
@@ -228,13 +228,11 @@ final class PhotoBrowserTests: XCTestCase {
                 roll.contentView.scroll(to: NSPoint(x: lengths[..<18].reduce(0, +), y: 0))
                 roll.reflectScrolledClipView(roll.contentView)
                 let point = NSPoint(x: lengths[18] / 2, y: 28 + FilmRollLayout.defaultStripHeight / 2)
-                for clicks in 1...2 {
-                    for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
-                        let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
-                            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
-                            context: nil, eventNumber: 0, clickCount: clicks, pressure: 1))
-                        window.sendEvent(event)
-                    }
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
+                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+                        context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+                    window.sendEvent(event)
                 }
                 try await Task.sleep(nanoseconds: 100_000_000)
                 XCTAssertEqual(model.source?.lastPathComponent, "Photo18a.png")

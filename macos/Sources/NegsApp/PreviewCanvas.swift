@@ -16,29 +16,21 @@ struct PreviewCanvas: NSViewRepresentable {
     let zoomCommand: UUID
     let fit: Bool
     var scale: CanvasScale?
-    /// The pins shown over the photograph.
-    var pins: [TonePinMarker] = []
-    /// A zone being dragged from the panel, and the size its circle starts at.
-    var dragged: ZoneDrag? = nil
-    var draggedRadius = SampleSize.initial
     /// In a proof, the pixels the export writes: they alone set the photograph's size.
     var proofPixels: CGSize? = nil
     /// Steps of ⌘+ and ⌘− away from that size.
     var zoomSteps = 0
     /// The camera details shown under the photograph.
     var exif: PhotoExif? = nil
-    /// The zone panel's up, so the photograph needs room beside it.
-    var showsZones = false
-    var onZonePlacement: ((ZonePlacement) -> Void)? = nil
-    /// A click on a pin's chip, or nil on empty photograph.
-    var onSelectPin: ((Int?) -> Void)? = nil
-    /// Called when a placed pin is dragged to a new point.
-    var onMovePin: ((Int, CGPoint) -> Void)? = nil
-    /// The scroll wheel, with a pin selected: its delta, and whether it's precise.
-    var onScrollPin: ((Double, Bool) -> Void)? = nil
-    /// Esc and Delete on the photograph: drop the selection / remove the pin.
+    var fileName: String? = nil
+    /// ⌘-click or ⌘-drag: the area to make neutral, as two corners in
+    /// fractions of the uncropped photograph from its top left.
+    var onPickWhiteBalance: ((CGPoint, CGPoint) -> Void)? = nil
+    /// ⌃-click or ⌃-drag: the area to read against the zones, as two corners
+    /// in fractions of the uncropped photograph from its top left.
+    var onPickZone: ((CGPoint, CGPoint) -> Void)? = nil
+    /// Esc on the photograph: drop the zone reading.
     var onEscapeKey: (() -> Void)? = nil
-    var onDeleteKey: (() -> Void)? = nil
     /// Called when the user changes between fit and a zoomed view.
     var onFitChanged: ((Bool) -> Void)? = nil
 
@@ -51,7 +43,7 @@ struct PreviewCanvas: NSViewRepresentable {
         scroll.allowsMagnification = true; scroll.minMagnification = 0.005; scroll.maxMagnification = 16
         scroll.documentView = PhotographView()
         scroll.setAccessibilityLabel("Photograph preview")
-        scroll.setAccessibilityHelp("Pinch to zoom, drag to pan, drag a zone from the panel onto a tone to pin it, click a pin to select it, then scroll to size it or drag to move it, double-click to fit or show actual size.")
+        scroll.setAccessibilityHelp("Pinch to zoom, drag to pan, Control-click or Control-drag to read a tone against the zones, Command-click or Command-drag to set the white balance, double-click to fit or show actual size.")
         scroll.onFitChanged = onFitChanged
         return scroll
     }
@@ -61,31 +53,25 @@ struct PreviewCanvas: NSViewRepresentable {
         scroll.onFitChanged = onFitChanged
         let photo = scroll.documentView as! PhotographView
         photo.onEscapeKey = onEscapeKey
-        photo.onDeleteKey = onDeleteKey
-        photo.onSelectPin = onSelectPin
-        photo.onMovePin = onMovePin
-        photo.draggedRadius = draggedRadius
-        scroll.onScrollPin = onScrollPin
+        photo.onPickWhiteBalance = onPickWhiteBalance
+        photo.onPickZone = onPickZone
         scroll.proofPixels = proofPixels
         scroll.zoomSteps = zoomSteps
         scroll.exif = exif
-        scroll.overlay.onZonePlacement = onZonePlacement
-        // Esc and Delete reach the photograph once a pin is selected.
-        let selected = pins.first(where: \.selected)?.index
-        if selected != nil, selected != photo.selectedPin { scroll.window?.makeFirstResponder(photo) }
-        photo.selectedPin = selected
+        scroll.overlay.showFileName(fileName)
         let cropped = crop.size(of: size)
         let displaySize = rotation % 2 != 0 ? CGSize(width: cropped.height, height: cropped.width) : cropped
         let documentSize = border.map { border in
             let canvas = border.canvas(for: displaySize, strip: filmStrip)
             return border.instagram ? border.instagramCanvas(for: canvas) : canvas
         } ?? displaySize
-        // Room to pan the photograph clear of the panel and show its details.
+        // Room to show its details above it.
         scroll.automaticallyAdjustsContentInsets = false
-        let insets = ZoneGeometry.insets(document: documentSize, zones: showsZones)
+        let insets = NSEdgeInsets(top: CanvasOverlayView.exifMargin, left: 0, bottom: 0, right: 0)
         if insets.top != scroll.contentInsets.top || insets.left != scroll.contentInsets.left
             || insets.bottom != scroll.contentInsets.bottom {
             scroll.contentInsets = insets
+            if scroll.fitting { scroll.applyZoom() }
             scroll.overlay.redraw()
         }
         let oldSize = photo.frame.size, oldPhotoSize = photo.displaySize
@@ -114,7 +100,6 @@ struct PreviewCanvas: NSViewRepresentable {
             scroll.lastCommand = zoomCommand; scroll.fitting = fit || proofPixels != nil
             scroll.applyZoom()
         } else if oldSize != documentSize || recropped, scroll.fitting, !sameProof { scroll.applyZoom() }
-        scroll.showPins(pins, dragged: dragged)
     }
 }
 
@@ -174,7 +159,6 @@ final class ImageScrollView: NSScrollView {
     var lastCommand: UUID?
     var fitting = true
     var onFitChanged: ((Bool) -> Void)?
-    var onScrollPin: ((Double, Bool) -> Void)?
     /// One step of ⌘+ or ⌘−.
     static let zoomStep: CGFloat = 2.0.squareRoot()
     /// In a proof, the pixels the export writes, shown one to a screen pixel.
@@ -187,7 +171,7 @@ final class ImageScrollView: NSScrollView {
         }
     }
     private var isProof: Bool { proofPixels != nil }
-    /// A fitted photograph leaves room for these above and below it.
+    /// A fitted photograph leaves room for its details above it, and is centred.
     var exif: PhotoExif? {
         didSet {
             guard exif != oldValue else { return }
@@ -220,8 +204,8 @@ final class ImageScrollView: NSScrollView {
             reflectScrolledClipView(contentView)
         }
     }
-    /// The pins and their lines, above the document.
-    let overlay = PinOverlayView(frame: .zero)
+    /// The camera details and the box being picked, above the document.
+    let overlay = CanvasOverlayView(frame: .zero)
     private var lastViewport = CGSize.zero
     private weak var observedClip: NSClipView?
 
@@ -231,12 +215,7 @@ final class ImageScrollView: NSScrollView {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    func showPins(_ pins: [TonePinMarker], dragged: ZoneDrag?) {
-        (documentView as? PhotographView)?.pinMarkers = pins
-        overlay.update(pins: pins, dragged: dragged)
-    }
-
-    /// Lines follow every pan and zoom, which all move the clip view's bounds.
+    /// The details follow every pan and zoom, which all move the clip view's bounds.
     override func tile() {
         super.tile()
         // The clip view and scrollers arrive after the overlay does.
@@ -265,7 +244,7 @@ final class ImageScrollView: NSScrollView {
                 contentView.scroll(to: contentView.constrainBoundsRect(contentView.bounds).origin)
                 reflectScrolledClipView(contentView)
             }
-            // The canvas moved under the pins and camera details, whether or not
+            // The canvas moved under the camera details, whether or not
             // the view of the photograph did: nothing else tells them.
             overlay.redraw()
         }
@@ -281,7 +260,8 @@ final class ImageScrollView: NSScrollView {
         // 1:1 is one photograph pixel per screen pixel. Fitting shows the whole
         // photograph, but never enlarges it past 1:1.
         let oneToOne = 1 / (window?.backingScaleFactor ?? 2)
-        let margin = exif == nil ? 0 : PinOverlayView.exifMargin * 2
+        // Room for the details; the clip view places it.
+        let margin = max(overlay.detailsLine.isEmpty ? 0 : CanvasOverlayView.exifMargin * 2, contentInsets.top + contentInsets.bottom)
         let fit = min(contentSize.width / size.width, max(contentSize.height - margin, 1) / size.height)
         let amount = proofMagnification(document: size) ?? (fitting ? min(fit, oneToOne) : oneToOne)
         setMagnification(min(max(amount, minMagnification), maxMagnification), centeredAt: NSPoint(x: size.width / 2, y: size.height / 2))
@@ -351,9 +331,6 @@ final class ImageScrollView: NSScrollView {
             setFitting(false)
             let center = documentView?.convert(event.locationInWindow, from: nil) ?? .zero
             setMagnification(min(max(magnification * exp(-event.scrollingDeltaY * 0.01), minMagnification), maxMagnification), centeredAt: center)
-        } else if overlay.pins.contains(where: \.selected), let onScrollPin {
-            let delta = SampleSize.handDelta(scrollingDeltaY: Double(event.scrollingDeltaY), inverted: event.isDirectionInvertedFromDevice)
-            onScrollPin(delta, event.hasPreciseScrollingDeltas)
         } else {
             super.scrollWheel(with: event)
         }
@@ -373,31 +350,19 @@ final class PhotographView: NSView {
     private var border: BorderSettings?
     private var filmTexture: CGImage?
     private var filmStrip: FilmStrip?
-    /// The pins on the photograph; the overlay draws them.
-    var pinMarkers: [TonePinMarker] = [] {
-        didSet { if pinMarkers != oldValue { movedPin = nil } }
-    }
-    var selectedPin: Int?
-    /// The size a dragged zone's circle starts at.
-    var draggedRadius = SampleSize.initial
-    /// Called when a pin's chip is clicked, or with nil on empty photograph.
-    var onSelectPin: ((Int?) -> Void)?
-    /// Called when a placed pin is dragged to a new point.
-    var onMovePin: ((Int, CGPoint) -> Void)?
+    var onPickWhiteBalance: ((CGPoint, CGPoint) -> Void)?
+    var onPickZone: ((CGPoint, CGPoint) -> Void)?
     var onEscapeKey: (() -> Void)?
-    var onDeleteKey: (() -> Void)?
     /// The drag in progress.
     private enum Drag {
-        /// A plain press: a click if it doesn't move, a pan if it can. Clicking
-        /// in a pin's circle selects it, while dragging from there still pans.
+        /// A plain press: a click if it doesn't move, a pan if it can.
         case press(start: CGPoint, moved: Bool, canScroll: Bool)
-        /// A pin dragged from its chip: it follows the pointer from where it
-        /// was grabbed, and the tone is measured again on mouse-up.
-        case movePin(index: Int, start: CGPoint, grab: CGVector, unit: CGPoint?)
+        /// ⌘ or ⌃ held: a box from `start`, drawn on the overlay as it's dragged.
+        /// A click without a drag reads the few pixels around it.
+        case pick(Pick, start: CGPoint)
     }
+    private enum Pick { case whiteBalance, zone(large: Bool) }
     private var drag: Drag?
-    /// Where a dragged pin is drawn until the model has measured it there.
-    private var movedPin: (index: Int, centre: CGPoint)?
     private var cursorPushed = false
     /// The photograph's size on the canvas, after cropping and rotation.
     var displaySize: CGSize {
@@ -450,20 +415,7 @@ final class PhotographView: NSView {
         return CGPoint(x: x, y: y)
     }
 
-    /// Where a pin is drawn, in this view. Nil when its spot is outside the crop.
-    func centre(of marker: TonePinMarker) -> CGPoint? {
-        if let movedPin, movedPin.index == marker.index { return movedPin.centre }
-        guard let root = layer, size.width > 0 else { return nil }
-        let unit = marker.source.centre
-        let inClip = clip.convert(CGPoint(x: unit.x * size.width, y: (1 - unit.y) * size.height), from: photo)
-        guard clip.bounds.contains(inClip) else { return nil }
-        return root.convert(inClip, from: clip)
-    }
-
-    /// A circle's radius in this view's points, before the canvas's zoom.
-    func radiusInPoints(_ radius: Double) -> CGFloat { CGFloat(radius) * min(size.width, size.height) }
-
-    private var overlay: PinOverlayView? { (enclosingScrollView as? ImageScrollView)?.overlay }
+    private var overlay: CanvasOverlayView? { (enclosingScrollView as? ImageScrollView)?.overlay }
 
     /// Takes the keyboard focus on appearing. Nothing else claims it, and with
     /// Keyboard Navigation on AppKit would otherwise ring a toolbar button.
@@ -479,9 +431,6 @@ final class PhotographView: NSView {
         case 53:
             onEscapeKey?()
             return
-        case 51, 117:
-            onDeleteKey?()
-            return
         default:
             super.keyDown(with: event)
         }
@@ -489,16 +438,19 @@ final class PhotographView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        let underPointer = overlay.flatMap { $0.pin(at: $0.convert(point, from: self)) }
-        movedPin = nil
-        switch CanvasGesture.start(clickCount: event.clickCount, pinUnderPointer: underPointer) {
+        let flags = event.modifierFlags
+        switch CanvasGesture.start(clickCount: event.clickCount,
+                                   command: flags.contains(.command) && onPickWhiteBalance != nil,
+                                   control: flags.contains(.control) && onPickZone != nil,
+                                   option: flags.contains(.option)) {
+        case .pickWhiteBalance:
+            drag = .pick(.whiteBalance, start: point)
+            pushCursor(.crosshair)
+        case .pickZone(let large):
+            drag = .pick(.zone(large: large), start: point)
+            pushCursor(.crosshair)
         case .zoomToggle:
             (enclosingScrollView as? ImageScrollView)?.toggleZoom(about: point)
-        case .selectPin(let index):
-            onSelectPin?(index)
-            guard let marker = pinMarkers.first(where: { $0.index == index }), let chip = centre(of: marker) else { return }
-            drag = .movePin(index: index, start: point, grab: CGVector(dx: point.x - chip.x, dy: point.y - chip.y), unit: nil)
-            pushCursor(.closedHand)
         case .pan:
             let canScroll = (enclosingScrollView as? ImageScrollView)?.canScroll ?? false
             drag = .press(start: point, moved: false, canScroll: canScroll)
@@ -509,13 +461,10 @@ final class PhotographView: NSView {
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         switch drag {
-        case .movePin(let index, let start, let grab, _):
-            guard hypot(point.x - start.x, point.y - start.y) > 2 else { return }
-            let centre = CGPoint(x: point.x - grab.dx, y: point.y - grab.dy)
-            guard let unit = unitPoint(at: centre) else { return }
-            drag = .movePin(index: index, start: start, grab: grab, unit: unit)
-            movedPin = (index, centre)
-            overlay?.redraw()
+        case .pick(_, let start):
+            guard hypot(point.x - start.x, point.y - start.y) > 3, let overlay else { return }
+            let (a, b) = (overlay.convert(start, from: self), overlay.convert(point, from: self))
+            overlay.showMarquee(CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)))
         case .press(let start, let moved, let canScroll):
             // A small wobble while clicking is still a click.
             guard moved || hypot(point.x - start.x, point.y - start.y) > 3 else { return }
@@ -533,11 +482,25 @@ final class PhotographView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         switch drag {
-        case .movePin(let index, _, _, let unit?):
-            onMovePin?(index, unit)
-        case .press(let start, false, _):
-            // A click inside a pin's circle selects it; on empty photograph it deselects.
-            onSelectPin?(overlay.flatMap { $0.pinCircle(at: $0.convert(start, from: self)) })
+        case .pick(let pick, let start):
+            overlay?.showMarquee(nil)
+            let end = convert(event.locationInWindow, from: nil)
+            let dragged = hypot(end.x - start.x, end.y - start.y) > 3
+            // A corner off the photograph stops at its edge; a click is its one point.
+            guard var a = unitPoint(clampedFrom: start), var b = unitPoint(clampedFrom: dragged ? end : start) else { break }
+            switch pick {
+            case .whiteBalance:
+                onPickWhiteBalance?(a, b)
+            case .zone(let large):
+                // A click reads 3 × 3 of the preview's pixels, or 7 × 7 with ⌥.
+                if !dragged, size.width > 0, size.height > 0 {
+                    let half = large ? 3.5 : 1.5
+                    let (dx, dy) = (half / size.width, half / size.height)
+                    a = CGPoint(x: max(a.x - dx, 0), y: max(a.y - dy, 0))
+                    b = CGPoint(x: min(b.x + dx, 1), y: min(b.y + dy, 1))
+                }
+                onPickZone?(a, b)
+            }
         default:
             break
         }
@@ -567,6 +530,30 @@ final class PhotographView: NSView {
     var clipLayer: CALayer { clip }
 
     override func resetCursorRects() { addCursorRect(bounds, cursor: .arrow) }
+
+    /// Holding ⌘ or ⌃ over the photograph shows the picker's crosshair.
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        guard drag == nil, onPickWhiteBalance != nil || onPickZone != nil, let window else { return }
+        let inside = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        let picking = event.modifierFlags.contains(.command) && onPickWhiteBalance != nil
+            || event.modifierFlags.contains(.control) && onPickZone != nil
+        (picking && inside ? NSCursor.crosshair : NSCursor.arrow).set()
+    }
+
+    /// The unit point at `viewPoint`, or if it's off the photograph, the nearest
+    /// point on it, found by stepping back towards the photograph's middle.
+    func unitPoint(clampedFrom viewPoint: CGPoint) -> CGPoint? {
+        if let unit = unitPoint(at: viewPoint) { return unit }
+        let middle = CGPoint(x: bounds.midX, y: bounds.midY)
+        guard unitPoint(at: middle) != nil else { return nil }
+        var (inside, outside) = (middle, viewPoint)
+        for _ in 0..<24 {
+            let mid = CGPoint(x: (inside.x + outside.x) / 2, y: (inside.y + outside.y) / 2)
+            if unitPoint(at: mid) != nil { inside = mid } else { outside = mid }
+        }
+        return unitPoint(at: inside)
+    }
 
     private func pushCursor(_ cursor: NSCursor) {
         guard !cursorPushed else { return }

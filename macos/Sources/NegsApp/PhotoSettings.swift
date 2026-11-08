@@ -1,6 +1,6 @@
 import Foundation
 
-/// Everything edited on a photograph, film to pins, as a JSON file beside it.
+/// Everything edited on a photograph, film to crop, as a JSON file beside it.
 struct PhotoSettingsFile: Codable, Equatable {
     /// Marks the file as ours, and its format.
     var negsSettings = 1
@@ -25,6 +25,7 @@ struct PhotoSettingsFile: Codable, Equatable {
 
     /// This photograph's saved settings, if it has any. Other photographs' files
     /// and other JSON are ignored; a file of its own that can't be read throws.
+    /// The zone pins of earlier versions are left behind.
     static func read(beside source: URL) throws -> PhotoSettingsFile? {
         for url in names(beside: source) {
             guard let data = try? Data(contentsOf: url), isOurs(data, for: source.lastPathComponent) else { continue }
@@ -32,7 +33,9 @@ struct PhotoSettingsFile: Codable, Equatable {
                 throw EngineError(message: "“\(url.lastPathComponent)” is too large to be settings.")
             }
             do {
-                return try JSONDecoder().decode(PhotoSettingsFile.self, from: data)
+                var file = try JSONDecoder().decode(PhotoSettingsFile.self, from: data)
+                file.state = EditorModel.withoutPins(file.state)
+                return file
             } catch {
                 throw EngineError(message: "The settings in “\(url.lastPathComponent)” can’t be read, so the photograph opened without them.")
             }

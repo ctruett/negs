@@ -72,14 +72,12 @@ import SwiftUI
         command(view, "Show Adjustments", #selector(toggleAdjustments), "i", [.command, .option])
         command(view, "Show Presets", #selector(togglePresets), "p", [.command, .option])
         view.addItem(.separator())
-        command(view, "Hide Zones and Pins", #selector(togglePins), "\t", [])
-        command(view, "Delete Tone Pin", #selector(deleteTonePin), "\u{8}", [])
-        view.addItem(.separator())
         command(view, "Previous Photograph", #selector(previousPhotograph), String(UnicodeScalar(NSLeftArrowFunctionKey)!), [])
         command(view, "Next Photograph", #selector(nextPhotograph), String(UnicodeScalar(NSRightArrowFunctionKey)!), [])
         command(view, "Grid View", #selector(toggleGrid), "g", [])
         command(view, "Image Only", #selector(toggleImageOnly), "f", [])
         command(view, "Simple Controls", #selector(toggleInspectorMode), String(UnicodeScalar(NSF4FunctionKey)!), [])
+        command(view, "All Controls", #selector(toggleAllControls), "", [])
         command(view, "Zoom In", #selector(zoomIn), "=")
         command(view, "Zoom Out", #selector(zoomOut), "-")
         // ⌘+ with Shift held, for keyboards where + needs it. It has no row of its own.
@@ -139,8 +137,6 @@ import SwiftUI
     @objc private func exportLUT() { model.exportLUTPanel() }
     @objc private func saveSettings() { model.saveSettings() }
     @objc private func toggleFilmstrip() { model.filmstripVisible.toggle() }
-    @objc private func togglePins() { model.pinsVisible.toggle() }
-    @objc private func deleteTonePin() { model.removeSelectedPin() }
     @objc private func toggleAdjustments() { model.togglePane(.adjustments) }
     @objc private func togglePresets() { model.togglePane(.presets) }
     @objc private func newPreset() { model.newPreset() }
@@ -153,6 +149,7 @@ import SwiftUI
     @objc private func toggleImageOnly() { model.toggleImageOnly() }
     @objc private func setFolderDefault() { model.setFolderDefault() }
     @objc private func toggleInspectorMode() { model.toggleInspectorMode() }
+    @objc private func toggleAllControls() { model.inspectorMode = model.inspectorMode == .all ? .advanced : .all }
     @objc private func zoomIn() { model.zoomIn() }
     @objc private func zoomOut() { model.zoomOut() }
     @objc private func rotate() { model.rotate() }
@@ -176,11 +173,8 @@ import SwiftUI
         case #selector(toggleFilmstrip):
             item.title = model.filmstripVisible ? "Hide Film Strip" : "Show Film Strip"
             return true
-        case #selector(togglePins):
-            item.title = model.pinsVisible ? "Hide Zones and Pins" : "Show Zones and Pins"
-            return photo && Self.bareKeysAllowed(firstResponder: NSApp.keyWindow?.firstResponder)
-        case #selector(deleteTonePin):
-            return model.canRemovePin && Self.bareKeysAllowed(firstResponder: NSApp.keyWindow?.firstResponder)
+        case #selector(toggleAllControls):
+            item.state = model.inspectorMode == .all ? .on : .off; return true
         case #selector(toggleAdjustments):
             item.state = model.inspectorVisible && model.inspectorPane == .adjustments ? .on : .off; return true
         case #selector(togglePresets):
