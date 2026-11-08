@@ -7,8 +7,9 @@
 //! Pixels are decoded with the output space's own transfer function and
 //! luminance is that space's Y, so the same settings make the same change in
 //! every output space. Tones are shaped on that luminance in sRGB-encoded
-//! (perceptual) space, and each pixel keeps its colour ratios, so contrast
-//! doesn't shift the film's hues.
+//! (perceptual) space. Brightness and the levels keep each pixel's colour
+//! ratios; Contrast bends each channel, as RPP's does, so a tone it darkens
+//! gets richer rather than duller.
 //!
 //! The arithmetic is f32 even in the f64 build: the tables already limit
 //! accuracy to about 2e-7, far below a 16-bit output step, and the f64
@@ -16,7 +17,7 @@
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
-use spektrafilm_math::colorspace::RgbColourspace;
+use spektrafilm_math::colorspace::{self, RgbColourspace};
 use spektrafilm_math::image::ImageBuf;
 use spektrafilm_math::precision::{from_f32, to_f32};
 
@@ -26,7 +27,7 @@ pub struct PostParams {
     /// Lifts or darkens the midtones, keeping black and white.
     #[serde(default)]
     pub brightness: f32,
-    /// An S-curve about middle grey.
+    /// An S-curve about middle grey, on each channel.
     #[serde(default)]
     pub contrast: f32,
     /// Moves the white point: up clips the brightest tones to white, down dims white.
@@ -123,27 +124,56 @@ impl Transfer {
     }
 }
 
-/// The tone curve on encoded luminance, [0, 1] → [0, 1], non-decreasing.
-fn tone(params: &PostParams, mut e: f64) -> f64 {
-    // Brightness: a rational curve with finite slope at both ends, so lifting
-    // the midtones doesn't amplify the grain in the deepest shadows.
+/// Brightness on encoded luminance, [0, 1] → [0, 1], non-decreasing: a
+/// rational curve with finite slope at both ends, so lifting the midtones
+/// doesn't amplify the grain in the deepest shadows.
+fn brightness(params: &PostParams, e: f64) -> f64 {
     let k = 2f64.powf(1.25 * params.brightness as f64 / 100.0);
-    e = k * e / (1.0 + (k - 1.0) * e);
-    // Contrast: blend toward (or away from) a quadratic S-curve that keeps
-    // black and white. The slope at the pivot is 1 + a, so a ≥ -0.75 keeps
-    // the curve rising.
-    let c = params.contrast as f64 / 100.0;
-    let a = if c < 0.0 { 0.75 * c } else { c };
-    let s = if e < PIVOT {
-        PIVOT * (e / PIVOT).powi(2)
-    } else {
-        1.0 - (1.0 - PIVOT) * ((1.0 - e) / (1.0 - PIVOT)).powi(2)
-    };
-    e += a * (s - e);
-    // Whites and blacks: levels on the end points.
+    k * e / (1.0 + (k - 1.0) * e)
+}
+
+/// Contrast on one encoded channel, as RPP bends each channel
+/// (`out = v^((−log v)^(B−1))`), pivoted at middle grey: `PIVOT^((ln e / ln
+/// PIVOT)^B)`. It keeps 0 and 1, rises for any `B > 0`, and its slope at the
+/// pivot is `B`: 2 at +100 and 0.25 at −100. Bent per channel, a tone made
+/// darker spreads its channels apart and gets richer, as on a contrastier paper.
+fn contrast_curve(contrast: f32, e: f64) -> f64 {
+    let c = contrast as f64 / 100.0;
+    let b = if c < 0.0 { 1.0 + 0.75 * c } else { 1.0 + c };
+    if e <= 0.0 {
+        return 0.0;
+    }
+    if e >= 1.0 {
+        return 1.0;
+    }
+    PIVOT.powf((e.ln() / PIVOT.ln()).powf(b))
+}
+
+/// The working space Contrast bends the channels of: wide enough for any
+/// scan, and the same whatever the output space.
+fn contrast_space() -> &'static RgbColourspace {
+    RgbColourspace::find("ITU-R BT.2020").expect("BT.2020 is a colour space")
+}
+
+fn matrix_f32(m: [[f64; 3]; 3]) -> [[f32; 3]; 3] {
+    m.map(|row| row.map(|v| v as f32))
+}
+
+fn mul(m: &[[f32; 3]; 3], c: [f32; 3]) -> [f32; 3] {
+    m.map(|row| row[0] * c[0] + row[1] * c[1] + row[2] * c[2])
+}
+
+/// Whites and Blacks on encoded luminance: levels on the end points.
+fn levels(params: &PostParams, e: f64) -> f64 {
     let black = -LEVELS_RANGE * params.blacks as f64 / 100.0;
     let white = 1.0 - LEVELS_RANGE * params.whites as f64 / 100.0;
     ((e - black) / (white - black)).clamp(0.0, 1.0)
+}
+
+/// The whole curve a grey takes, encoded: Brightness, Contrast, then levels.
+#[cfg(test)]
+fn tone(params: &PostParams, e: f64) -> f64 {
+    levels(params, contrast_curve(params.contrast, brightness(params, e)))
 }
 
 /// Linear interpolation in a table sampled on [0, 1].
@@ -462,8 +492,18 @@ pub struct PostProcess {
     decode: Vec<f32>,
     /// Linear → encoded, sampled on √x for resolution near black.
     encode: Vec<f32>,
-    /// Linear luminance → adjusted linear luminance, sampled on √Y.
+    /// Brightness: linear luminance → linear luminance, sampled on √Y.
     tone: Vec<f32>,
+    /// Contrast: a linear channel → a linear channel, sampled on √x. It bends
+    /// the channels of one working space, so the same edit looks the same in
+    /// every output space.
+    channel: Vec<f32>,
+    /// Output space → the working space Contrast bends in, and back.
+    to_work: [[f32; 3]; 3],
+    from_work: [[f32; 3]; 3],
+    /// Whites, Blacks and the tone curve's points: linear luminance → linear
+    /// luminance, sampled on √Y.
+    levels: Vec<f32>,
 }
 
 impl PostProcess {
@@ -482,10 +522,14 @@ impl PostProcess {
             encoded,
             decode: samples(&|v| space.decode(v)),
             encode: samples(&|s| space.encode(s * s)),
+            tone: samples(&|s| srgb_decode(brightness(params, srgb_encode(s * s)))),
+            channel: samples(&|s| srgb_decode(contrast_curve(params.contrast, srgb_encode(s * s)))),
+            to_work: matrix_f32(colorspace::icc_rgb_to_rgb(RgbColourspace::output(color_space), contrast_space())),
+            from_work: matrix_f32(colorspace::icc_rgb_to_rgb(contrast_space(), RgbColourspace::output(color_space))),
             // The pins bend what the knobs produced.
-            tone: {
+            levels: {
                 let curve = AnchorCurve::for_post(params);
-                samples(&|s| curve.map_luminance(srgb_decode(tone(params, srgb_encode(s * s)))))
+                samples(&|s| curve.map_luminance(srgb_decode(levels(params, srgb_encode(s * s)))))
             },
         }
     }
@@ -498,19 +542,14 @@ impl PostProcess {
         } else {
             rgb.map(|v| v.clamp(0.0, 1.0))
         };
-        let y = self.luma[0] * c[0] + self.luma[1] * c[1] + self.luma[2] * c[2];
-        let y2 = lookup(&self.tone, y.max(0.0).sqrt());
-        if y <= 1e-9 {
-            c = [y2; 3];
-        } else {
-            c = c.map(|v| v * (y2 / y));
-            // Above white, give up saturation rather than luminance or hue.
-            let max = c[0].max(c[1]).max(c[2]);
-            if max > 1.0 {
-                let k = (1.0 - y2) / (max - y2);
-                c = c.map(|v| y2 + (v - y2) * k);
-            }
-        }
+        c = self.luminance_through(&self.tone, c);
+        c = mul(&self.from_work, mul(&self.to_work, c).map(|v| {
+            // Mirrored below zero, and left alone past one: wide colours keep going.
+            let a = v.abs();
+            if a > 1.0 { v } else { v.signum() * lookup(&self.channel, a.sqrt()) }
+        }));
+        c = self.luminance_through(&self.levels, c);
+        let y2 = self.luma[0] * c[0] + self.luma[1] * c[1] + self.luma[2] * c[2];
         let mut f = 1.0 + self.saturation;
         if f > 1.0 {
             // Stop at the gamut boundary, keeping the hue.
@@ -529,6 +568,23 @@ impl PostProcess {
         } else {
             c
         }
+    }
+
+    /// `c` with its luminance through `table`, its channels scaled together.
+    fn luminance_through(&self, table: &[f32], c: [f32; 3]) -> [f32; 3] {
+        let y = self.luma[0] * c[0] + self.luma[1] * c[1] + self.luma[2] * c[2];
+        let y2 = lookup(table, y.max(0.0).sqrt());
+        if y <= 1e-9 {
+            return [y2; 3];
+        }
+        let c = c.map(|v| v * (y2 / y));
+        // Above white, give up saturation rather than luminance or hue.
+        let max = c[0].max(c[1]).max(c[2]);
+        if max > 1.0 {
+            let k = (1.0 - y2) / (max - y2);
+            return c.map(|v| y2 + (v - y2) * k);
+        }
+        c
     }
 
     /// These adjustments for the GPU display pass, which applies them as
@@ -615,6 +671,35 @@ pub fn measured_lstar(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn contrast_keeps_its_ends_and_rises() {
+        for c in [-100.0, -40.0, 0.0, 40.0, 100.0] {
+            assert_eq!(contrast_curve(c, 0.0), 0.0);
+            assert_eq!(contrast_curve(c, 1.0), 1.0);
+            assert!((contrast_curve(c, PIVOT) - PIVOT).abs() < 1e-12);
+            let mut last = 0.0;
+            for i in 1..=1000 {
+                let v = contrast_curve(c, i as f64 / 1000.0);
+                assert!(v.is_finite() && v >= last, "{c} at {i}");
+                last = v;
+            }
+        }
+        let slope = |c| (contrast_curve(c, PIVOT + 1e-6) - contrast_curve(c, PIVOT - 1e-6)) / 2e-6;
+        assert!((slope(100.0) - 2.0).abs() < 1e-3);
+        assert!((slope(-100.0) - 0.25).abs() < 1e-3);
+    }
+
+    /// RPP's contrast spreads a darkened colour's channels apart.
+    #[test]
+    fn contrast_makes_a_darkened_colour_richer() {
+        let post = PostProcess::new(&PostParams { contrast: 60.0, ..Default::default() }, false, "sRGB");
+        let skin = [0.15f32, 0.09, 0.06];
+        let out = post.apply_rgb(skin);
+        let ratio = |c: [f32; 3]| c[0] / c[2];
+        assert!(out[1] < skin[1], "darker");
+        assert!(ratio(out) > ratio(skin), "the channels spread apart");
+    }
+
     /// The same curve with pins measured on the photograph, for the app's test.
     #[test]
     fn soft_pins_match_what_the_app_draws() {

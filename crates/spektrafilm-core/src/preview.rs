@@ -603,9 +603,13 @@ mod tests {
         );
         for (image, sizes) in [(&stripes, &[7, 20][..]), (&noise, &[97, 61, 40, 7][..])] {
             for &max_dim in sizes {
-                assert_eq!(
-                    display_rgba_with_post(image, max_dim, true, Some(&post)),
-                    display_rgba(&post.applied(image), max_dim, true),
+                // Within one 8-bit step: the stripes average to exactly half
+                // way between two codes, where float noise picks either.
+                let (with_post, applied) =
+                    (display_rgba_with_post(image, max_dim, true, Some(&post)), display_rgba(&post.applied(image), max_dim, true));
+                assert_eq!((with_post.0, with_post.1), (applied.0, applied.1));
+                assert!(
+                    with_post.2.iter().zip(&applied.2).all(|(a, b)| a.abs_diff(*b) <= 1),
                     "{}x{} at max_dim {max_dim}",
                     image.width,
                     image.height
