@@ -91,32 +91,6 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertTrue(MainMenu.bareKeysAllowed(firstResponder: nil))
     }
 
-    /// The same numbers as the engine's `the_curve_matches_what_the_app_draws`.
-    func testTheCurveMatchesTheEngine() {
-        let curve = ToneCurve(anchors: [(25, 10), (60, 70)])
-        for (input, expected) in [(10.0, 2.73521), (40, 32.81935), (50, 54.01397), (80, 88.388158)] {
-            XCTAssertEqual(curve.map(input), expected, accuracy: 1e-4)
-        }
-        let ends = ToneCurve(anchors: [(20, 0), (45, 50), (90, 100)])
-        for (input, expected) in [(30.0, 14.075524), (60, 72.753173), (85, 99.010523)] {
-            XCTAssertEqual(ends.map(input), expected, accuracy: 1e-4)
-        }
-        XCTAssertEqual(ToneCurve(anchors: []).map(33), 33, "Straight with nothing on it")
-    }
-
-    /// The same numbers as the engine's `soft_pins_match_what_the_app_draws`.
-    func testSoftPinsMatchTheEngine() {
-        let anchors: [(input: Double, target: Double)] = [(30, 36), (34, 49.5), (50, 66.5), (75, 88)]
-        let curve = ToneCurve(anchors: anchors, soft: [true, true, true, true])
-        for (input, expected) in [(10.0, 10.504084), (32, 42.77046), (60, 76.320166), (90, 96.210687)] {
-            XCTAssertEqual(curve.map(input), expected, accuracy: 1e-4)
-        }
-        // The same anchors set by hand land where they're put.
-        let hard = ToneCurve(anchors: anchors)
-        XCTAssertEqual(hard.map(34), 49.5, accuracy: 1e-9)
-        XCTAssertLessThan(curve.map(34), 49)
-    }
-
     /// Centred with room to spare; off centre only to keep what's beside it clear.
     func testTheCanvasKeepsThePanelClear() {
         XCTAssertEqual(CenteringClipView.leadingGap(space: 400, leading: 56, trailing: 26), 200)

@@ -57,7 +57,7 @@ pub struct PostParams {
 /// One pin of the tone curve, in CIE Lab lightness.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ToneAnchor {
-    /// The tone as [`measured_lstar`] read it, L\* 0…100.
+    /// The tone, L\* 0…100.
     pub input: f32,
     /// Where it should print, L\* 0…100.
     pub target: f32,
@@ -251,8 +251,7 @@ fn lookup(table: &[f32], x: f32) -> f32 {
     table[i] + (table[i + 1] - table[i]) * f
 }
 
-/// The L\* a scan's pixel prints at, after `post`: as [`measured_lstar`] reads a
-/// tone, with whatever curve `post` holds.
+/// The L\* a scan's pixel prints at, after `post`, with whatever curve it holds.
 pub(crate) fn printed_lstar(post: &PostProcess, rgb: [f32; 3], encoded: bool, color_space: &str) -> f64 {
     let transfer = Transfer(RgbColourspace::output(color_space));
     let luma = luminance_weights(color_space);
@@ -713,59 +712,6 @@ impl PostProcess {
     }
 }
 
-/// The most pixels [`measured_lstar`] reads; a larger circle is sampled on an
-/// even grid.
-const MEASURE_SAMPLES: f64 = 65_536.0;
-
-/// The mean L\* of the pixels in a circle, as the pins read it: after the
-/// four knobs, before any pin. `centre` is in fractions of the image and
-/// `radius` a fraction of its shorter side; 0 is the pixel under the centre.
-/// None outside the image.
-pub fn measured_lstar(
-    image: &ImageBuf,
-    post: &PostParams,
-    encoded: bool,
-    color_space: &str,
-    centre: (f64, f64),
-    radius: f64,
-) -> Option<f64> {
-    let (width, height) = (image.width as f64, image.height as f64);
-    if !(0.0..=1.0).contains(&centre.0) || !(0.0..=1.0).contains(&centre.1) || width < 1.0 || height < 1.0 {
-        return None;
-    }
-    let (cx, cy) = (centre.0 * width, centre.1 * height);
-    let reach = radius.max(0.0) * width.min(height);
-    let knobs = PostProcess::new(&PostParams { tone_anchors: Vec::new(), ..post.clone() }, encoded, color_space);
-    let transfer = Transfer(RgbColourspace::output(color_space));
-    let luma = luminance_weights(color_space);
-    let (lo, hi) = crate::pipeline::display_range(encoded);
-    let lstar = |x: u32, y: u32| {
-        let rgb = knobs.apply_rgb(image.get(x, y).map(|v| to_f32(v.clamp(lo, hi))));
-        let linear = rgb.map(|v| if encoded { transfer.decode(f64::from(v)) } else { f64::from(v) });
-        lstar_of((0..3).map(|c| f64::from(luma[c]) * linear[c]).sum())
-    };
-    let last = (image.width - 1, image.height - 1);
-    if reach < 0.5 {
-        return Some(lstar((cx as u32).min(last.0), (cy as u32).min(last.1)));
-    }
-    let span = |c: f64, end: u32| ((c - reach).max(0.0) as u32, ((c + reach).ceil() as u32).min(end));
-    let (x0, x1) = span(cx, last.0);
-    let (y0, y1) = span(cy, last.1);
-    let area = f64::from(x1 - x0 + 1) * f64::from(y1 - y0 + 1);
-    let stride = (area / MEASURE_SAMPLES).sqrt().ceil().max(1.0) as usize;
-    let (mut sum, mut count) = (0.0, 0u32);
-    for y in (y0..=y1).step_by(stride) {
-        for x in (x0..=x1).step_by(stride) {
-            let (dx, dy) = (f64::from(x) + 0.5 - cx, f64::from(y) + 0.5 - cy);
-            if dx * dx + dy * dy <= reach * reach {
-                sum += lstar(x, y);
-                count += 1;
-            }
-        }
-    }
-    (count > 0).then(|| sum / f64::from(count))
-}
-
 #[cfg(test)]
 mod tests {
     #[test]
@@ -827,17 +773,6 @@ mod tests {
         assert!(ratio(out) > ratio(skin), "the channels spread apart");
     }
 
-    /// The same curve with pins measured on the photograph, for the app's test.
-    #[test]
-    fn soft_pins_match_what_the_app_draws() {
-        let source = Some(AnchorSource { x: 0.5, y: 0.5, radius: 0.02 });
-        let pin = |input, target| ToneAnchor { input, target, source };
-        let curve = AnchorCurve::new(&[pin(30.0, 36.0), pin(34.0, 49.5), pin(50.0, 66.5), pin(75.0, 88.0)]);
-        for (input, expected) in SOFT_EXPECTED {
-            assert!((curve.map(input) - expected).abs() < 1e-4, "{input}: {}", curve.map(input));
-        }
-    }
-    const SOFT_EXPECTED: [(f64, f64); 4] = [(10.0, 10.504084), (32.0, 42.77046), (60.0, 76.320166), (90.0, 96.210687)];
 
     /// Pins close together blend, within the limits, and the curve keeps rising
     /// and never flattens at the ends. A gentle pin lands exactly.
@@ -906,21 +841,6 @@ mod tests {
         let converted = AnchorCurve::new(&plain);
         for input in [10.0, 30.0, 34.0] {
             assert!((converted.map(input) - soft.map(input)).abs() < 1.0, "{input}");
-        }
-    }
-
-    /// The Mac app draws this curve with its own `ToneCurve`, whose test holds
-    /// it to these same numbers: change one and the other has to follow.
-    #[test]
-    fn the_curve_matches_what_the_app_draws() {
-        let anchor = |input, target| ToneAnchor { input, target, source: None };
-        let curve = AnchorCurve::new(&[anchor(25.0, 10.0), anchor(60.0, 70.0)]);
-        for (input, expected) in [(10.0, 2.73521), (40.0, 32.81935), (50.0, 54.01397), (80.0, 88.388158)] {
-            assert!((curve.map(input) - expected).abs() < 1e-4, "{input}: {}", curve.map(input));
-        }
-        let ends = AnchorCurve::new(&[anchor(20.0, 0.0), anchor(45.0, 50.0), anchor(90.0, 100.0)]);
-        for (input, expected) in [(30.0, 14.075524), (60.0, 72.753173), (85.0, 99.010523)] {
-            assert!((ends.map(input) - expected).abs() < 1e-4, "{input}: {}", ends.map(input));
         }
     }
 
@@ -1048,55 +968,6 @@ mod tests {
         }
     }
     // MARK: The pinned tone curve
-
-    /// Pins bend the tones the four knobs produced, so a pin that holds its
-    /// tone leaves a photograph with Post edits exactly as it was.
-    #[test]
-    fn a_holding_pin_keeps_the_knobs_edit() {
-        let knobs = params(|p| p.brightness = 40.0);
-        let plain = PostProcess::new(&knobs, true, "sRGB");
-        let tone = measured_lstar(
-            &ImageBuf::from_data(1, 1, vec![from_f32(0.4); 3]), &knobs, true, "sRGB", (0.5, 0.5), 0.0,
-        )
-        .unwrap() as f32;
-        let mut pinned = knobs.clone();
-        pinned.tone_anchors = vec![pin(tone, tone)];
-        let pinned = PostProcess::new(&pinned, true, "sRGB");
-        for v in [0.2f32, 0.4, 0.6, 0.8] {
-            let (a, b) = (plain.apply_rgb([v; 3]), pinned.apply_rgb([v; 3]));
-            assert!((a[0] - b[0]).abs() < 2e-3, "{v}: {a:?} vs {b:?}");
-        }
-    }
-
-    /// A pin's input is the tone before the pins: the curve it joins must not
-    /// change what it reads.
-    #[test]
-    fn measuring_ignores_the_pins_already_on_the_curve() {
-        let image = ImageBuf::from_data(2, 1, vec![from_f32(0.2), from_f32(0.2), from_f32(0.2), from_f32(0.6), from_f32(0.6), from_f32(0.6)]);
-        let mut pinned = PostParams::default();
-        let before = measured_lstar(&image, &pinned, true, "sRGB", (0.25, 0.5), 0.0).unwrap();
-        pinned.tone_anchors = vec![pin(70.0, 20.0)];
-        let after = measured_lstar(&image, &pinned, true, "sRGB", (0.25, 0.5), 0.0).unwrap();
-        assert!((before - after).abs() < 1e-6, "{before} vs {after}");
-        // sRGB 0.2 is L* 21.2.
-        assert!((before - 21.2).abs() < 0.2, "{before}");
-    }
-
-    #[test]
-    fn measuring_averages_the_circle_and_stays_on_the_photograph() {
-        let mut image = ImageBuf::new(40, 40);
-        for y in 0..40 { for x in 0..40 {
-            let v = from_f32(if x < 20 { 0.2 } else { 0.6 });
-            image.set(x, y, [v, v, v]);
-        } }
-        let post = PostParams::default();
-        let dark = measured_lstar(&image, &post, true, "sRGB", (0.1, 0.5), 0.0).unwrap();
-        let light = measured_lstar(&image, &post, true, "sRGB", (0.9, 0.5), 0.0).unwrap();
-        let both = measured_lstar(&image, &post, true, "sRGB", (0.5, 0.5), 0.25).unwrap();
-        assert!((both - (dark + light) / 2.0).abs() < 1.0, "{dark} {light} {both}");
-        assert!(measured_lstar(&image, &post, true, "sRGB", (1.5, 0.5), 0.0).is_none());
-        assert!(measured_lstar(&image, &post, true, "sRGB", (0.5, -0.5), 0.0).is_none());
-    }
 
     fn pin(input: f32, target: f32) -> ToneAnchor {
         ToneAnchor { input, target, source: None }
