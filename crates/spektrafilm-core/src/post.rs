@@ -218,9 +218,13 @@ pub(crate) fn oklab_from(to_lms: &[[f32; 3]; 3], c: [f32; 3]) -> [f32; 3] {
     mul(&OKLAB_M2, mul(to_lms, c).map(f32::cbrt))
 }
 
-pub(crate) fn oklab_to(from_lms: &[[f32; 3]; 3], lab: [f32; 3]) -> [f32; 3] {
-    let m2_inv = matrix_f32(mat_inv(&OKLAB_M2.map(|r| r.map(f64::from))));
-    mul(from_lms, mul(&m2_inv, lab).map(|v| v * v * v))
+/// OKLab's Lab → LMS^⅓, the inverse of [`OKLAB_M2`].
+pub(crate) fn oklab_m2_inv() -> [[f32; 3]; 3] {
+    matrix_f32(mat_inv(&OKLAB_M2.map(|r| r.map(f64::from))))
+}
+
+pub(crate) fn oklab_to(from_lms: &[[f32; 3]; 3], m2_inv: &[[f32; 3]; 3], lab: [f32; 3]) -> [f32; 3] {
+    mul(from_lms, mul(m2_inv, lab).map(|v| v * v * v))
 }
 
 /// Whites and Blacks on encoded luminance: levels on the end points.
@@ -547,6 +551,8 @@ pub struct PostProcess {
     /// Output space → OKLab's LMS, adapted to its D65 white, and back.
     to_lms: [[f32; 3]; 3],
     from_lms: [[f32; 3]; 3],
+    /// [`oklab_m2_inv`], worked out once.
+    m2_inv: [[f32; 3]; 3],
     /// The output space's luminance weights.
     luma: [f32; 3],
     /// Whether pixels arrive, and leave, encoded with the output space's
@@ -585,6 +591,7 @@ impl PostProcess {
             saturation: chroma_scale(params.saturation),
             to_lms,
             from_lms,
+            m2_inv: oklab_m2_inv(),
             luma: luminance_weights(color_space),
             encoded,
             decode: samples(&|v| space.decode(v)),
@@ -646,7 +653,7 @@ impl PostProcess {
     }
 
     pub(crate) fn from_oklab(&self, lab: [f32; 3]) -> [f32; 3] {
-        oklab_to(&self.from_lms, lab)
+        oklab_to(&self.from_lms, &self.m2_inv, lab)
     }
 
     /// `c` with its luminance through `table`, its channels scaled together.
@@ -676,6 +683,14 @@ impl PostProcess {
             decode: self.decode.clone(),
             encode: self.encode.clone(),
             tone: self.tone.clone(),
+            channel: self.channel.clone(),
+            levels: self.levels.clone(),
+            to_work: self.to_work,
+            from_work: self.from_work,
+            to_lms: self.to_lms,
+            from_lms: self.from_lms,
+            m2: OKLAB_M2,
+            m2_inv: self.m2_inv,
         }
     }
 

@@ -227,7 +227,7 @@ pub enum ChainOutput {
 pub struct DisplayPost {
     /// The output space's luminance weights.
     pub luma: [f32; 3],
-    /// From -1 to 1.
+    /// The chroma scale on OKLab a and b; 1 changes nothing.
     pub saturation: f32,
     /// Whether the scan is encoded with the output space's curve; the tables
     /// below are that curve's.
@@ -236,8 +236,20 @@ pub struct DisplayPost {
     pub decode: Vec<f32>,
     /// Linear → encoded, sampled on √x.
     pub encode: Vec<f32>,
-    /// Linear luminance → adjusted linear luminance, sampled on √Y.
+    /// Brightness: linear luminance → linear luminance, sampled on √Y.
     pub tone: Vec<f32>,
+    /// Contrast: a linear working-space channel → itself, sampled on √x.
+    pub channel: Vec<f32>,
+    /// Whites, Blacks and the curve's points, on luminance like `tone`.
+    pub levels: Vec<f32>,
+    /// Output space → Contrast's working space, and back.
+    pub to_work: [[f32; 3]; 3],
+    pub from_work: [[f32; 3]; 3],
+    /// Output space → OKLab's LMS, and back; OKLab's LMS^⅓ → Lab, and back.
+    pub to_lms: [[f32; 3]; 3],
+    pub from_lms: [[f32; 3]; 3],
+    pub m2: [[f32; 3]; 3],
+    pub m2_inv: [[f32; 3]; 3],
 }
 
 /// A finished [`PendingFilmChain`], by its [`ChainOutput`].

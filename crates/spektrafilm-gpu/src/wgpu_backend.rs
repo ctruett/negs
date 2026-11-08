@@ -1974,19 +1974,29 @@ impl WgpuBackend {
             saturation: f32,
             _pad: u32,
             luma: [f32; 4],
+            /// to_work, from_work, to_lms, from_lms, m2, m2_inv: rows padded to vec4.
+            matrices: [[f32; 4]; 18],
         }
+        let rows = |m: &[[f32; 3]; 3]| m.map(|r| [r[0], r[1], r[2], 0.0]);
         let uniform = match post {
-            Some(p) => Post {
-                on: 1,
-                encoded: p.encoded as u32,
-                saturation: p.saturation,
-                _pad: 0,
-                luma: [p.luma[0], p.luma[1], p.luma[2], 0.0],
-            },
-            None => Post { on: 0, encoded: 0, saturation: 0.0, _pad: 0, luma: [0.0; 4] },
+            Some(p) => {
+                let mut matrices = [[0.0; 4]; 18];
+                for (i, m) in [&p.to_work, &p.from_work, &p.to_lms, &p.from_lms, &p.m2, &p.m2_inv].into_iter().enumerate() {
+                    matrices[i * 3..i * 3 + 3].copy_from_slice(&rows(m));
+                }
+                Post {
+                    on: 1,
+                    encoded: p.encoded as u32,
+                    saturation: p.saturation,
+                    _pad: 0,
+                    luma: [p.luma[0], p.luma[1], p.luma[2], 0.0],
+                    matrices,
+                }
+            }
+            None => Post { on: 0, encoded: 0, saturation: 1.0, _pad: 0, luma: [0.0; 4], matrices: [[0.0; 4]; 18] },
         };
         let tables: Vec<f32> = match post {
-            Some(p) => [&p.decode, &p.encode, &p.tone].into_iter().flatten().copied().collect(),
+            Some(p) => [&p.decode, &p.encode, &p.tone, &p.channel, &p.levels].into_iter().flatten().copied().collect(),
             None => vec![0.0; 4],
         };
         let uniform = self.create_buffer_init(&wgpu::util::BufferInitDescriptor {
