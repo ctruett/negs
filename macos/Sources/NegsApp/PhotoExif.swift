@@ -42,7 +42,9 @@ struct PhotoExif: Equatable, Sendable {
     /// whichever it has.
     static func detailsLine(_ exif: PhotoExif?, fileName: String?) -> String {
         [exif?.cameraLine ?? "", exif?.exposureLine ?? "", fileName ?? ""]
-            .filter { !$0.isEmpty }.joined(separator: "   |   ")
+            // Three em spaces: a gap that reads as a break between the parts,
+            // well wider than the spaces within the exposure.
+            .filter { !$0.isEmpty }.joined(separator: String(repeating: "\u{2003}", count: 3))
     }
 
     static func shutter(_ seconds: Double) -> String {

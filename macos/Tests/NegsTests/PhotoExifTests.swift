@@ -93,13 +93,13 @@ final class PhotoExifTests: XCTestCase {
         XCTAssertLessThanOrEqual(line.maxY, overlay.bounds.height, "On the canvas")
         XCTAssertEqual(line.minX, rect.minX, accuracy: 1, "From its left")
         overlay.showFileName("DSC_0001.NEF")
-        XCTAssertEqual(overlay.detailsLine, "D750   |   ISO 400   |   DSC_0001.NEF")
+        XCTAssertEqual(overlay.detailsLine, "D750\u{2003}\u{2003}\u{2003}ISO 400\u{2003}\u{2003}\u{2003}DSC_0001.NEF")
     }
 
     /// Camera, exposure and file name, leaving out whichever it hasn't got.
     func testTheDetailsLineHasNoDateAndSkipsWhatsMissing() {
         let exif = PhotoExif(model: "D850", iso: 64, exposure: 1.0 / 80, aperture: 8, focalLength: 28, taken: "2026:10:30 14:55:53")
-        XCTAssertEqual(PhotoExif.detailsLine(exif, fileName: "a.nef"), "D850   |   ISO 64   1/80   f/8   28 MM   |   a.nef")
+        XCTAssertEqual(PhotoExif.detailsLine(exif, fileName: "a.nef"), "D850\u{2003}\u{2003}\u{2003}ISO 64   1/80   f/8   28 MM\u{2003}\u{2003}\u{2003}a.nef")
         XCTAssertEqual(PhotoExif.detailsLine(nil, fileName: "a.nef"), "a.nef")
         XCTAssertEqual(PhotoExif.detailsLine(nil, fileName: nil), "")
     }
