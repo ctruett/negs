@@ -36,7 +36,7 @@ fn image() -> ImageBuf {
 }
 
 fn post(brightness: f32, contrast: f32, whites: f32, blacks: f32, saturation: f32) -> PostParams {
-    PostParams { brightness, contrast, whites, blacks, saturation, tone_anchors: Vec::new(), pins_before_film: false }
+    PostParams { brightness, contrast, whites, blacks, saturation, ..Default::default() }
 }
 
 #[test]
@@ -90,4 +90,20 @@ fn display_post_matches_the_cpu() {
             assert!(count * 200 <= off.len(), "encoded {encoded} {case:?}: {count} of {} bytes differ", off.len());
         }
     }
+}
+
+/// Local Contrast needs the whole picture, which the display pass doesn't
+/// have, so the display stands down for it rather than show a frame without it.
+#[test]
+fn local_contrast_keeps_the_display_off_the_gpu() {
+    let Some(gpu) = WgpuBackend::new() else {
+        eprintln!("no GPU adapter available; skipping");
+        return;
+    };
+    let mut params = RuntimeParams::default();
+    params.io.output_color_space = "sRGB".into();
+    params.post.brightness = 20.0;
+    assert!(pipeline(params.clone()).display_on_gpu(&gpu));
+    params.post.local_contrast = 40.0;
+    assert!(!pipeline(params).display_on_gpu(&gpu));
 }

@@ -39,6 +39,9 @@ pub struct PostParams {
     /// Scales chroma in OKLab, keeping lightness and hue; -100 is monochrome.
     #[serde(default)]
     pub saturation: f32,
+    /// Local contrast on lightness, 0 to 100 (see [`crate::local_contrast`]).
+    #[serde(default)]
+    pub local_contrast: f32,
     /// Tones this print pins, as L\* after the knobs above → printed L\*: a
     /// curve that can set the black and white points (see [`AnchorCurve`]).
     #[serde(default)]
@@ -113,13 +116,13 @@ fn srgb_decode(x: f64) -> f64 {
 }
 
 /// An output space's transfer function, with sRGB's exactly as before.
-struct Transfer(&'static RgbColourspace);
+pub(crate) struct Transfer(pub(crate) &'static RgbColourspace);
 
 impl Transfer {
-    fn decode(&self, v: f64) -> f64 {
+    pub(crate) fn decode(&self, v: f64) -> f64 {
         if self.0.name == "sRGB" { srgb_decode(v) } else { self.0.cctf.decode(v) }
     }
-    fn encode(&self, v: f64) -> f64 {
+    pub(crate) fn encode(&self, v: f64) -> f64 {
         if self.0.name == "sRGB" { srgb_encode(v) } else { self.0.cctf.encode(v) }
     }
 }

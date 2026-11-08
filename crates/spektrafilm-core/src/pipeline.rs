@@ -801,6 +801,12 @@ impl Pipeline {
         let post = &self.params.post;
         if !post.is_identity() {
             clip_to_display(&mut image, self.params.io.output_cctf_encoding);
+            crate::local_contrast::apply(
+                &mut image,
+                post.local_contrast,
+                self.params.io.output_cctf_encoding,
+                &self.params.io.output_color_space,
+            );
             crate::post::PostProcess::new(
                 post,
                 self.params.io.output_cctf_encoding,
@@ -996,7 +1002,9 @@ impl Pipeline {
     /// scan: an sRGB output, encoded on the GPU if at all.
     pub fn display_on_gpu(&self, backend: &dyn ComputeBackend) -> bool {
         let output = spektrafilm_math::colorspace::RgbColourspace::output(&self.params.io.output_color_space);
+        // Local Contrast needs the whole picture, which the display pass doesn't see.
         backend.resident_chain_applies_post_scan()
+            && self.params.post.local_contrast <= 0.0
             && output.name == spektrafilm_math::colorspace::SRGB.name
             && (!self.params.io.output_cctf_encoding || self.gpu_encodes_output())
     }

@@ -15,6 +15,7 @@ pub mod lut_export;
 pub mod neutral_filters;
 pub mod params;
 pub mod pipeline;
+pub mod local_contrast;
 pub mod post;
 pub mod prep;
 pub mod presets;
