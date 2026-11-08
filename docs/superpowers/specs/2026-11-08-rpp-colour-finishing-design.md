@@ -112,10 +112,12 @@ narrowed that to three stages, all in the finishing edits after the film:
 - On lightness only (OKLab L): blur L, `d = L − blur`, damp positive `d` by
   3/7, and `L' = L + k·d` with `k = amount/100 + 0.1` when amount > 0
   (RPP §8.2).
-- Radius: RPP's grows with the amount (`amount × radius`). Builder: pick a
-  fixed radius as a fraction of the image's shorter side, so it looks the
-  same at preview and export sizes. Whether it also grows with the amount is
-  yours.
+- Radius: as RPP does it, it grows with the amount (`amount × radius`), so a
+  stronger setting also brings out larger shapes (the user's call). The base
+  radius is measured as a fraction of the image's shorter side rather than in
+  pixels, so the effect looks the same at preview and export sizes. Builder:
+  pick the base so that a mid setting matches RPP's look at a typical export
+  size.
 - Chroma and hue are untouched.
 
 ### 4. Old edits
