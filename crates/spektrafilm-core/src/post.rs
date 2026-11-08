@@ -36,7 +36,7 @@ pub struct PostParams {
     /// Moves the black point: down crushes the darkest tones, up lifts black.
     #[serde(default)]
     pub blacks: f32,
-    /// Scales colourfulness at constant luminance; -100 is monochrome.
+    /// Scales chroma in OKLab, keeping lightness and hue; -100 is monochrome.
     #[serde(default)]
     pub saturation: f32,
     /// Tones this print pins, as L\* after the knobs above → printed L\*: a
@@ -161,6 +161,66 @@ fn matrix_f32(m: [[f64; 3]; 3]) -> [[f32; 3]; 3] {
 
 fn mul(m: &[[f32; 3]; 3], c: [f32; 3]) -> [f32; 3] {
     m.map(|row| row[0] * c[0] + row[1] * c[1] + row[2] * c[2])
+}
+
+/// RPP's saturation as a scale on OKLab chroma: `C / (C − 2s)` with
+/// `C = 248.4375`, its curve gentle at first and rising faster. The slider is
+/// scaled so +100 gives 2, the reach Saturation had; below zero it falls
+/// linearly to 0, so −100 is grey, as RPP's monochrome mode is.
+fn chroma_scale(saturation: f32) -> f32 {
+    const C: f64 = 248.4375;
+    if saturation <= 0.0 {
+        return (1.0 + saturation / 100.0).max(0.0);
+    }
+    let s = saturation as f64 * C / 400.0;
+    (C / (C - 2.0 * s)) as f32
+}
+
+/// Björn Ottosson's OKLab: XYZ (D65) → LMS, and LMS^⅓ → Lab.
+const OKLAB_M1: [[f64; 3]; 3] = [
+    [0.818_933_010_1, 0.361_866_742_4, -0.128_859_713_7],
+    [0.032_984_543_6, 0.929_311_871_5, 0.036_145_638_7],
+    [0.048_200_301_8, 0.264_366_269_1, 0.633_851_707_0],
+];
+pub(crate) const OKLAB_M2: [[f32; 3]; 3] = [
+    [0.210_454_255_3, 0.793_617_785_0, -0.004_072_046_8],
+    [1.977_998_495_1, -2.428_592_205_0, 0.450_593_709_9],
+    [0.025_904_037_1, 0.782_771_766_2, -0.808_675_766_0],
+];
+
+fn mat_mul(a: &[[f64; 3]; 3], b: &[[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    std::array::from_fn(|i| std::array::from_fn(|j| (0..3).map(|k| a[i][k] * b[k][j]).sum()))
+}
+
+fn mat_inv(m: &[[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    let c = |r: usize, k: usize| m[(r + 1) % 3][(k + 1) % 3] * m[(r + 2) % 3][(k + 2) % 3] - m[(r + 1) % 3][(k + 2) % 3] * m[(r + 2) % 3][(k + 1) % 3];
+    let det = (0..3).map(|k| m[0][k] * c(0, k)).sum::<f64>();
+    std::array::from_fn(|i| std::array::from_fn(|j| c(j, i) / det))
+}
+
+/// An output space's linear RGB → OKLab's LMS, through sRGB's D65 XYZ so a
+/// D50 space like ProPhoto keeps its greys grey; and back. Each row is
+/// normalised, so white is LMS (1, 1, 1) and OKLab L 1.
+pub(crate) fn lms_matrices(color_space: &str) -> ([[f32; 3]; 3], [[f32; 3]; 3]) {
+    let srgb = RgbColourspace::output("sRGB");
+    let to_srgb = colorspace::icc_rgb_to_rgb(RgbColourspace::output(color_space), srgb);
+    let mut to_lms = mat_mul(&OKLAB_M1, &mat_mul(&srgb.rgb_to_xyz, &to_srgb));
+    // The space's white lands exactly on OKLab's neutral axis, whatever small
+    // difference there is between this D65 and Ottosson's.
+    for row in &mut to_lms {
+        let sum: f64 = row.iter().sum();
+        row.iter_mut().for_each(|v| *v /= sum);
+    }
+    (matrix_f32(to_lms), matrix_f32(mat_inv(&to_lms)))
+}
+
+pub(crate) fn oklab_from(to_lms: &[[f32; 3]; 3], c: [f32; 3]) -> [f32; 3] {
+    mul(&OKLAB_M2, mul(to_lms, c).map(f32::cbrt))
+}
+
+pub(crate) fn oklab_to(from_lms: &[[f32; 3]; 3], lab: [f32; 3]) -> [f32; 3] {
+    let m2_inv = matrix_f32(mat_inv(&OKLAB_M2.map(|r| r.map(f64::from))));
+    mul(from_lms, mul(&m2_inv, lab).map(|v| v * v * v))
 }
 
 /// Whites and Blacks on encoded luminance: levels on the end points.
@@ -482,7 +542,11 @@ impl AnchorCurve {
 /// Post adjustments prepared for per-pixel use. Every curve is tabulated, so
 /// applying them costs a few lookups per pixel.
 pub struct PostProcess {
+    /// The chroma scale Saturation applies in OKLab ([`chroma_scale`]).
     saturation: f32,
+    /// Output space → OKLab's LMS, adapted to its D65 white, and back.
+    to_lms: [[f32; 3]; 3],
+    from_lms: [[f32; 3]; 3],
     /// The output space's luminance weights.
     luma: [f32; 3],
     /// Whether pixels arrive, and leave, encoded with the output space's
@@ -516,8 +580,11 @@ impl PostProcess {
                 .map(|i| f(i as f64 / (LUT_SIZE - 1) as f64) as f32)
                 .collect()
         };
+        let (to_lms, from_lms) = lms_matrices(color_space);
         Self {
-            saturation: params.saturation / 100.0,
+            saturation: chroma_scale(params.saturation),
+            to_lms,
+            from_lms,
             luma: luminance_weights(color_space),
             encoded,
             decode: samples(&|v| space.decode(v)),
@@ -549,25 +616,37 @@ impl PostProcess {
             if a > 1.0 { v } else { v.signum() * lookup(&self.channel, a.sqrt()) }
         }));
         c = self.luminance_through(&self.levels, c);
-        let y2 = self.luma[0] * c[0] + self.luma[1] * c[1] + self.luma[2] * c[2];
-        let mut f = 1.0 + self.saturation;
-        if f > 1.0 {
-            // Stop at the gamut boundary, keeping the hue.
-            for v in c {
-                let d = v - y2;
-                if d > 0.0 {
-                    f = f.min((1.0 - y2) / d);
-                } else if d < 0.0 {
-                    f = f.min(y2 / -d);
+        let k = self.saturation;
+        if k != 1.0 {
+            let lab = self.oklab(c);
+            let at = |f: f32| self.from_oklab([lab[0], lab[1] * f, lab[2] * f]);
+            let inside = |c: [f32; 3]| c.iter().all(|v| (-1e-6..=1.0 + 1e-6).contains(v));
+            c = at(k);
+            if !inside(c) {
+                // Back off to the gamut boundary, keeping lightness and hue.
+                let (mut lo, mut hi) = (1.0f32, k);
+                for _ in 0..12 {
+                    let mid = 0.5 * (lo + hi);
+                    if inside(at(mid)) { lo = mid } else { hi = mid }
                 }
+                c = at(lo);
             }
         }
-        c = c.map(|v| (y2 + (v - y2) * f).clamp(0.0, 1.0));
+        c = c.map(|v| v.clamp(0.0, 1.0));
         if self.encoded {
             c.map(|v| lookup(&self.encode, v.sqrt()))
         } else {
             c
         }
+    }
+
+    /// A linear colour in this output space as OKLab.
+    pub(crate) fn oklab(&self, c: [f32; 3]) -> [f32; 3] {
+        oklab_from(&self.to_lms, c)
+    }
+
+    pub(crate) fn from_oklab(&self, lab: [f32; 3]) -> [f32; 3] {
+        oklab_to(&self.from_lms, lab)
     }
 
     /// `c` with its luminance through `table`, its channels scaled together.
@@ -671,6 +750,36 @@ pub fn measured_lstar(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_chroma_scale_follows_rpp() {
+        assert_eq!(chroma_scale(0.0), 1.0);
+        assert!((chroma_scale(100.0) - 2.0).abs() < 1e-4);
+        assert_eq!(chroma_scale(-100.0), 0.0);
+        assert!((chroma_scale(-50.0) - 0.5).abs() < 1e-6);
+        assert!(chroma_scale(50.0) < 1.5, "gentle at first, then rising faster");
+    }
+
+    #[test]
+    fn saturation_keeps_oklab_lightness_and_hue_and_stays_in_gamut() {
+        for space in ["sRGB", "ProPhoto RGB"] {
+            for s in [-100.0, 40.0, 100.0] {
+                let post = PostProcess::new(&PostParams { saturation: s, ..Default::default() }, false, space);
+                for rgb in [[0.8f32, 0.3, 0.1], [0.05, 0.6, 0.9], [0.95, 0.02, 0.9]] {
+                    let out = post.apply_rgb(rgb);
+                    let (before, after) = (post.oklab(rgb), post.oklab(out));
+                    assert!((before[0] - after[0]).abs() < 2e-3, "{space} {s} lightness {before:?} {after:?}");
+                    assert!(out.iter().all(|v| (0.0..=1.0).contains(v)), "{space} {s} {out:?}");
+                    if s > -100.0 {
+                        let hue = |c: [f32; 3]| c[2].atan2(c[1]);
+                        assert!((hue(before) - hue(after)).abs() < 2e-3, "{space} {s} hue");
+                    } else {
+                        assert!(after[1].abs() < 1e-3 && after[2].abs() < 1e-3, "{space}: grey");
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn contrast_keeps_its_ends_and_rises() {
         for c in [-100.0, -40.0, 0.0, 40.0, 100.0] {
@@ -852,11 +961,11 @@ mod tests {
     }
 
     #[test]
-    fn saturation_keeps_luminance_and_greys() {
-        let luma = |c: [f32; 3]| 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    fn saturation_keeps_lightness_and_greys() {
         let mono = PostProcess::new(&params(|p| p.saturation = -100.0), false, "sRGB");
+        let luma = |c: [f32; 3]| mono.oklab(c)[0];
         let out = mono.apply_rgb([0.6, 0.2, 0.1]);
-        assert!((out[0] - out[1]).abs() < 1e-6 && (out[1] - out[2]).abs() < 1e-6);
+        assert!((out[0] - out[1]).abs() < 1e-4 && (out[1] - out[2]).abs() < 1e-4, "{out:?}");
         assert!((luma(out) - luma([0.6, 0.2, 0.1])).abs() < 1e-3);
         let vivid = PostProcess::new(&params(|p| p.saturation = 100.0), false, "sRGB");
         assert_eq!(
@@ -884,18 +993,14 @@ mod tests {
     }
 
     #[test]
-    fn luminance_follows_the_output_space() {
-        let prophoto = RgbColourspace::output("ProPhoto RGB").rgb_to_xyz[1].map(|v| v as f32);
+    fn monochrome_follows_the_output_space() {
+        // A ProPhoto primary turns the grey of its own lightness, in ProPhoto's
+        // primaries and D50 white.
         let mono = PostProcess::new(&params(|p| p.saturation = -100.0), false, "ProPhoto RGB");
-        for (rgb, y) in [
-            ([1.0, 0.0, 0.0], prophoto[0]),
-            ([0.0, 0.0, 1.0], prophoto[2]),
-        ] {
+        for rgb in [[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]] {
             let out = mono.apply_rgb(rgb);
-            assert!(
-                out.iter().all(|v| (v - y).abs() < 1e-4),
-                "{rgb:?} -> {out:?}, want {y}"
-            );
+            assert!((out[0] - out[1]).abs() < 1e-3 && (out[1] - out[2]).abs() < 1e-3, "{rgb:?} -> {out:?}");
+            assert!((mono.oklab(out)[0] - mono.oklab(rgb)[0]).abs() < 1e-3, "{rgb:?} -> {out:?}");
         }
         assert_eq!(luminance_weights("unknown"), luminance_weights("sRGB"));
     }
