@@ -129,6 +129,10 @@ final class PresetLibraryTests: XCTestCase {
         guard FileManager.default.isExecutableFile(atPath: paths().helper.path) else { throw XCTSkip("Build the release helper first") }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("negs-presets-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: folder) }
+        // The longest side is kept in the defaults; leave them as found, for
+        // the tests that run after (CropTests read it).
+        let savedLongestSide = UserDefaults.standard.object(forKey: "imageSizeLongestSide")
+        defer { UserDefaults.standard.set(savedLongestSide, forKey: "imageSizeLongestSide") }
         let library = PresetLibrary(folder: folder)
         let model = EditorModel(presetLibrary: library)
         defer { model.shutdown() }

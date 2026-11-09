@@ -87,9 +87,15 @@ import XCTest
         try await checkInspectorLayout(limited: true)
     }
 
+    /// On a lab scan's Scan tab, a Tone drag keeps the sliders and the
+    /// Frontier and Noritsu control where they are.
+    func testLabScannerStaysPutDuringSliderInteraction() async throws {
+        try await checkInspectorLayout(limited: false, scan: true)
+    }
+
     /// Exercise the real form and helper through a reduced drag frame and
     /// the settled render. The Image Size row is above the visible controls.
-    private func checkInspectorLayout(limited: Bool) async throws {
+    private func checkInspectorLayout(limited: Bool, scan: Bool = false) async throws {
         _ = NSApplication.shared
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let paths = EnginePaths(helper: root.appendingPathComponent("target/release/spektrafilm-native"),
@@ -125,6 +131,10 @@ import XCTest
         model.open(fixture)
         try await waitUntil { model.previewCurrent || model.error != nil }
         XCTAssertNil(model.error)
+        // A new photograph opens as a lab scan; the Enlarger is a paper print's.
+        model.chooseOutput(scan ? .labScan : .paperPrint)
+        if scan { model.inspectorTab = .scan }
+        try await waitUntil { model.previewCurrent || model.error != nil }
         let settledScale = model.previewScale
         if limited { XCTAssertLessThan(settledScale, 1) } else { XCTAssertEqual(settledScale, 1) }
 
@@ -143,8 +153,19 @@ import XCTest
         let scroll = try XCTUnwrap(descendants(inspector).compactMap { $0 as? NSScrollView }.first)
         let document = try XCTUnwrap(scroll.documentView)
         // Only Enlarger is expanded; its last slider is Preflash yellow.
-        let slider = try XCTUnwrap(descendants(inspector).compactMap { $0 as? NSSlider }.last)
+        let sliders = descendants(inspector).compactMap { $0 as? NSSlider }
+        let slider = try XCTUnwrap(scan ? sliders.first { $0.accessibilityLabel() == "Brightness" } : sliders.last)
         func sliderY() -> CGFloat { slider.convert(slider.bounds, to: inspector).midY }
+        // The Frontier and Noritsu control, on the Scan tab.
+        func scanners() -> [CGRect] {
+            // Across: where it sits and how wide (the page scrolls up and down).
+            descendants(inspector).compactMap { $0 as? NSSegmentedControl }.map {
+                let frame = $0.convert($0.bounds, to: inspector)
+                return CGRect(x: frame.minX, y: 0, width: frame.width, height: frame.height)
+            }
+        }
+        let initialScanners = scanners()
+        if scan { XCTAssertFalse(initialScanners.isEmpty, "the scanner control is on the Scan tab") }
         func capture(_ name: String) throws {
             guard let folder = ProcessInfo.processInfo.environment["NEGS_INSPECTOR_LAYOUT_SNAPSHOTS"] else { return }
             try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
@@ -163,7 +184,15 @@ import XCTest
         try capture("before")
 
         model.beginInteraction()
-        model.set("enlarger.m_filter_shift", .number(-5))
+        if scan {
+            for value in stride(from: 5.0, through: 40, by: 5) {
+                model.set("post.brightness", .number(value))
+                try await Task.sleep(for: .milliseconds(40))
+                XCTAssertEqual(scanners(), initialScanners, "the scanner control mid-drag, at \(value)")
+            }
+        } else {
+            model.set("enlarger.m_filter_shift", .number(-5))
+        }
         // At the export size a drag develops every pixel, so no reduced frame arrives.
         try await waitUntil { model.previewCurrent || model.status.hasPrefix("Preview ·") || model.error != nil }
         XCTAssertNil(model.error)
@@ -183,6 +212,7 @@ import XCTest
         XCTAssertEqual(document.frame.height, initialHeight, accuracy: 1)
         XCTAssertEqual(scroll.contentView.bounds.origin.y, initialOrigin, accuracy: 1, "Releasing a slider must keep the inspector's scroll position")
         XCTAssertEqual(sliderY(), interactiveY, accuracy: 1, "Releasing a slider must keep the slider in place")
+        XCTAssertEqual(scanners(), initialScanners, "the scanner control after the drag")
 
         // A reading fills the histogram's numbers and caption, which reserve
         // their space already.

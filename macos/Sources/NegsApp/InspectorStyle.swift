@@ -287,19 +287,52 @@ struct SegmentedRow<Selection: Hashable>: View {
     let title: String
     let selection: Binding<Selection>
     let options: [(value: Selection, title: String)]
+    var segmentWidth: CGFloat = 76
 
     var body: some View {
         HStack(spacing: 12) {
             Text(title).lineLimit(1)
             Spacer(minLength: 0)
-            Picker(title, selection: selection) {
-                ForEach(options, id: \.value) { Text($0.title).tag($0.value) }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .fixedSize()
+            FixedSegments(titles: options.map(\.title),
+                          selected: Binding(get: { options.firstIndex { $0.value == selection.wrappedValue } ?? 0 },
+                                            set: { selection.wrappedValue = options[$0].value }),
+                          segmentWidth: segmentWidth)
+                .frame(width: segmentWidth * CGFloat(options.count) + 4)
+                .accessibilityLabel(title)
         }
         .frame(minHeight: InkLayout.rowHeight)
+    }
+}
+
+/// A native segmented control whose segments keep a set width. SwiftUI's
+/// segmented picker lets the control size them to their labels, and it
+/// measured itself again as other rows redrew, jumping sideways.
+struct FixedSegments: NSViewRepresentable {
+    let titles: [String]
+    @Binding var selected: Int
+    let segmentWidth: CGFloat
+
+    func makeNSView(context: Context) -> NSSegmentedControl {
+        let control = NSSegmentedControl(labels: titles, trackingMode: .selectOne,
+                                         target: context.coordinator, action: #selector(Coordinator.changed(_:)))
+        control.segmentDistribution = .fillEqually
+        for i in titles.indices { control.setWidth(segmentWidth, forSegment: i) }
+        control.setContentHuggingPriority(.required, for: .horizontal)
+        return control
+    }
+
+    func updateNSView(_ control: NSSegmentedControl, context: Context) {
+        context.coordinator.selected = $selected
+        if control.selectedSegment != selected { control.selectedSegment = selected }
+        control.isEnabled = context.environment.isEnabled
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(selected: $selected) }
+
+    final class Coordinator: NSObject {
+        var selected: Binding<Int>
+        init(selected: Binding<Int>) { self.selected = selected }
+        @objc func changed(_ control: NSSegmentedControl) { selected.wrappedValue = control.selectedSegment }
     }
 }
 
