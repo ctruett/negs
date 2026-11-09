@@ -188,6 +188,11 @@ pub struct Pipeline {
     /// The auto-exposure EV already metered for this frame by a caller that
     /// renders it repeatedly; see [`Self::with_autoexposure_ev`].
     autoexposure_ev: Option<f64>,
+    /// The Status M scanner sensitivity, loaded only for a film-scanning route.
+    lab_sensitivity: Option<std::sync::Arc<crate::lab_scan::density::Sensitivity>>,
+    /// The frame's auto colour correction already metered by a caller that
+    /// renders it repeatedly; see [`Self::with_lab_balance`].
+    lab_balance: Option<crate::lab_scan::balance::Balance>,
     /// The caller's slot for this frame's Prep output; see
     /// [`Self::with_prepared_frame`].
     prepared_frame: Option<crate::prep::PreparedFrame>,
@@ -302,6 +307,53 @@ impl Pipeline {
     pub fn with_autoexposure_ev(mut self, ev: f64) -> Self {
         self.autoexposure_ev = Some(ev);
         self
+    }
+
+    /// Use `b`, a [`Self::lab_balance`] of this frame from an earlier render,
+    /// instead of metering again.
+    pub fn with_lab_balance(mut self, b: crate::lab_scan::balance::Balance) -> Self {
+        self.lab_balance = Some(b);
+        self
+    }
+
+    /// The auto colour correction for a frame whose metering preview is
+    /// `preview`: its film raw, developed and read through Status M, all on
+    /// the CPU as [`Self::autoexposure_ev`] does. Metered from the preview
+    /// alone, so every render size of the frame balances alike. Identity
+    /// (zero offsets) unless the route scans film.
+    pub fn lab_balance(&self, preview: &ImageBuf) -> crate::lab_scan::balance::Balance {
+        use crate::lab_scan::balance::{meter, Balance, FilmType};
+        let Some(sens) = self.lab_sensitivity.as_ref() else {
+            return Balance { offset: [0.0; 3] };
+        };
+        static CPU: spektrafilm_gpu::cpu_backend::CpuBackend = spektrafilm_gpu::cpu_backend::CpuBackend;
+        let color_ref = crate::color_reference::ColorReference::compute(
+            &self.film,
+            &self.print,
+            &self.params,
+            &self.print_illuminant,
+            self.print_exposure_factor,
+            self.preflash_raw,
+        );
+        // Grain and halation depend on the frame's pixel pitch, and a
+        // meter must not: leave them out.
+        let mut meter_params = self.params.clone();
+        meter_params.film_render.grain.active = false;
+        meter_params.film_render.halation.active = false;
+        let log_raw = stages::filming::expose(
+            preview.clone(),
+            &self.film,
+            &meter_params,
+            &CPU,
+            self.tc_lut.as_ref(),
+            &select_illuminant(&self.front_illuminant),
+            color_ref.filming_exposure_correction,
+            self.autoexposure_ev(preview),
+        );
+        let filmed = stages::filming::develop(log_raw, &self.film, &meter_params, &CPU);
+        let net = crate::lab_scan::density::DensityLut::new(&self.film, &self.params, sens).apply(&filmed);
+        // Task 4's look supplies the type's default offsets.
+        meter(&net, FilmType::of(&self.film), [0.0; 3])
     }
 
     /// Keep the GPU path's Prep output in `frame` and reuse it while nothing
@@ -456,6 +508,8 @@ impl Pipeline {
             output_gamut,
             metering_preview: None,
             autoexposure_ev: None,
+            lab_sensitivity: None,
+            lab_balance: None,
             prepared_frame: None,
         };
         pipeline.apply_film_curves_morph();
@@ -552,6 +606,11 @@ impl Pipeline {
         // (`arctic2026beta04`, `mallett2019`) relight their surfaces by the
         // film reference illuminant, and the runtime projects chromaticity
         // under their scene illuminant instead.
+        let lab_sensitivity = if params.scans_film() {
+            Some(std::sync::Arc::new(crate::lab_scan::density::Sensitivity::load(data_dir)?))
+        } else {
+            None
+        };
         let method = spectral_service::upsampling_method(&params.settings.rgb_to_raw_method)?;
         let spectra_lut = spectral_service::load_method_lut(data_dir, method)?;
         let input_gamut =
@@ -649,6 +708,8 @@ impl Pipeline {
             output_gamut,
             metering_preview: None,
             autoexposure_ev: None,
+            lab_sensitivity,
+            lab_balance: None,
             prepared_frame: None,
         };
         // The enlarger illuminant with its dichroic filters, and the preflash.

@@ -106,3 +106,96 @@ fn paper_print_unchanged() {
     }
     assert_eq!(got, std::fs::read(&path).unwrap(), "Paper-print render changed");
 }
+
+// ---- Frame auto correction ----
+
+use spektrafilm_core::lab_scan::balance::{meter, FilmType};
+use spektrafilm_math::image::ImageBuf;
+use spektrafilm_math::precision::from_f64;
+
+fn uniform(rgb: [f64; 3]) -> ImageBuf {
+    let px = (0..16).flat_map(|_| rgb.map(from_f64)).collect();
+    ImageBuf::from_data(4, 4, px)
+}
+
+fn spread(v: [f64; 3]) -> [f64; 3] {
+    let m = (v[0] + v[1] + v[2]) / 3.0;
+    v.map(|x| x - m)
+}
+
+#[test]
+fn grey_frame_balances_neutral() {
+    let lut = lut_for("kodak_portra_400");
+    let net = lut.apply(&uniform([0.5; 3]));
+    let n = net.get(0, 0).map(|v| v as f64);
+    let b = meter(&net, FilmType::ColourNegative, [0.0; 3]);
+    let (got, want) = (spread(b.offset), spread(n));
+    for c in 0..3 {
+        assert!((got[c] - want[c]).abs() < 1e-6, "{got:?} vs {want:?}");
+    }
+}
+
+#[test]
+fn red_frame_stays_finite_and_bounded() {
+    let lut = lut_for("kodak_portra_400");
+    let cmy = uniform([0.9, 0.05, 0.05]);
+    let b = meter(&lut.apply(&cmy), FilmType::ColourNegative, [0.0; 3]);
+    let s = spread(b.offset);
+    for c in 0..3 {
+        assert!(b.offset[c].is_finite());
+        assert!(s[c].abs() <= 0.6 + 1e-9, "{:?}", b.offset);
+    }
+}
+
+#[test]
+fn black_frame_falls_back() {
+    let net = ImageBuf::from_data(4, 4, vec![from_f64(0.0); 48]);
+    let d = [0.01, -0.02, 0.03];
+    let b = meter(&net, FilmType::ColourNegative, d);
+    assert_eq!(b.offset, d);
+}
+
+#[test]
+fn bw_keeps_tint() {
+    let lut = lut_for("kodak_trix");
+    let b = meter(&lut.apply(&uniform([0.8, 0.7, 0.9])), FilmType::BlackAndWhite, [0.0; 3]);
+    assert!(b.offset[0].is_finite());
+    assert_eq!(b.offset[0], b.offset[1]);
+    assert_eq!(b.offset[1], b.offset[2]);
+}
+
+#[test]
+fn slide_is_metered_with_inverted_sign() {
+    let lut = lut_for("fujifilm_provia_100f");
+    let net = lut.apply(&uniform([0.6; 3]));
+    let neg = meter(&net, FilmType::ColourNegative, [0.0; 3]).offset;
+    let sl = meter(&net, FilmType::Slide, [0.0; 3]).offset;
+    for c in 0..3 {
+        assert!((neg[c] + sl[c]).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn balance_ignores_render_size() {
+    use spektrafilm_core::pipeline::Pipeline;
+    use spektrafilm_core::params::OutputRoute;
+    let data = data_dir();
+    let make = |film_mm: f32| {
+        let mut params = RuntimeParams::default();
+        params.io.output_route = OutputRoute::LabScan;
+        params.camera.film_format_mm = film_mm;
+        let film = profile::load_profile_by_name(&data, "kodak_portra_400").unwrap();
+        let print = profile::load_profile_by_name(&data, "kodak_portra_endura").unwrap();
+        Pipeline::new_with_spectral(film, print, params, &data).unwrap()
+    };
+    let preview = ImageBuf::from_data(
+        8,
+        8,
+        (0..8 * 8 * 3).map(|i| from_f64(0.1 + 0.8 * ((i * 37 % 101) as f64 / 100.0))).collect(),
+    );
+    let a = make(35.0).lab_balance(&preview);
+    let b = make(70.0).lab_balance(&preview);
+    assert_eq!(a.offset, b.offset);
+    assert!(a.offset.iter().all(|v| v.is_finite()));
+    let _ = make(35.0).with_lab_balance(a);
+}
