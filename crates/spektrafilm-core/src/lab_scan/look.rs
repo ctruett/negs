@@ -17,6 +17,14 @@ struct Table {
     default_offset: [f64; 3],
     #[serde(default)]
     cast: [f64; 3],
+    /// The slope applied to the balanced signal before the curves: the
+    /// scan's overall contrast. 1 when the file leaves it out.
+    #[serde(default = "unit_gain")]
+    gain: f64,
+}
+
+fn unit_gain() -> f64 {
+    1.0
 }
 
 #[derive(Deserialize)]
@@ -37,6 +45,7 @@ pub struct Look {
     /// The type's balance for a frame too thin to meter.
     pub default_offset: [f64; 3],
     cast: [f64; 3],
+    gain: f64,
 }
 
 /// Rows of the look's matrix sum to 1 within this, so it keeps greys.
@@ -80,6 +89,9 @@ impl Look {
         if t.matrix.iter().any(|r| (r.iter().sum::<f64>() - 1.0).abs() > ROW_SUM_TOLERANCE) {
             return Err("each matrix row must sum to 1".into());
         }
+        if !(t.gain.is_finite() && t.gain > 0.0) {
+            return Err("gain must be a positive number".into());
+        }
         let all = t.curve.iter().flatten().chain(t.matrix.iter().flatten()).chain(&t.default_offset).chain(&t.cast);
         if !all.chain(&t.curve_knots).all(|v| v.is_finite()) {
             return Err("the look holds a non-finite value".into());
@@ -92,12 +104,13 @@ impl Look {
             matrix: t.matrix,
             default_offset: t.default_offset,
             cast: t.cast,
+            gain: t.gain,
         })
     }
 
     /// The scan's log10 linear light for a balanced, keyed log signal.
     pub fn apply(&self, log_rgb: [f64; 3]) -> [f64; 3] {
-        let y = [0, 1, 2].map(|c| self.curve_at(c, log_rgb[c]));
+        let y = [0, 1, 2].map(|c| self.curve_at(c, log_rgb[c] * self.gain));
         let m = &self.matrix;
         [0, 1, 2].map(|r| m[r][0] * y[0] + m[r][1] * y[1] + m[r][2] * y[2] + self.cast[r])
     }
@@ -201,6 +214,7 @@ mod tests {
             matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
             default_offset: [0.0; 3],
             cast: [0.0; 3],
+            gain: 1.0,
         };
         let look = Look::from_table(t).unwrap();
         let mut prev = [f64::MIN; 3];
@@ -212,6 +226,18 @@ mod tests {
             assert!((0.0..=1.0).contains(&y[0]), "{y:?}");
             prev = y;
         }
+    }
+
+    #[test]
+    fn gain_steepens_the_signal_before_the_curve() {
+        let table = "curve_knots = [-1.0, 0.0, 1.0]\ncurve = [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]]\n\
+                     matrix = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]\ndefault_offset = [0.0, 0.0, 0.0]\n";
+        let text = |extra: &str| ["colour_negative", "slide", "bw"].map(|t| format!("[{t}]\n{table}{extra}")).concat();
+        let plain = Look::parse(&text(""), FilmType::ColourNegative).unwrap();
+        let steep = Look::parse(&text("gain = 2.0\n"), FilmType::ColourNegative).unwrap();
+        assert_eq!(plain.apply([0.25; 3]), [0.25; 3], "no gain is 1");
+        assert_eq!(steep.apply([0.25; 3]), [0.5; 3]);
+        assert!(Look::parse(&text("gain = 0.0\n"), FilmType::ColourNegative).is_err(), "a gain must be positive");
     }
 
     #[test]

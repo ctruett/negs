@@ -120,6 +120,7 @@ class Look:
         self.matrix = np.asarray(matrix, float)  # 3 x 3
         self.cast = np.asarray(cast, float)
         self.default_offset = np.zeros(3)
+        self.gain = 1.0
 
     @classmethod
     def identity(cls):
@@ -127,7 +128,7 @@ class Look:
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         """log10 linear Rec.2020 for an N x 3 signal."""
-        y = np.stack([curve_at(KNOTS, self.curve[c], x[:, c]) for c in range(3)], 1)
+        y = np.stack([curve_at(KNOTS, self.curve[c], x[:, c] * self.gain) for c in range(3)], 1)
         return y @ self.matrix.T + self.cast
 
     def srgb(self, x: np.ndarray) -> np.ndarray:
@@ -140,6 +141,8 @@ class Look:
         lines += ["]", f"matrix = [{', '.join(f(r) for r in self.matrix)}]", f"default_offset = {f(self.default_offset)}"]
         if np.any(self.cast):
             lines.append(f"cast = {f(self.cast)}")
+        if self.gain != 1.0:
+            lines.append(f"gain = {float(self.gain)!r}")
         return "\n".join(lines) + "\n"
 
 
@@ -159,17 +162,25 @@ def matrix_from(off: np.ndarray) -> np.ndarray:
 
 
 def look_from(theta: np.ndarray, film_type: str) -> Look:
+    """The look for `theta`: its type's curves and matrix (or cast), and for
+    colour negatives, as the last parameter, the log of the gain on the
+    signal before the curves. Slides and B&W were near the lab's contrast
+    already, and with no tone term their gain and curves trade off freely."""
     if film_type == "colour_negative":
         curves = [curve_from(theta[8 * c:8 * c + 8]) for c in range(3)]
-        return Look(curves, matrix_from(theta[24:30]))
-    if film_type == "slide":
-        return Look([curve_from(theta[:8])] * 3, matrix_from(theta[8:14]))
-    cast = np.array([theta[8], theta[9], -theta[8] - theta[9]])
-    return Look([curve_from(theta[:8])] * 3, np.eye(3), cast)
+        look = Look(curves, matrix_from(theta[24:30]))
+    elif film_type == "slide":
+        look = Look([curve_from(theta[:8])] * 3, matrix_from(theta[8:14]))
+    else:
+        cast = np.array([theta[8], theta[9], -theta[8] - theta[9]])
+        look = Look([curve_from(theta[:8])] * 3, np.eye(3), cast)
+    if film_type == "colour_negative":
+        look.gain = float(np.exp(theta[-1]))
+    return look
 
 
 def n_params(film_type: str) -> int:
-    return {"colour_negative": 30, "slide": 14, "bw": 10}[film_type]
+    return {"colour_negative": 31, "slide": 14, "bw": 10}[film_type]
 
 
 # ---- Data ----
@@ -231,6 +242,10 @@ def residuals(theta, data, film_type):
         # The hue the report scores: a/b with each channel matched on the
         # neutrals, so a grey cast can't be traded for hue.
         res.append(HUE[film_type] * (oklab(per_channel_matched(s))[:, 1:] - oklab(per_channel_matched(r))[:, 1:]).ravel())
+        # Tone: the grey patches' log luminance, so the scan's contrast is the lab's.
+        n, y = neutral_mask(), np.array([0.2126, 0.7152, 0.0722])
+        sim_y = np.log10(np.clip(luminance_matched(s, r)[n] @ y, 1e-5, None))
+        res.append(TONE[film_type] * (sim_y - np.log10(np.clip(r[n] @ y, 1e-5, None))))
     # Smooth curves: neighbouring slopes alike, so a curve carries on past
     # the data at the slope the data sets instead of bending wildly there.
     for steps in curve_steps(theta, film_type):
@@ -243,6 +258,9 @@ SMOOTH = 0.3
 # The hue residual's weight per type, chosen by held-out error (slides got
 # worse with it, and B&W has no hue).
 HUE = {"colour_negative": 3.0, "slide": 0.0, "bw": 0.0}
+# The grey patches' tone residual's weight per type, chosen by held-out
+# contrast (the slope of log luminance on the greys) against the real scans.
+TONE = {"colour_negative": 1.5, "slide": 0.0, "bw": 0.0}
 
 
 def curve_steps(theta, film_type):

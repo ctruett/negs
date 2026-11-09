@@ -35,13 +35,16 @@ the engine.
 
 ## The fit
 
-- One look per scanner and film type, shared by every film: per-channel
+- One look per scanner and film type, shared by every film: a gain on the
+  signal (colour negatives only, for contrast), per-channel
   curves and a 3×3 log-space matrix for colour negatives, one curve and a
   matrix for slides, one curve and a tint for B&W.
 - Every curve passes through the reference grey, and matrix rows sum to 1, so
   a metered grey card scans neutral at 18% (B&W: with the look's tint).
 - Training: the profiled films at 0 and +1 EV. Held out: −1 and +2 EV, and
   all of Portra 800 and UltraMax 400.
-- Residual: OKLab after one luminance scale per frame, plus a smoothness
+- Residual: OKLab after one luminance scale per frame, the neutral-normalised
+  hue (colour negatives), the grey patches' log luminance (colour negatives,
+  for contrast), plus a smoothness
   penalty that keeps each curve's slope steady beyond the data (`SMOOTH`,
   chosen by held-out error).
