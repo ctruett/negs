@@ -84,6 +84,14 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertEqual(key("5", [.option]), [])
     }
 
+    /// Tab does nothing, except between text fields.
+    @MainActor func testTabDoesNothingOutsideTextFields() {
+        XCTAssertTrue(EditorWindowController.swallowsTab(keyCode: 48, firstResponder: NSView()))
+        XCTAssertTrue(EditorWindowController.swallowsTab(keyCode: 48, firstResponder: nil))
+        XCTAssertFalse(EditorWindowController.swallowsTab(keyCode: 48, firstResponder: NSTextView()))
+        XCTAssertFalse(EditorWindowController.swallowsTab(keyCode: 49, firstResponder: NSView()))
+    }
+
     /// A bare key stands down while typing in a field.
     @MainActor func testBareKeysStandDownWhileEditingText() {
         XCTAssertFalse(MainMenu.bareKeysAllowed(firstResponder: NSTextView()))

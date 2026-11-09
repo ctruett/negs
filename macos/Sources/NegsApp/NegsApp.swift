@@ -238,6 +238,8 @@ struct InspectorPanel: View {
             }
         }
         .scrollContentBackground(.hidden)
+        // The amber marks what's chosen; a focus ring would only compete with it.
+        .focusEffectDisabled()
         // Black, whatever the viewer's colour, with amber on it throughout.
         .background(Color.black.ignoresSafeArea())
         .foregroundStyle(Ink.label)

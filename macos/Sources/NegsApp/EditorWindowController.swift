@@ -107,7 +107,7 @@ import SwiftUI
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             MainActor.assumeIsolated {
                 guard let self else { return false }
-                return self.holdOriginal(event) || self.zoneKey(event) || self.toggleGridKey(event) || self.toggleImageOnlyKey(event) || self.stepPhotographKey(event)
+                return self.swallowTab(event) || self.holdOriginal(event) || self.zoneKey(event) || self.toggleGridKey(event) || self.toggleImageOnlyKey(event) || self.stepPhotographKey(event)
             } ? nil : event
         }
         // The title bar hides in full screen, so the status bar carries the title there.
@@ -187,6 +187,18 @@ import SwiftUI
         else { return false }
         if !event.isARepeat { model.toggleImageOnly() }
         return true
+    }
+
+    /// Whether a key press is a Tab that should do nothing: Tab moves the
+    /// keyboard focus only between text fields, never onto buttons and tiles.
+    static func swallowsTab(keyCode: UInt16, firstResponder: NSResponder?) -> Bool {
+        keyCode == 48 && !(firstResponder is NSText)
+    }
+
+    /// True if it was a Tab that does nothing, in this window or a popover over it.
+    private func swallowTab(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, let target = event.window, target === window || target.parent === window || target.sheetParent === window || target.className.contains("Popover") else { return false }
+        return Self.swallowsTab(keyCode: event.keyCode, firstResponder: target.firstResponder)
     }
 
     /// The zone a key press places the zone reading on: a bare 0 to 7, or with

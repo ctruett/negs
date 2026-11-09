@@ -255,6 +255,8 @@ struct StockFoldout: View {
             ScrollView(.vertical) {
                 StockGrid(model: model, paper: paper).padding(12)
             }
+            // Tiles are chosen with the pointer; no focus ring rides over them.
+            .focusEffectDisabled()
             .frame(width: 360, height: 560)
             .environment(\.colorScheme, .dark)
         }
