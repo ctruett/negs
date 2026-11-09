@@ -282,6 +282,27 @@ struct ChoiceRow<Selection: Hashable, Options: View>: View {
     }
 }
 
+/// A row of a few exclusive choices side by side: its title, then the segments.
+struct SegmentedRow<Selection: Hashable>: View {
+    let title: String
+    let selection: Binding<Selection>
+    let options: [(value: Selection, title: String)]
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title).lineLimit(1)
+            Spacer(minLength: 0)
+            Picker(title, selection: selection) {
+                ForEach(options, id: \.value) { Text($0.title).tag($0.value) }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .fixedSize()
+        }
+        .frame(minHeight: InkLayout.rowHeight)
+    }
+}
+
 /// A card for the film or the paper: the stock's name, and which it is.
 struct StockCard: View {
     let name: String

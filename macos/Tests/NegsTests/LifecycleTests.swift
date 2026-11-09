@@ -42,9 +42,10 @@ import XCTest
         XCTAssertEqual(model.imageRotation, 1)
         XCTAssertTrue(model.canSave)
         model.chooseFilm("kodak_trix")
-        XCTAssertTrue(model.value("io.scan_film").bool)
+        XCTAssertTrue(model.labScan)
+        // A negative after a slide keeps the lab scan.
         model.chooseFilm("kodak_gold_200")
-        XCTAssertFalse(model.value("io.scan_film").bool)
+        XCTAssertTrue(model.labScan)
         XCTAssertEqual(model.state.paper, "kodak_portra_endura")
     }
 
@@ -260,7 +261,7 @@ import XCTest
             var state = EditState()
             state.params = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: URL(fileURLWithPath: job.params)))
             state.film = job.film
-            if let paper = job.paper { state.paper = paper } else { state.params["io.scan_film"] = .bool(true) }
+            if let paper = job.paper { state.paper = paper } else { state.params[OutputRoute.path] = .string(OutputRoute.labScan.rawValue) }
             let engine = try XCTUnwrap(ExportEngine(rawValue: job.engine))
             let started = Date()
             let outcome = try await ExportJob().run(paths: paths, scratch: scratch, source: URL(fileURLWithPath: job.source),

@@ -351,7 +351,9 @@ final class EngineClient: @unchecked Sendable {
         let child = Process()
         child.executableURL = executable
         child.arguments = ["process", source.path, "-o", staging.path, "--film", state.film, "--paper", state.paper, "--params", params.path, "--data-dir", paths.data.path]
-        if state.params["io.scan_film"].bool { child.arguments!.append("--scan-film") }
+        if OutputRoute.of(state.params) == .labScan {
+            child.arguments! += ["--scan-film", "--scanner", ScannerKeys.model(state.params)]
+        }
         if let crop {
             let r = crop.rect
             child.arguments! += ["--crop", [r.minX, r.minY, r.width, r.height, crop.angle].map { "\(Double($0))" }.joined(separator: ",")]

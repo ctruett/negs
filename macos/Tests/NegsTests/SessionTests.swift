@@ -176,7 +176,8 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(model.film, saved.film)
         XCTAssertEqual(model.crop, saved.crop)
         XCTAssertEqual(model.border, saved.border)
-        XCTAssertTrue(model.value("io.scan_film").bool)
+        // An old direct scan opens as a lab scan.
+        XCTAssertTrue(model.labScan)
         XCTAssertEqual(model.value("camera.exposure_compensation_ev"), .number(1.5))
         XCTAssertFalse(model.inspectorVisible)
     }

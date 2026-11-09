@@ -19,7 +19,7 @@ final class PreviewTests: XCTestCase {
         var state = EditState()
         state.film = "gold"; state.paper = "endura"
         state.params["camera.exposure_compensation_ev"] = .number(0.7)
-        state.params["io.scan_film"] = .bool(false)
+        state.params[OutputRoute.path] = .string(OutputRoute.paperPrint.rawValue)
         state.params["film_render.development_time"] = .number(6)
         state.params["print_render.development_time"] = .number(2)
         for path in Stock.presetPaths { state.params[path] = .number(1.5) }
@@ -33,12 +33,12 @@ final class PreviewTests: XCTestCase {
         XCTAssertEqual(state.params["film_render.development_time"], .null)
         XCTAssertEqual(state.params["print_render.development_time"], .null)
         for path in Stock.presetPaths { XCTAssertEqual(state.params[path], .null, path) }
-        XCTAssertEqual(state.params["io.scan_film"], .bool(false))
+        XCTAssertEqual(OutputRoute.of(state.params), .paperPrint, "a negative keeps the paper print")
         // Every other setting carries over.
         XCTAssertEqual(state.params["camera.exposure_compensation_ev"], .number(0.7))
 
         let slide = PreviewRules.choosing("velvia", paper: false, in: edited(), stocks: stocks)
-        XCTAssertEqual(slide.params["io.scan_film"], .bool(true))
+        XCTAssertEqual(OutputRoute.of(slide.params), .labScan)
         // Its own paper is the current one, so the print development time stays.
         XCTAssertEqual(slide.paper, "endura")
         XCTAssertEqual(slide.params["print_render.development_time"], .number(2))

@@ -246,7 +246,7 @@ import XCTest
         model.set("film_render.grain.active", .bool(false))
         model.set("camera.auto_exposure", .bool(autoExposure))
         model.set("enlarger.print_exposure_compensation", .bool(compensation))
-        if scanFilm { model.set("io.scan_film", .bool(true)) }
+        model.chooseOutput(scanFilm ? .labScan : .paperPrint)
         try await waitUntil { model.previewCurrent || model.error != nil }
         XCTAssertNil(model.error)
         return model

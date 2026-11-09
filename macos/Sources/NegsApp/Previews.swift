@@ -28,10 +28,11 @@ enum PreviewRules {
         return next
     }
 
-    /// Scanning for slides, and the film's own paper.
+    /// A lab scan for slides, which can't be printed here; a negative keeps
+    /// the output chosen. And the film's own paper.
     static func pairFilm(in state: inout EditState, stocks: [Stock]) {
         guard let film = stocks.first(where: { !$0.paper && $0.id == state.film }) else { return }
-        state.params["io.scan_film"] = .bool(film.positive)
+        if film.positive { state.params[OutputRoute.path] = .string(OutputRoute.labScan.rawValue) }
         if stocks.contains(where: { $0.paper && $0.id == film.target }), state.paper != film.target {
             state.paper = film.target; state.params["print_render.development_time"] = .null
         }

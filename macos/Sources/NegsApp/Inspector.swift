@@ -791,7 +791,7 @@ struct InspectorTabBar: View {
     @AppStorage(HiddenParts.revealKey) private var revealed = false
 
     var body: some View {
-        let scanning = model.value("io.scan_film").bool
+        let scanning = model.labScan
         let parts = HiddenParts(storage: $hidden, revealed: revealed)
         HStack(spacing: 0) {
             ForEach(parts.visibleTabs) { tab in
@@ -921,15 +921,15 @@ struct AdjustmentInspector: View {
     }
 
     /// The film and paper, above the tabs, to change from any of them. There's
-    /// no paper to choose while the film is scanned directly.
+    /// no paper to choose on a lab scan.
     private var stockCards: some View {
-        let scanning = model.value("io.scan_film").bool
+        let scanning = model.labScan
         return VStack(spacing: InkLayout.cardGap) {
             filmPicker
             paperPicker
                 .opacity(scanning ? 0.45 : 1)
                 .disabled(scanning)
-                .help(scanning ? "The film is scanned directly, so there’s no print." : "")
+                .help(scanning ? "Lab scans don’t use paper. Choose Paper print in Print to print the film." : "")
         }
         .padding(.horizontal, InkLayout.gutter)
         .padding(.vertical, 10)
@@ -978,14 +978,16 @@ struct AdjustmentInspector: View {
     /// The everyday controls on one page, from the film to the export. Whatever
     /// Advanced has set still applies.
     @ViewBuilder private var simplePage: some View {
-        let scanning = model.value("io.scan_film").bool
+        let scanning = model.labScan
         InkSection("Print") {
+            outputPicker
+            if scanning { scannerPicker }
             Group {
                 ForEach(simplePrintControls) { control($0) }
             }
             .opacity(scanning ? 0.45 : 1)
             .disabled(scanning)
-            if scanning { InkNote("This film is scanned directly, so there’s no print to adjust.") }
+            if scanning { InkNote("Lab scans don’t use paper.") }
         }
         if model.isRaw { whiteBalanceSection }
         InkSection("Tone") {
@@ -1044,14 +1046,6 @@ struct AdjustmentInspector: View {
     @ViewBuilder private var filmTab: some View {
         InkSection {
             developmentTime(stock: model.films.first { $0.id == model.film }, path: "film_render.development_time", label: "Development")
-            Toggle(isOn: model.toggle("io.scan_film")) {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Scan film directly")
-                    Text("Skips the Print stage").font(.system(size: 11)).foregroundStyle(Ink.dim)
-                }
-            }
-            .padding(.vertical, 2)
-            .help("The developed negative goes straight to the scanner, as for slides.")
         }
         // The controls people reach for first, at the top.
         group("Grain")
@@ -1072,21 +1066,32 @@ struct AdjustmentInspector: View {
 
     // MARK: Print
 
+    /// Lab scan or Paper print. A slide can only be scanned.
+    private var outputPicker: some View {
+        SegmentedRow(title: "Output",
+                     selection: Binding(get: { OutputRoute.of(model.state.params) }, set: { model.chooseOutput($0) }),
+                     options: OutputRoute.allCases.map { ($0, $0.title) })
+            .disabled(model.filmIsPositive)
+            .help(model.filmIsPositive
+                  ? "A slide is scanned: it can’t be printed on paper here."
+                  : "Lab scan reads the developed film on a Frontier or Noritsu. Paper print prints it, then scans the print.")
+    }
+
+    private var scannerPicker: some View {
+        SegmentedRow(title: "Scanner",
+                     selection: Binding(get: { ScannerKeys.model(model.state.params) },
+                                        set: { model.set(ScannerKeys.modelPath, .string($0)) }),
+                     options: ScannerKeys.models.map { ($0, ScannerKeys.title($0)) })
+            .help("The lab scanner whose colour the scan takes.")
+    }
+
     @ViewBuilder private var printTab: some View {
-        let scanning = model.value("io.scan_film").bool
-        if scanning {
-            InkSection {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("The Print stage is skipped").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Ink.paper)
-                    InkNote("Scan film directly is on in Film, so the negative goes straight to the scanner.")
-                    Button("Use the Print stage") { model.set("io.scan_film", .bool(false)) }
-                        .buttonStyle(InkButtonStyle())
-                        .help("Turns off Scan film directly in Film.")
-                }
-                .padding(.vertical, 8)
-            }
+        let scanning = model.labScan
+        InkSection {
+            outputPicker
+            if scanning { InkNote("Lab scans don’t use paper.") }
         }
-        Group {
+        if !scanning {
             if let paper = model.papers.first(where: { $0.id == model.paper }), paper.times.count > 1 {
                 InkSection {
                     developmentTime(stock: paper, path: "print_render.development_time", label: "Print development")
@@ -1117,8 +1122,6 @@ struct AdjustmentInspector: View {
             group("Print Base")
             group("Glare")
         }
-        .opacity(scanning ? 0.45 : 1)
-        .disabled(scanning)
     }
 
     @ViewBuilder private var paperPicker: some View {
@@ -1132,6 +1135,14 @@ struct AdjustmentInspector: View {
     // MARK: Scan
 
     @ViewBuilder private var scanTab: some View {
+        if model.labScan {
+            InkSection("Lab Scanner", footer: "The lab balances every frame for density and colour, as Frontier and Noritsu operators’ machines do. The keys correct on top, in clicks of about 1/12 stop: Density darkens, and Cyan, Magenta and Yellow add that colour.") {
+                scannerPicker
+                ForEach(ScannerKeys.keys, id: \.path) { key in
+                    control(.slider(key.title, key.path, ScannerKeys.range, 1))
+                }
+            }
+        }
         InkSection("Tone", footer: "These shape the tones the film produced. To recover a clipped highlight, use Exposure in Camera.") {
             ForEach(toneControls) { control($0) }
         }

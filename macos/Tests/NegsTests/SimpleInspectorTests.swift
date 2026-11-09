@@ -170,7 +170,7 @@ import XCTest
         model.inspectorMode = .simple
 
         func enabled(_ scanning: Bool) throws -> (print: Bool, tone: Bool) {
-            model.set("io.scan_film", .bool(scanning))
+            model.chooseOutput(scanning ? .labScan : .paperPrint)
             let (host, window) = render(model)
             defer { window.orderOut(nil) }
             let found = sliders(in: host)
@@ -234,7 +234,7 @@ import XCTest
         if let folder = ProcessInfo.processInfo.environment["NEGS_INSPECTOR_LAYOUT_SNAPSHOTS"],
            let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            let name = "\(model.inspectorMode)-\(model.value("io.scan_film").bool ? "scan" : "print")-\(model.hasCatalog ? "catalog" : "empty").png"
+            let name = "\(model.inspectorMode)-\(model.labScan ? "scan" : "print")-\(model.hasCatalog ? "catalog" : "empty").png"
             try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
             try? bitmap.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: folder).appendingPathComponent(name))
         }

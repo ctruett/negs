@@ -273,7 +273,7 @@ import SwiftUI
         guard let window else { return }
         let photo = model.source != nil
         window.title = model.source?.lastPathComponent ?? "Negs"
-        window.subtitle = !photo || !model.ready ? "" : model.value("io.scan_film").bool ? model.filmName : "\(model.filmName) → \(model.paperName)"
+        window.subtitle = !photo || !model.ready ? "" : EditorModel.stockCaption(model.state.params, film: model.filmName, paper: model.paperName)
         let imageOnly = model.imageOnly
         // Full screen has no title bar to stay below, so the column runs to the top.
         inspector.allowsFullHeightLayout = model.windowFullScreen

@@ -63,7 +63,7 @@ import UniformTypeIdentifiers
     /// What the title bar says, for the status bar in full screen.
     var fullScreenCaption: String? {
         guard windowFullScreen, let source else { return nil }
-        let stock = value("io.scan_film").bool ? filmName : "\(filmName) → \(paperName)"
+        let stock = Self.stockCaption(state.params, film: filmName, paper: paperName)
         return ready ? "\(source.lastPathComponent)   \(stock)" : source.lastPathComponent
     }
 
@@ -439,6 +439,17 @@ import UniformTypeIdentifiers
     var filmGroups: [StockGroup] { StockGroup.films(films, papers: papers) }
     var paperGroups: [StockGroup] { StockGroup.papers(papers) }
     var filmName: String { films.first { $0.id == film }?.name ?? film }
+    /// A slide or reversal film, which can only be scanned.
+    var filmIsPositive: Bool { films.first { $0.id == film }?.positive ?? false }
+    /// The render ends on the lab scanner, not on paper.
+    var labScan: Bool { OutputRoute.of(state.params) == .labScan }
+
+    /// Lab scan or Paper print. A positive film is always scanned.
+    func chooseOutput(_ route: OutputRoute) {
+        guard route == .labScan || !filmIsPositive else { return }
+        var next = state; next.params[OutputRoute.path] = .string(route.rawValue)
+        apply(next, action: "Change Output")
+    }
     var paperName: String { papers.first { $0.id == paper }?.name ?? paper }
     var canSave: Bool { previewCurrent && image != nil && !rendering && !saving && !cropping }
     var cropping: Bool { cropSession != nil }
@@ -577,10 +588,7 @@ import UniformTypeIdentifiers
     private func apply(catalog: JSONValue) {
         self.catalog = catalog
         stocks = catalog["profiles"].array.map(Stock.init)
-        defaults = catalog["defaults"]
-        // The engine leaves lens correction off for params from before it, so
-        // their crops keep their place; the app corrects every new edit.
-        defaults[Self.lensCorrectionPath] = .bool(true)
+        defaults = Self.appDefaults(catalog["defaults"])
         // Keep anything already applied to the photograph, such as its rotation.
         let rotation = state.params["io.rotate_cw"]
         var next = state
@@ -836,7 +844,9 @@ import UniformTypeIdentifiers
         var next = state; next.params = defaults; next.limitPreview = false
         next.params["io.rotate_cw"] = state.params["io.rotate_cw"]
         next.params[ImageSize.targetPath] = state.params[ImageSize.targetPath]
-        next.params["io.scan_film"] = .bool(films.first(where: { $0.id == next.film })?.positive ?? false)
+        // A slide can only be scanned; otherwise the output stays as chosen.
+        let positive = films.first(where: { $0.id == next.film })?.positive ?? false
+        next.params[OutputRoute.path] = .string((positive ? .labScan : OutputRoute.of(state.params)).rawValue)
         customFilmFormat = false
         apply(next, action: "Reset Adjustments")
     }
@@ -1215,7 +1225,7 @@ import UniformTypeIdentifiers
         if canShowOriginal, originalCache == nil { loadOriginal() }
     }
 
-    static let lensCorrectionPath = "io.lens_correction.enabled"
+    nonisolated static let lensCorrectionPath = "io.lens_correction.enabled"
     /// The original is framed like the developed image only with the same lens correction.
     @ObservationIgnored private var originalLensCorrection = false
     private func dropStaleOriginal() {
@@ -1413,7 +1423,7 @@ import UniformTypeIdentifiers
 
     /// Saved state brought up to the engine's current parameters.
     private func merged(_ saved: EditState) -> EditState {
-        var restored = saved
+        var restored = Self.withRoute(saved)
         let lensCorrection = restored.params[Self.lensCorrectionPath]
         restored.params = defaults.restoring(restored.params, nullable: Set(catalog["nullable_paths"].array.map(\.string)))
         // Saved from before lens correction, it was developed without it.
@@ -1741,6 +1751,44 @@ import UniformTypeIdentifiers
 
     /// An edit without the zone pins of earlier versions: they and the curve
     /// they bent the scene with come off, leaving any plain curve points.
+    /// The engine's defaults as the app starts new edits: lens correction on
+    /// (the engine leaves it off for params from before it, so their crops
+    /// keep their place), and a lab scan, where the engine's default is a
+    /// paper print for edits from before the choice.
+    nonisolated static func appDefaults(_ engine: JSONValue) -> JSONValue {
+        var defaults = engine
+        defaults[lensCorrectionPath] = .bool(true)
+        defaults[OutputRoute.path] = .string(OutputRoute.labScan.rawValue)
+        return defaults
+    }
+
+    /// A saved edit with its output in `io.output_route`. Edits from before
+    /// it say `io.scan_film`: a direct scan becomes a lab scan (on the
+    /// Frontier, the scanner's default), and anything else printed on paper.
+    nonisolated static func withRoute(_ state: EditState) -> EditState {
+        guard state.params[OutputRoute.path] == .null, state.params != .object([:]) else { return state }
+        var next = state
+        let scanned = next.params[OutputRoute.legacyPath].bool
+        if case .object(var io) = next.params["io"] {
+            io["scan_film"] = nil
+            next.params["io"] = .object(io)
+        }
+        next.params[OutputRoute.path] = .string((scanned ? OutputRoute.labScan : .paperPrint).rawValue)
+        return next
+    }
+
+    /// The film and what it ends on, for the title bar: the scanner on a lab
+    /// scan, the paper on a print.
+    nonisolated static func stockCaption(_ params: JSONValue, film: String, paper: String) -> String {
+        let end = OutputRoute.of(params) == .labScan ? ScannerKeys.title(ScannerKeys.model(params)) : paper
+        return "\(film) → \(end)"
+    }
+
+    /// A LUT's file name: the film and its scanner or paper.
+    nonisolated static func lutName(film: String, paper: String, params: JSONValue) -> String {
+        "\(film)_\(OutputRoute.of(params) == .labScan ? ScannerKeys.model(params) : paper).cube"
+    }
+
     nonisolated static func withoutPins(_ state: EditState) -> EditState {
         var next = state
         let anchors = next.params["post.tone_anchors"].array
@@ -1821,7 +1869,7 @@ import UniformTypeIdentifiers
     /// and nothing is dragged.
     func pumpPreviews() {
         guard previews.enabled, !closing, let source else { return }
-        let scanning = state.params["io.scan_film"].bool
+        let scanning = OutputRoute.of(state.params) == .labScan
         let rendered = renderState, generation = sourceGeneration
         // Each wanted tile: its look's key, the request, and a name for logs.
         var wanted: [(tile: PreviewTile, key: PreviewTile.Key, command: [String: JSONValue], name: String)] = []
@@ -1957,7 +2005,7 @@ import UniformTypeIdentifiers
     // MARK: Print balance
 
     private(set) var balancingPrint = false
-    var canBalancePrint: Bool { hasCatalog && engine != nil && !balancingPrint && !cropping && !state.params["io.scan_film"].bool }
+    var canBalancePrint: Bool { hasCatalog && engine != nil && !balancingPrint && !cropping && OutputRoute.of(state.params) == .paperPrint }
 
     /// Solves the enlarger's magenta and yellow shifts so a mid-grey prints
     /// neutral with the current settings (upstream's print balance), and
@@ -2016,7 +2064,7 @@ import UniformTypeIdentifiers
         panel.title = "Export LUT"
         panel.canCreateDirectories = true
         panel.allowedContentTypes = [UTType(filenameExtension: "cube") ?? .data]
-        panel.nameFieldStringValue = "\(state.film)_\(state.params["io.scan_film"].bool ? "direct_scan" : state.paper).cube"
+        panel.nameFieldStringValue = Self.lutName(film: state.film, paper: state.paper, params: state.params)
         panel.message = "33 × 33 × 33 CUBE · sRGB input and output. Uses the current film and paper color settings. Auto exposure, print filter shifts, preflash, grain, halation, glare, diffusion, blur, sharpening, RAW development, and Post edits are excluded."
         if let path = UserDefaults.standard.string(forKey: "lastLUTFolder") {
             panel.directoryURL = URL(fileURLWithPath: path, isDirectory: true)
@@ -2218,7 +2266,7 @@ import UniformTypeIdentifiers
                 let text = try Self.presetText(try await presetLibrary.read(preset))
                 let (_, result) = try await engine.request(["command": .string("preset_import"), "text": .string(text)])
                 presetStatus[preset] = .valid(film: result["film"].string, paper: result["paper"].string,
-                                              scan: result["params"]["io.scan_film"].bool)
+                                              scan: OutputRoute.of(result["params"]) == .labScan)
                 presetTexts[preset] = text
                 presetWhiteBalances[preset] = result["params"]["io.raw_white_balance"]
             } catch {
