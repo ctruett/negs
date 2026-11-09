@@ -90,6 +90,7 @@ struct Hideable: ViewModifier {
     let key: String?
     @AppStorage(HiddenParts.key) private var storage = ""
     @AppStorage(HiddenParts.revealKey) private var revealed = false
+    @Environment(\.sectionOrdering) private var ordering
 
     func body(content: Content) -> some View {
         let parts = HiddenParts(storage: $storage, revealed: revealed)
@@ -97,6 +98,9 @@ struct Hideable: ViewModifier {
             if parts.shows(key) {
                 content.contextMenu {
                     Button(parts.isHidden(key) ? "Show Section" : "Hide Section") { parts.toggle(key) }
+                    if let ordering, ordering.isCustom, !key.hasPrefix("stage:") {
+                        Button("Reset Section Order", action: ordering.reset)
+                    }
                 }
             }
         } else {
@@ -165,6 +169,8 @@ struct InkSection<Content: View, Action: View>: View {
                     action
                 }
                 .frame(height: 22)
+                .contentShape(Rectangle())
+                .sectionHandle("section:" + title)
             }
             content
             if let footer { InkNote(footer) }
@@ -173,6 +179,7 @@ struct InkSection<Content: View, Action: View>: View {
         .padding(.vertical, 8)
         .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
         .hideable(title.map { "section:" + $0 })
+        .movableSection(title.map { "section:" + $0 })
     }
 }
 

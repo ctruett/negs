@@ -900,10 +900,10 @@ struct AdjustmentInspector: View {
                             StageHeading(title: stage.title, edited: model.editCount(on: stage) > 0, folded: allFolds.contains(key))
                                 .onTapGesture(count: 2) { allFolds.toggle(key) }
                                 .hideable(key)
-                            if !allFolds.contains(key) { page(stage) }
+                            if !allFolds.contains(key) { OrderedSections(tab: stage) { page(stage) } }
                         }
                     } else {
-                        page(tab)
+                        OrderedSections(tab: tab) { page(tab) }
                     }
                 }
             }
@@ -1429,6 +1429,7 @@ struct AdjustmentInspector: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .sectionHandle("module:" + title)
                 .simultaneousGesture(TapGesture(count: 2).onEnded { if everything { allFolds.toggle(foldKey) } })
                 .accessibilityLabel(title)
                 .accessibilityValue(on ? (showsBody ? "Expanded" : "Collapsed") : "Off")
@@ -1450,6 +1451,7 @@ struct AdjustmentInspector: View {
         .padding(.horizontal, InkLayout.gutter)
         .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
         .hideable("module:" + title)
+        .movableSection("module:" + title)
     }
 
     @ViewBuilder private func developmentTime(stock: Stock?, path: String, label: String) -> some View {

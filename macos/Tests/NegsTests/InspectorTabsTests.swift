@@ -73,6 +73,19 @@ final class InspectorTabsTests: XCTestCase {
         XCTAssertEqual(open.visible(groups, keeping: "provia").flatMap(\.stocks).count, 3)
     }
 
+    /// Sections keep the order they're dragged into; one the order doesn't
+    /// know yet keeps its own place, and a section that's gone is skipped.
+    func testSectionsKeepTheOrderTheyAreDraggedInto() {
+        let shipped = ["a", "b", "c", "d"]
+        XCTAssertEqual(SectionOrder.arranged(shipped, saved: []), shipped)
+        let moved = SectionOrder.moving("d", before: "b", in: shipped)
+        XCTAssertEqual(moved, ["a", "d", "b", "c"])
+        XCTAssertEqual(SectionOrder.arranged(shipped, saved: moved), ["a", "d", "b", "c"])
+        XCTAssertEqual(SectionOrder.moving("a", after: "d", in: shipped), ["b", "c", "d", "a"])
+        // A new section, and one no longer shown.
+        XCTAssertEqual(SectionOrder.arranged(["a", "b", "new", "c", "d"], saved: ["gone", "a", "d", "b", "c"]), ["a", "d", "new", "b", "c"])
+    }
+
     func testPrintIsSkippedOnlyWhileScanningFilmDirectly() {
         XCTAssertTrue(InspectorTab.print.isSkipped(scanning: true))
         for tab in InspectorTab.allCases where tab != .print {
