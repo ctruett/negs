@@ -199,6 +199,51 @@ pub struct Pipeline {
     /// The caller's slot for this frame's Prep output; see
     /// [`Self::with_prepared_frame`].
     prepared_frame: Option<crate::prep::PreparedFrame>,
+    /// The caller's slot for this frame's developed film on the lab route;
+    /// see [`Self::with_developed_frame`].
+    developed_frame: Option<DevelopedFrame>,
+}
+
+/// A caller's slot for one frame's developed film on the lab-scan route. The
+/// scanner, its keys and the Post adjustments come after the film, so a
+/// render that changes only those scans the kept film again instead of
+/// exposing and developing it (with its grain) anew. Kept under a key of
+/// everything the film reads; any other render replaces it.
+#[derive(Clone, Default)]
+pub struct DevelopedFrame(std::sync::Arc<std::sync::Mutex<DevelopedSlot>>);
+
+#[derive(Default)]
+struct DevelopedSlot {
+    kept: Option<(u64, std::sync::Arc<ImageBuf>)>,
+    reuses: u64,
+}
+
+impl DevelopedFrame {
+    /// How many renders scanned the kept film instead of developing it.
+    pub fn reuses(&self) -> u64 {
+        self.0.lock().map(|s| s.reuses).unwrap_or(0)
+    }
+
+    fn take(&self, key: u64) -> Option<std::sync::Arc<ImageBuf>> {
+        let mut slot = self.0.lock().ok()?;
+        match &slot.kept {
+            Some((k, film)) if *k == key => {
+                let film = film.clone();
+                slot.reuses += 1;
+                Some(film)
+            }
+            _ => {
+                slot.kept = None;
+                None
+            }
+        }
+    }
+
+    fn keep(&self, key: u64, film: std::sync::Arc<ImageBuf>) {
+        if let Ok(mut slot) = self.0.lock() {
+            slot.kept = Some((key, film));
+        }
+    }
 }
 
 impl Pipeline {
@@ -407,6 +452,34 @@ impl Pipeline {
     /// same pixels, and uses a new slot when they change. The kept frame
     /// stays uploaded on a GPU that keeps keyed inputs, under a key of its
     /// own (`1 << 63` and up: the caller's image keys stay below).
+    /// Keep the lab route's developed film in `frame` and reuse it while
+    /// nothing the film reads changes; see [`DevelopedFrame`].
+    pub fn with_developed_frame(mut self, frame: DevelopedFrame) -> Self {
+        self.developed_frame = Some(frame);
+        self
+    }
+
+    /// What the developed film of `image` depends on: the film, every param
+    /// but the scanner's and the Post adjustments, the exposure, the backend
+    /// and the pixels.
+    fn developed_key(&self, image: &ImageBuf, autoexposure_ev: f64, backend: &dyn ComputeBackend) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut params = self.params.clone();
+        params.scanner = Default::default();
+        params.post = Default::default();
+        params.settings.lab_look_override = None;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.film.info.stock.hash(&mut h);
+        serde_json::to_string(&params).unwrap_or_default().hash(&mut h);
+        autoexposure_ev.to_bits().hash(&mut h);
+        backend.name().hash(&mut h);
+        (image.width, image.height).hash(&mut h);
+        for v in &image.data {
+            v.to_bits().hash(&mut h);
+        }
+        h.finish()
+    }
+
     pub fn with_prepared_frame(mut self, frame: crate::prep::PreparedFrame) -> Self {
         self.prepared_frame = Some(frame);
         self
@@ -555,6 +628,7 @@ impl Pipeline {
             lab_scanner: None,
             lab_balance: None,
             prepared_frame: None,
+            developed_frame: None,
         };
         pipeline.apply_film_curves_morph();
         pipeline
@@ -761,6 +835,7 @@ impl Pipeline {
             lab_scanner,
             lab_balance: None,
             prepared_frame: None,
+            developed_frame: None,
         };
         // The enlarger illuminant with its dichroic filters, and the preflash.
         pipeline.filter_enlarger();
@@ -1003,24 +1078,38 @@ impl Pipeline {
             }
         }
 
-        let t = Instant::now();
-        let log_raw = stages::filming::expose(
-            image,
-            &self.film,
-            &self.params,
-            backend,
-            self.tc_lut.as_ref(),
-            &select_illuminant(&self.front_illuminant),
-            color_ref.filming_exposure_correction,
-            autoexposure_ev,
-        );
-        print_stage_timing(stage_timings, "filming_expose", t);
-        dump_if_env("SPEKTRAFILM_DUMP_FILM_LOG_RAW", &log_raw);
-        let t = Instant::now();
-        let filmed = stages::filming::develop(log_raw, &self.film, &self.params, backend);
-        print_stage_timing(stage_timings, "filming_develop", t);
-        tracing::info!("pipeline: filming complete");
-        dump_if_env("SPEKTRAFILM_DUMP_FILM_DENSITY", &filmed);
+        // On the lab route a caller's kept film serves while only the scan changes.
+        let developed = lab.as_ref().and(self.developed_frame.as_ref()).map(|slot| {
+            let key = self.developed_key(&image, autoexposure_ev, backend);
+            (slot, key, slot.take(key))
+        });
+        let filmed = if let Some((_, _, Some(film))) = &developed {
+            tracing::info!("pipeline: developed film reused");
+            ImageBuf::clone(film)
+        } else {
+            let t = Instant::now();
+            let log_raw = stages::filming::expose(
+                image,
+                &self.film,
+                &self.params,
+                backend,
+                self.tc_lut.as_ref(),
+                &select_illuminant(&self.front_illuminant),
+                color_ref.filming_exposure_correction,
+                autoexposure_ev,
+            );
+            print_stage_timing(stage_timings, "filming_expose", t);
+            dump_if_env("SPEKTRAFILM_DUMP_FILM_LOG_RAW", &log_raw);
+            let t = Instant::now();
+            let filmed = stages::filming::develop(log_raw, &self.film, &self.params, backend);
+            print_stage_timing(stage_timings, "filming_develop", t);
+            tracing::info!("pipeline: filming complete");
+            dump_if_env("SPEKTRAFILM_DUMP_FILM_DENSITY", &filmed);
+            if let Some((slot, key, None)) = &developed {
+                slot.keep(*key, std::sync::Arc::new(filmed.clone()));
+            }
+            filmed
+        };
 
         let result = if let Some((scanner, balance)) = &lab {
             let t = Instant::now();

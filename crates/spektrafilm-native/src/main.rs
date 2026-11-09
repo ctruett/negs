@@ -273,6 +273,11 @@ struct Session {
     /// one resample of `source` per size, and is replaced with the source.
     prepared_photo: spektrafilm_core::prep::PreparedFrame,
     prepared_interactive: spektrafilm_core::prep::PreparedFrame,
+    /// The lab route's developed film for the same two frames (see
+    /// `Pipeline::with_developed_frame`), so the scanner and its keys
+    /// re-scan it instead of developing it again.
+    developed_photo: spektrafilm_core::pipeline::DevelopedFrame,
+    developed_interactive: spektrafilm_core::pipeline::DevelopedFrame,
     /// The source's auto-exposure metering frame. Every render of the source,
     /// at any preview or working size, meters it, as the exporter does, so
     /// the preview's exposure is the export's.
@@ -444,6 +449,8 @@ impl Session {
             self.interactive = None;
             self.prepared_photo = Default::default();
             self.prepared_interactive = Default::default();
+            self.developed_photo = Default::default();
+            self.developed_interactive = Default::default();
             self.metering = None;
             self.thumbnail_source = None;
             self.thumbnail_wb_sources = Vec::new();
@@ -1030,7 +1037,9 @@ impl Session {
                     pipeline = pipeline.with_lab_balance(balance);
                 }
                 let working = if dimensions == photo_dimensions {
-                    pipeline = pipeline.with_prepared_frame(self.prepared_photo.clone());
+                    pipeline = pipeline
+                        .with_prepared_frame(self.prepared_photo.clone())
+                        .with_developed_frame(self.developed_photo.clone());
                     working_source(
                         source,
                         &mut self.scaled,
@@ -1038,7 +1047,9 @@ impl Session {
                         rescale_preview_input_fast,
                     )
                 } else {
-                    pipeline = pipeline.with_prepared_frame(self.prepared_interactive.clone());
+                    pipeline = pipeline
+                        .with_prepared_frame(self.prepared_interactive.clone())
+                        .with_developed_frame(self.developed_interactive.clone());
                     working_source(source, &mut self.interactive, dimensions, downsample_area)
                 };
                 let backend = self
@@ -1562,6 +1573,7 @@ mod tests {
         let noritsu = lab(&|p| p.scanner.model = spektrafilm_core::params::ScannerModel::Noritsu);
         let response = session.handle(Request { id: 3, command: command(&noritsu) }, &data).unwrap();
         assert_eq!(response["cached_pipeline"], true, "the scanner needs no new pipeline");
+        assert!(session.developed_photo.reuses() + session.developed_interactive.reuses() >= 1, "nor a new develop");
         assert_ne!(session.lab_balance.as_ref().map(|b| &b.0), Some(&metered.0));
 
         let balance = session.lab_balance.as_ref().unwrap().1;

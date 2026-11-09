@@ -410,3 +410,41 @@ fn look_override_replaces_the_look() {
         assert!((ratio - 10f64.powf(0.1)).abs() < 0.01, "{plain:?} vs {overridden:?}");
     }
 }
+
+/// A caller that re-renders one frame keeps its developed film: the scanner
+/// and its keys come after the film, so changing them scans it again
+/// without developing it again. Anything before the scan develops anew.
+#[test]
+fn developed_frame_is_reused_for_the_scanner_only() {
+    use spektrafilm_core::pipeline::DevelopedFrame;
+    let image = two_patches([0.05, 0.1, 0.2], [0.4, 0.3, 0.2]);
+    let slot = DevelopedFrame::default();
+    let render_with = |params: RuntimeParams, slot: Option<&DevelopedFrame>| {
+        let mut pipeline = lab_pipeline("kodak_portra_400", params);
+        if let Some(slot) = slot {
+            pipeline = pipeline.with_developed_frame(slot.clone());
+        }
+        pipeline.process(image.clone(), &CpuBackend).data
+    };
+    let frontier = lab_params(ScannerModel::Frontier);
+    assert_eq!(render_with(frontier.clone(), Some(&slot)), render_with(frontier.clone(), None));
+    assert_eq!(slot.reuses(), 0);
+
+    let mut noritsu = lab_params(ScannerModel::Noritsu);
+    noritsu.scanner.yellow_key = 3.0;
+    assert_eq!(render_with(noritsu.clone(), Some(&slot)), render_with(noritsu.clone(), None));
+    assert_eq!(slot.reuses(), 1, "the scanner and keys reuse the developed film");
+
+    let mut exposed = noritsu.clone();
+    exposed.camera.exposure_compensation_ev = 1.0;
+    assert_eq!(render_with(exposed.clone(), Some(&slot)), render_with(exposed, None));
+    assert_eq!(slot.reuses(), 1, "an exposure change develops the film again");
+
+    let other = two_patches([0.3; 3], [0.1; 3]);
+    let mut pipeline = lab_pipeline("kodak_portra_400", noritsu.clone()).with_developed_frame(slot.clone());
+    let fresh = lab_pipeline("kodak_portra_400", noritsu).process(other.clone(), &CpuBackend).data;
+    assert_eq!(pipeline.process(other, &CpuBackend).data, fresh, "another frame develops anew");
+    pipeline = pipeline.with_developed_frame(slot.clone());
+    drop(pipeline);
+    assert_eq!(slot.reuses(), 1);
+}
