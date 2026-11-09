@@ -88,6 +88,8 @@ enum JSONValue: Codable, Equatable, Sendable {
 }
 
 struct Stock: Identifiable, Sendable {
+    /// What a right-click hides a stock by (see [`HiddenParts`]).
+    static func hideKey(_ id: String) -> String { "stock:" + id }
     let id: String
     let name: String
     let paper: Bool

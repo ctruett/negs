@@ -69,6 +69,15 @@ struct HiddenParts {
         return shown.isEmpty ? [InspectorTab.allCases[0]] : shown
     }
 
+    /// `groups` without their hidden stocks, or groups left empty, but always
+    /// with `keeping`, the stock in use.
+    func visible(_ groups: [StockGroup], keeping: String) -> [StockGroup] {
+        groups.compactMap { group in
+            let stocks = group.stocks.filter { $0.id == keeping || shows(Stock.hideKey($0.id)) }
+            return stocks.isEmpty ? nil : StockGroup(title: group.title, stocks: stocks)
+        }
+    }
+
     /// `tab`, or the first stage shown if it's hidden.
     func visibleTab(_ tab: InspectorTab) -> InspectorTab {
         visibleTabs.contains(tab) ? tab : visibleTabs[0]

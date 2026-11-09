@@ -1066,7 +1066,7 @@ struct AdjustmentInspector: View {
         if model.previews.enabled {
             StockFoldout(model: model, paper: false)
         } else {
-            StockMenuCard(name: model.filmName, kind: "Film stock", label: "Film", groups: model.filmGroups, selected: model.film, choose: model.chooseFilm)
+            StockMenuCard(name: model.filmName, kind: "Film stock", label: "Film", groups: hiddenParts.visible(model.filmGroups, keeping: model.film), selected: model.film, choose: model.chooseFilm)
         }
     }
 
@@ -1125,7 +1125,7 @@ struct AdjustmentInspector: View {
         if model.previews.enabled {
             StockFoldout(model: model, paper: true)
         } else {
-            StockMenuCard(name: model.paperName, kind: "Paper", label: "Paper", groups: model.paperGroups, selected: model.paper, choose: model.choosePaper)
+            StockMenuCard(name: model.paperName, kind: "Paper", label: "Paper", groups: hiddenParts.visible(model.paperGroups, keeping: model.paper), selected: model.paper, choose: model.choosePaper)
         }
     }
 

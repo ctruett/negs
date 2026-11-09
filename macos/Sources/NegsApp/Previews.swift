@@ -264,18 +264,27 @@ struct StockFoldout: View {
 private struct StockGrid: View {
     let model: EditorModel
     let paper: Bool
+    @AppStorage(HiddenParts.key) private var hidden = ""
+    @AppStorage(HiddenParts.revealKey) private var revealed = false
 
     var body: some View {
         let previews = model.previews
         let selected = paper ? model.paper : model.film
+        let parts = HiddenParts(storage: $hidden, revealed: revealed)
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8, alignment: .top), GridItem(.flexible(), spacing: 8, alignment: .top)],
                   alignment: .leading, spacing: 8) {
-            ForEach(paper ? model.paperGroups : model.filmGroups) { group in
+            ForEach(parts.visible(paper ? model.paperGroups : model.filmGroups, keeping: selected)) { group in
                 Section {
                     ForEach(group.stocks) { stock in
                         if let tile = previews.tile(stock.id, paper: paper) {
+                            let key = Stock.hideKey(stock.id)
                             StockTileView(stock: stock, tile: tile, selected: stock.id == selected) {
                                 if paper { model.choosePaper(stock.id) } else { model.chooseFilm(stock.id) }
+                            }
+                            .opacity(parts.isHidden(key) ? 0.4 : 1)
+                            .contextMenu {
+                                Button(parts.isHidden(key) ? "Show \(paper ? "Paper" : "Film")" : "Hide \(paper ? "Paper" : "Film")") { parts.toggle(key) }
+                                    .disabled(stock.id == selected && !parts.isHidden(key))
                             }
                         }
                     }

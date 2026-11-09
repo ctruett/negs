@@ -55,6 +55,24 @@ final class InspectorTabsTests: XCTestCase {
         XCTAssertEqual(HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: true).visibleTab(.scan), .scan)
     }
 
+    /// A hidden stock leaves the picker, and a group it empties goes too,
+    /// but the stock in use always stays; the open eye shows them all.
+    func testHiddenStocksLeaveThePicker() {
+        let stock = { (id: String) in Stock(.object(["id": .string(id), "name": .string(id)])) }
+        let groups = [StockGroup(title: "Slide", stocks: [stock("velvia"), stock("provia")]),
+                      StockGroup(title: "B&W", stocks: [stock("trix")])]
+        var stored = ""
+        let parts = HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: false)
+        parts.toggle(Stock.hideKey("velvia"))
+        parts.toggle(Stock.hideKey("trix"))
+        let shown = parts.visible(groups, keeping: "provia")
+        XCTAssertEqual(shown.map(\.title), ["Slide"])
+        XCTAssertEqual(shown[0].stocks.map(\.id), ["provia"])
+        XCTAssertEqual(parts.visible(groups, keeping: "trix").flatMap(\.stocks).map(\.id), ["provia", "trix"], "The one in use stays")
+        let open = HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: true)
+        XCTAssertEqual(open.visible(groups, keeping: "provia").flatMap(\.stocks).count, 3)
+    }
+
     func testPrintIsSkippedOnlyWhileScanningFilmDirectly() {
         XCTAssertTrue(InspectorTab.print.isSkipped(scanning: true))
         for tab in InspectorTab.allCases where tab != .print {
