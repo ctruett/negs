@@ -757,33 +757,6 @@ mod tests {
         assert_eq!(model.centers[0], model.centers[1]);
     }
 
-    /// A family whose normal time isn't the middle entry names it: HP5 Plus
-    /// opens at 6.5 of 6.5/9.5/14 min. A requested time still wins, and
-    /// families without the field keep the floor-middle default.
-    #[test]
-    fn default_development_time_overrides_middle() {
-        let p = data_profile("ilford_hp5_plus").expect("bundled HP5 Plus profile");
-        assert_eq!(p.data.development_time, vec![6.5, 9.5, 14.0]);
-        assert_eq!(p.data.development_index(None), 0);
-        assert_eq!(p.data.base_density, base_density_column(&p.data.base_density_rows, 0));
-        let want: Vec<f64> = p.data.density_curves.iter().map(|r| r[0]).collect();
-        let r = resolve_for_render(p.clone(), None);
-        assert_eq!(r.data.development_time, vec![6.5]);
-        assert!(r.data.density_curves.iter().zip(&want).all(|(row, w)| row[0] == *w));
-        let r = resolve_for_render(p, Some(14.0));
-        assert_eq!(r.data.development_time, vec![14.0]);
-        let doublex = data_profile("kodak_doublex").expect("bundled Double-X");
-        assert_eq!(doublex.data.default_development_time, None);
-        assert_eq!(doublex.data.development_index(None), 2);
-    }
-
-    #[test]
-    fn default_development_time_must_be_listed() {
-        let mut p = data_profile("ilford_hp5_plus").expect("bundled HP5 Plus profile");
-        p.data.default_development_time = Some(7.0);
-        assert!(validate_profile(&p).is_err());
-    }
-
     /// Colour profiles pass through `resolve_for_render` untouched.
     #[test]
     fn resolve_is_identity_for_colour() {

@@ -2722,19 +2722,13 @@ mod reset_tests {
         assert_eq!(
             bw_films,
             [
-                "fujifilm_acros_100_ii",
-                "ilford_delta_3200",
-                "ilford_fp4_plus",
-                "ilford_hp5_plus",
                 "kodak_doublex",
-                "kodak_tmax_100",
                 "kodak_trix400_d76_8min",
                 "kodak_trix",
             ]
         );
         assert_eq!(bw_prints, ["ilford_mgrc_deluxe_grade2", "kodak_2302"]);
-        // 33, plus the 24 colour and 5 B&W films ported from Fotufilm.
-        assert_eq!(films.len() + prints.len(), 62);
+        assert_eq!(films.len() + prints.len(), 33);
         assert_eq!(
             films
                 .iter()

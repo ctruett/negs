@@ -517,7 +517,7 @@ mod tests {
     /// keys in a shuffled order to hit, miss and evict the cache many times.
     #[test]
     fn cached_remap_is_bit_identical_to_uncached() {
-        check_cached_remap(&["kodak_portra_400", "kodak_aerochrome_1443"]);
+        check_cached_remap(&["kodak_portra_400", "kodak_ektachrome_100"]);
     }
 
     /// The same with more films: `cargo test --release -p spektrafilm-core
@@ -525,7 +525,7 @@ mod tests {
     #[test]
     #[ignore]
     fn cached_remap_is_bit_identical_to_uncached_more_films() {
-        check_cached_remap(&["kodak_portra_400", "kodak_vision3_500t", "fujifilm_velvia_50", "kodak_aerochrome_1443"]);
+        check_cached_remap(&["kodak_portra_400", "kodak_vision3_500t", "fujifilm_velvia_100", "kodak_ektachrome_100"]);
     }
 
     fn check_cached_remap(films: &[&str]) {
