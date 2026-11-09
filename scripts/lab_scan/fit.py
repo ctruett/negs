@@ -219,7 +219,9 @@ def real(row: charts.Row) -> np.ndarray | None:
 
 def signal(row: charts.Row, scanner: str) -> np.ndarray:
     film = charts.FILMS[row.film]
-    return _cached("signal", row, lambda: render.signal(film, scanner, row.ev), render.CLI.stat().st_mtime)
+    # A film's couplers change its signal as much as the engine does.
+    stamp = max(render.CLI.stat().st_mtime, (charts.REPO / "data/presets/couplers.toml").stat().st_mtime)
+    return _cached("signal", row, lambda: render.signal(film, scanner, row.ev), stamp)
 
 
 def dataset(scanner: str, film_type: str):

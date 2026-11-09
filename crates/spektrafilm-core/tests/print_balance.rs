@@ -98,7 +98,7 @@ fn print_balance_matches_python() {
         let print = profile::load_profile_by_name(&data_dir(), &case.paper).unwrap();
         // Python has upstream's class couplers for Portra 400, not Negs's fitted preset.
         let mut params = case.params.clone();
-        if case.film == "kodak_portra_400" {
+        if ["kodak_portra_400", "kodak_ektar_100", "kodak_gold_200", "fujifilm_pro_400h"].contains(&case.film.as_str()) {
             let dir = &mut params.film_render.dir_couplers;
             dir.gamma_samelayer_rgb = Some([0.5159, 0.5934, 0.2829]);
             dir.gamma_interlayer_r_to_gb = Some([0.4032, 0.2488]);

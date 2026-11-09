@@ -119,22 +119,31 @@ def identity_look(path: Path) -> Path:
     return path
 
 
-def signal(film: str, scanner: str, ev: float) -> np.ndarray:
+def merged(base: dict, extra: dict | None) -> dict:
+    """`base` with `extra`'s values laid over it, section by section."""
+    out = dict(base)
+    for key, value in (extra or {}).items():
+        out[key] = merged(out.get(key, {}), value) if isinstance(value, dict) else value
+    return out
+
+
+def signal(film: str, scanner: str, ev: float, extra: dict | None = None) -> np.ndarray:
     """The look's input for each patch, 140 x 3: the balanced log10 signal,
-    read back through an identity look, unclipped and uncompressed."""
+    read back through an identity look, unclipped and uncompressed. `extra`
+    params are laid over the render's (a film's couplers under test)."""
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         src, out, raw, params = tmp / "chart.tif", tmp / "out.tif", tmp / "raw.f64", tmp / "params.json"
         img = chart_image(ev)
         tifffile.imwrite(src, img)
-        params.write_text(json.dumps({
+        params.write_text(json.dumps(merged({
             "camera": {"auto_exposure": False},
             "film_render": {"grain": {"active": False}, "halation": {"active": False}},
             "io": {"output_color_space": "ITU-R BT.2020", "output_cctf_encoding": False,
                    "output_gamut_compress": {"algorithm": "off"}},
             "settings": {"lab_look_override": str(identity_look(tmp / "identity.toml"))},
-        }))
-        log = _run(film, scanner, src, out, params, ["--raw-out", str(raw)])
+        }, extra)))
+        _run(film, scanner, src, out, params, ["--raw-out", str(raw)])
         lin = np.fromfile(raw, dtype=np.float64).reshape(img.shape[0], img.shape[1], 3)
     return np.log10(np.clip(charts.sample(lin, centres(), frac=0.3), 1e-9, None)) - REF
 

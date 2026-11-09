@@ -14,14 +14,14 @@ The aim is a held-out mean hue error of 6° or less per scanner and film type.
 |---|---|---|---|---|---|---|---|
 | frontier | bw | held out | 4 | n/a | – / 7.6 | – / 4.9 |  |
 | frontier | bw | training | 4 | n/a | – / 7.8 | – / 3.0 |  |
-| frontier | colour_negative | held out | 20 | n/a | 18.8° / 9.7 | 11.4° / 5.1 | **missed** |
-| frontier | colour_negative | training | 12 | n/a | 18.9° / 10.0 | 12.4° / 5.0 |  |
+| frontier | colour_negative | held out | 20 | n/a | 18.3° / 9.5 | 10.9° / 4.9 | **missed** |
+| frontier | colour_negative | training | 12 | n/a | 17.9° / 9.7 | 11.8° / 4.7 |  |
 | frontier | slide | held out | 3 | 24.0° / 9.4 | 29.5° / 10.3 | 30.2° / 7.4 | **missed** |
 | frontier | slide | training | 4 | 29.4° / 5.2 | 25.9° / 6.1 | 20.9° / 6.5 |  |
 | noritsu | bw | held out | 4 | n/a | – / 6.6 | – / 6.2 |  |
 | noritsu | bw | training | 4 | n/a | – / 6.8 | – / 3.6 |  |
-| noritsu | colour_negative | held out | 20 | n/a | 16.9° / 8.3 | 14.9° / 5.1 | **missed** |
-| noritsu | colour_negative | training | 12 | n/a | 13.6° / 8.2 | 16.4° / 5.0 |  |
+| noritsu | colour_negative | held out | 20 | n/a | 16.3° / 8.2 | 14.3° / 5.0 | **missed** |
+| noritsu | colour_negative | training | 12 | n/a | 12.8° / 7.8 | 15.5° / 4.7 |  |
 | noritsu | slide | held out | 3 | 29.4° / 11.3 | 28.8° / 11.8 | 35.5° / 6.8 | **missed** |
 | noritsu | slide | training | 4 | 32.6° / 7.6 | 35.3° / 7.8 | 19.6° / 4.8 |  |
 
@@ -42,13 +42,13 @@ Largest OKLab chroma ×100 of the chart's neutrals through the fitted look, −6
 | Film | Frontier | Noritsu |
 |---|---|---|
 | Kodak Portra 160 | 3.1 | 2.6 |
-| Kodak Portra 400 | 2.6 | 2.7 |
-| Kodak Portra 800 | 2.9 | 2.9 |
-| Kodak Ektar 100 | 4.5 | 3.5 |
-| Kodak Gold 200 | 3.1 | 2.9 |
-| Kodak UltraMax 400 | 2.8 | 2.8 |
-| Fujifilm C200 | 5.6 | 7.7 |
-| Fujifilm Pro 400H | 2.3 | 3.1 |
+| Kodak Portra 400 | 2.6 | 2.4 |
+| Kodak Portra 800 | 2.6 | 2.3 |
+| Kodak Ektar 100 | 4.0 | 3.2 |
+| Kodak Gold 200 | 2.4 | 2.6 |
+| Kodak UltraMax 400 | 2.6 | 2.6 |
+| Fujifilm C200 | 5.5 | 7.9 |
+| Fujifilm Pro 400H | 2.1 | 3.1 |
 | Fujifilm Provia 100F | 3.1 | 3.4 |
 | Kodak Ektachrome E100 | 4.7 | 4.9 |
 | Kodak TRI-X 400 | 0.2 | 0.0 |
@@ -58,38 +58,38 @@ Largest OKLab chroma ×100 of the chart's neutrals through the fitted look, −6
 
 | Scanner | Film | EV | Held out | Direct | Hand-set | Fitted |
 |---|---|---|---|---|---|---|
-| frontier | Fujifilm C200 | +0EV |  | n/a | 16.4° / 11.5 | 18.1° / 5.3 |
-| frontier | Fujifilm C200 | +1EV |  | n/a | 18.1° / 11.0 | 14.0° / 4.6 |
-| frontier | Fujifilm C200 | +2EV | yes | n/a | 17.0° / 10.2 | 11.1° / 4.4 |
-| frontier | Fujifilm C200 | -1EV | yes | n/a | 11.8° / 11.4 | 11.3° / 5.8 |
-| frontier | Fujifilm Pro 400H | +0EV |  | n/a | 16.5° / 9.1 | 9.2° / 3.3 |
-| frontier | Fujifilm Pro 400H | +1EV |  | n/a | 14.3° / 8.7 | 8.9° / 3.2 |
-| frontier | Fujifilm Pro 400H | +2EV | yes | n/a | 14.0° / 8.7 | 8.7° / 3.2 |
-| frontier | Fujifilm Pro 400H | -1EV | yes | n/a | 15.2° / 9.4 | 9.3° / 3.6 |
-| frontier | Kodak Ektar 100 | +0EV |  | n/a | 21.5° / 11.3 | 9.8° / 5.6 |
-| frontier | Kodak Ektar 100 | +1EV |  | n/a | 24.3° / 10.7 | 13.0° / 6.1 |
-| frontier | Kodak Ektar 100 | +2EV | yes | n/a | 24.7° / 10.4 | 13.4° / 5.4 |
-| frontier | Kodak Ektar 100 | -1EV | yes | n/a | 25.5° / 11.7 | 11.0° / 5.7 |
-| frontier | Kodak Gold 200 | +0EV |  | n/a | 20.8° / 10.0 | 24.8° / 6.0 |
-| frontier | Kodak Gold 200 | +1EV |  | n/a | 16.6° / 8.7 | 8.3° / 5.3 |
-| frontier | Kodak Gold 200 | +2EV | yes | n/a | 18.1° / 8.0 | 8.1° / 6.3 |
-| frontier | Kodak Gold 200 | -1EV | yes | n/a | 23.7° / 11.6 | 29.4° / 5.4 |
-| frontier | Kodak Portra 160 | +0EV |  | n/a | 17.4° / 9.4 | 8.5° / 4.4 |
+| frontier | Fujifilm C200 | +0EV |  | n/a | 16.4° / 11.5 | 20.5° / 5.1 |
+| frontier | Fujifilm C200 | +1EV |  | n/a | 18.1° / 11.0 | 14.5° / 4.5 |
+| frontier | Fujifilm C200 | +2EV | yes | n/a | 17.0° / 10.2 | 11.4° / 4.3 |
+| frontier | Fujifilm C200 | -1EV | yes | n/a | 11.8° / 11.4 | 11.0° / 5.6 |
+| frontier | Fujifilm Pro 400H | +0EV |  | n/a | 17.8° / 9.3 | 9.0° / 3.1 |
+| frontier | Fujifilm Pro 400H | +1EV |  | n/a | 15.6° / 9.0 | 8.4° / 3.0 |
+| frontier | Fujifilm Pro 400H | +2EV | yes | n/a | 15.2° / 8.9 | 7.7° / 3.0 |
+| frontier | Fujifilm Pro 400H | -1EV | yes | n/a | 16.7° / 9.6 | 8.8° / 3.5 |
+| frontier | Kodak Ektar 100 | +0EV |  | n/a | 17.0° / 10.0 | 8.0° / 4.5 |
+| frontier | Kodak Ektar 100 | +1EV |  | n/a | 20.7° / 9.8 | 10.3° / 5.0 |
+| frontier | Kodak Ektar 100 | +2EV | yes | n/a | 21.5° / 9.8 | 10.9° / 4.5 |
+| frontier | Kodak Ektar 100 | -1EV | yes | n/a | 21.6° / 10.1 | 10.7° / 5.0 |
+| frontier | Kodak Gold 200 | +0EV |  | n/a | 17.8° / 8.9 | 22.9° / 5.1 |
+| frontier | Kodak Gold 200 | +1EV |  | n/a | 13.4° / 7.7 | 7.4° / 4.6 |
+| frontier | Kodak Gold 200 | +2EV | yes | n/a | 15.3° / 7.1 | 7.1° / 5.8 |
+| frontier | Kodak Gold 200 | -1EV | yes | n/a | 20.9° / 10.5 | 24.8° / 4.7 |
+| frontier | Kodak Portra 160 | +0EV |  | n/a | 17.4° / 9.4 | 8.7° / 4.4 |
 | frontier | Kodak Portra 160 | +1EV |  | n/a | 24.0° / 9.3 | 7.7° / 5.6 |
-| frontier | Kodak Portra 160 | +2EV | yes | n/a | 26.5° / 10.0 | 11.2° / 5.1 |
-| frontier | Kodak Portra 160 | -1EV | yes | n/a | 13.2° / 10.0 | 8.9° / 6.0 |
-| frontier | Kodak Portra 400 | +0EV |  | n/a | 15.5° / 10.2 | 12.4° / 5.8 |
-| frontier | Kodak Portra 400 | +1EV |  | n/a | 21.0° / 9.9 | 13.6° / 5.3 |
-| frontier | Kodak Portra 400 | +2EV | yes | n/a | 18.4° / 10.3 | 10.6° / 5.4 |
-| frontier | Kodak Portra 400 | -1EV | yes | n/a | 15.8° / 10.8 | 16.7° / 5.7 |
-| frontier | Kodak Portra 800 | +0EV | yes | n/a | 25.1° / 9.6 | 11.7° / 4.9 |
-| frontier | Kodak Portra 800 | +1EV | yes | n/a | 21.4° / 9.2 | 11.2° / 4.8 |
-| frontier | Kodak Portra 800 | +2EV | yes | n/a | 18.5° / 8.8 | 11.4° / 4.5 |
-| frontier | Kodak Portra 800 | -1EV | yes | n/a | 20.2° / 9.1 | 16.1° / 5.6 |
-| frontier | Kodak UltraMax 400 | +0EV | yes | n/a | 15.4° / 9.2 | 6.5° / 4.4 |
-| frontier | Kodak UltraMax 400 | +1EV | yes | n/a | 17.3° / 8.5 | 6.4° / 4.9 |
+| frontier | Kodak Portra 160 | +2EV | yes | n/a | 26.5° / 10.0 | 11.1° / 5.1 |
+| frontier | Kodak Portra 160 | -1EV | yes | n/a | 13.2° / 10.0 | 8.7° / 6.0 |
+| frontier | Kodak Portra 400 | +0EV |  | n/a | 15.5° / 10.2 | 12.0° / 5.7 |
+| frontier | Kodak Portra 400 | +1EV |  | n/a | 21.0° / 9.9 | 12.5° / 5.2 |
+| frontier | Kodak Portra 400 | +2EV | yes | n/a | 18.4° / 10.3 | 10.2° / 5.3 |
+| frontier | Kodak Portra 400 | -1EV | yes | n/a | 15.8° / 10.8 | 16.4° / 5.6 |
+| frontier | Kodak Portra 800 | +0EV | yes | n/a | 25.1° / 9.6 | 12.0° / 4.9 |
+| frontier | Kodak Portra 800 | +1EV | yes | n/a | 21.4° / 9.2 | 11.6° / 4.8 |
+| frontier | Kodak Portra 800 | +2EV | yes | n/a | 18.5° / 8.8 | 11.8° / 4.5 |
+| frontier | Kodak Portra 800 | -1EV | yes | n/a | 20.2° / 9.1 | 16.0° / 5.6 |
+| frontier | Kodak UltraMax 400 | +0EV | yes | n/a | 15.4° / 9.2 | 6.5° / 4.3 |
+| frontier | Kodak UltraMax 400 | +1EV | yes | n/a | 17.3° / 8.5 | 6.4° / 4.8 |
 | frontier | Kodak UltraMax 400 | +2EV | yes | n/a | 18.8° / 8.4 | 6.5° / 5.9 |
-| frontier | Kodak UltraMax 400 | -1EV | yes | n/a | 15.5° / 8.9 | 8.2° / 4.2 |
+| frontier | Kodak UltraMax 400 | -1EV | yes | n/a | 15.5° / 8.9 | 8.4° / 4.3 |
 | frontier | Fujifilm Provia 100F | +0EV |  | 16.4° / 6.0 | 14.1° / 6.6 | 21.0° / 7.3 |
 | frontier | Fujifilm Provia 100F | +1EV |  | 31.6° / 3.8 | 25.9° / 4.2 | 12.2° / 4.3 |
 | frontier | Fujifilm Provia 100F | -1EV | yes | 20.6° / 10.2 | 22.2° / 10.8 | 27.4° / 8.6 |
@@ -106,38 +106,38 @@ Largest OKLab chroma ×100 of the chart's neutrals through the fitted look, −6
 | frontier | Kodak TRI-X 400 | +1EV |  | n/a | nan° / 7.2 | nan° / 3.3 |
 | frontier | Kodak TRI-X 400 | +2EV | yes | n/a | nan° / 6.5 | nan° / 4.1 |
 | frontier | Kodak TRI-X 400 | -1EV | yes | n/a | nan° / 8.7 | nan° / 5.9 |
-| noritsu | Fujifilm C200 | +0EV |  | n/a | 13.0° / 10.7 | 34.4° / 6.5 |
-| noritsu | Fujifilm C200 | +1EV |  | n/a | 14.4° / 10.0 | 24.9° / 5.6 |
-| noritsu | Fujifilm C200 | +2EV | yes | n/a | 12.1° / 9.2 | 15.4° / 4.7 |
-| noritsu | Fujifilm C200 | -1EV | yes | n/a | 25.9° / 9.9 | 15.8° / 5.6 |
-| noritsu | Fujifilm Pro 400H | +0EV |  | n/a | 10.2° / 8.9 | 10.2° / 5.1 |
-| noritsu | Fujifilm Pro 400H | +1EV |  | n/a | 8.9° / 8.2 | 9.0° / 4.7 |
-| noritsu | Fujifilm Pro 400H | +2EV | yes | n/a | 8.4° / 8.7 | 9.3° / 4.8 |
-| noritsu | Fujifilm Pro 400H | -1EV | yes | n/a | 22.7° / 9.0 | 10.1° / 5.1 |
-| noritsu | Kodak Ektar 100 | +0EV |  | n/a | 15.9° / 7.6 | 11.0° / 4.6 |
-| noritsu | Kodak Ektar 100 | +1EV |  | n/a | 25.3° / 8.0 | 20.9° / 6.2 |
-| noritsu | Kodak Ektar 100 | +2EV | yes | n/a | 43.7° / 8.8 | 23.2° / 8.3 |
-| noritsu | Kodak Ektar 100 | -1EV | yes | n/a | 14.4° / 10.2 | 10.9° / 5.7 |
-| noritsu | Kodak Gold 200 | +0EV |  | n/a | 14.3° / 7.7 | 21.1° / 4.4 |
-| noritsu | Kodak Gold 200 | +1EV |  | n/a | 18.4° / 7.0 | 14.9° / 4.0 |
-| noritsu | Kodak Gold 200 | +2EV | yes | n/a | 18.8° / 6.6 | 12.9° / 4.9 |
-| noritsu | Kodak Gold 200 | -1EV | yes | n/a | 18.5° / 9.7 | 25.9° / 4.8 |
-| noritsu | Kodak Portra 160 | +0EV |  | n/a | 10.0° / 6.9 | 10.4° / 3.8 |
-| noritsu | Kodak Portra 160 | +1EV |  | n/a | 10.3° / 6.0 | 9.0° / 4.9 |
-| noritsu | Kodak Portra 160 | +2EV | yes | n/a | 14.7° / 6.0 | 11.5° / 3.8 |
-| noritsu | Kodak Portra 160 | -1EV | yes | n/a | 15.1° / 8.1 | 26.9° / 4.5 |
-| noritsu | Kodak Portra 400 | +0EV |  | n/a | 11.8° / 9.4 | 15.2° / 5.9 |
-| noritsu | Kodak Portra 400 | +1EV |  | n/a | 11.1° / 7.5 | 15.2° / 4.4 |
-| noritsu | Kodak Portra 400 | +2EV | yes | n/a | 10.3° / 7.1 | 13.7° / 4.0 |
-| noritsu | Kodak Portra 400 | -1EV | yes | n/a | 15.7° / 12.4 | 21.9° / 7.7 |
-| noritsu | Kodak Portra 800 | +0EV | yes | n/a | 12.7° / 7.0 | 10.0° / 4.0 |
-| noritsu | Kodak Portra 800 | +1EV | yes | n/a | 12.5° / 6.5 | 12.9° / 4.5 |
-| noritsu | Kodak Portra 800 | +2EV | yes | n/a | 15.1° / 5.8 | 11.8° / 4.5 |
-| noritsu | Kodak Portra 800 | -1EV | yes | n/a | 17.7° / 9.8 | 21.4° / 5.9 |
+| noritsu | Fujifilm C200 | +0EV |  | n/a | 13.0° / 10.7 | 35.7° / 6.3 |
+| noritsu | Fujifilm C200 | +1EV |  | n/a | 14.4° / 10.0 | 23.7° / 5.4 |
+| noritsu | Fujifilm C200 | +2EV | yes | n/a | 12.1° / 9.2 | 14.7° / 4.6 |
+| noritsu | Fujifilm C200 | -1EV | yes | n/a | 25.9° / 9.9 | 22.3° / 5.6 |
+| noritsu | Fujifilm Pro 400H | +0EV |  | n/a | 10.9° / 9.2 | 9.2° / 4.9 |
+| noritsu | Fujifilm Pro 400H | +1EV |  | n/a | 9.7° / 8.5 | 7.6° / 4.4 |
+| noritsu | Fujifilm Pro 400H | +2EV | yes | n/a | 9.1° / 8.9 | 7.6° / 4.5 |
+| noritsu | Fujifilm Pro 400H | -1EV | yes | n/a | 23.0° / 9.3 | 13.4° / 5.0 |
+| noritsu | Kodak Ektar 100 | +0EV |  | n/a | 10.9° / 6.2 | 9.9° / 4.0 |
+| noritsu | Kodak Ektar 100 | +1EV |  | n/a | 21.9° / 7.3 | 19.3° / 5.4 |
+| noritsu | Kodak Ektar 100 | +2EV | yes | n/a | 39.9° / 8.2 | 26.2° / 7.7 |
+| noritsu | Kodak Ektar 100 | -1EV | yes | n/a | 10.1° / 8.9 | 9.8° / 5.4 |
+| noritsu | Kodak Gold 200 | +0EV |  | n/a | 12.7° / 6.4 | 18.5° / 3.7 |
+| noritsu | Kodak Gold 200 | +1EV |  | n/a | 17.0° / 6.0 | 14.9° / 3.5 |
+| noritsu | Kodak Gold 200 | +2EV | yes | n/a | 16.9° / 5.8 | 12.3° / 4.5 |
+| noritsu | Kodak Gold 200 | -1EV | yes | n/a | 15.5° / 8.4 | 21.8° / 4.2 |
+| noritsu | Kodak Portra 160 | +0EV |  | n/a | 10.0° / 6.9 | 10.1° / 3.9 |
+| noritsu | Kodak Portra 160 | +1EV |  | n/a | 10.3° / 6.0 | 8.5° / 4.9 |
+| noritsu | Kodak Portra 160 | +2EV | yes | n/a | 14.7° / 6.0 | 10.9° / 3.8 |
+| noritsu | Kodak Portra 160 | -1EV | yes | n/a | 15.1° / 8.1 | 23.9° / 4.5 |
+| noritsu | Kodak Portra 400 | +0EV |  | n/a | 11.8° / 9.4 | 14.4° / 6.0 |
+| noritsu | Kodak Portra 400 | +1EV |  | n/a | 11.1° / 7.5 | 14.3° / 4.5 |
+| noritsu | Kodak Portra 400 | +2EV | yes | n/a | 10.3° / 7.1 | 12.7° / 4.0 |
+| noritsu | Kodak Portra 400 | -1EV | yes | n/a | 15.7° / 12.4 | 22.2° / 7.7 |
+| noritsu | Kodak Portra 800 | +0EV | yes | n/a | 12.7° / 7.0 | 10.5° / 4.1 |
+| noritsu | Kodak Portra 800 | +1EV | yes | n/a | 12.5° / 6.5 | 13.0° / 4.6 |
+| noritsu | Kodak Portra 800 | +2EV | yes | n/a | 15.1° / 5.8 | 12.1° / 4.6 |
+| noritsu | Kodak Portra 800 | -1EV | yes | n/a | 17.7° / 9.8 | 15.5° / 6.0 |
 | noritsu | Kodak UltraMax 400 | +0EV | yes | n/a | 11.1° / 8.0 | 9.4° / 4.9 |
-| noritsu | Kodak UltraMax 400 | +1EV | yes | n/a | 10.9° / 7.2 | 8.7° / 4.5 |
-| noritsu | Kodak UltraMax 400 | +2EV | yes | n/a | 11.5° / 7.2 | 8.4° / 4.4 |
-| noritsu | Kodak UltraMax 400 | -1EV | yes | n/a | 25.4° / 9.5 | 17.7° / 5.3 |
+| noritsu | Kodak UltraMax 400 | +1EV | yes | n/a | 10.9° / 7.2 | 8.8° / 4.6 |
+| noritsu | Kodak UltraMax 400 | +2EV | yes | n/a | 11.5° / 7.2 | 8.5° / 4.5 |
+| noritsu | Kodak UltraMax 400 | -1EV | yes | n/a | 25.4° / 9.5 | 11.4° / 5.4 |
 | noritsu | Fujifilm Provia 100F | +0EV |  | 18.9° / 10.0 | 12.7° / 10.1 | 11.1° / 4.7 |
 | noritsu | Fujifilm Provia 100F | +1EV |  | 13.2° / 6.1 | 9.5° / 6.3 | 11.6° / 4.6 |
 | noritsu | Fujifilm Provia 100F | -1EV | yes | 31.5° / 13.3 | 23.8° / 14.1 | 31.9° / 7.1 |

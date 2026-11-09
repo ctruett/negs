@@ -332,4 +332,4 @@ fn couplers_presets_match_python_for_every_film_stock() {
 }
 
 /// Stocks whose couplers Negs fitted to real film (`data/presets/couplers.toml`).
-const NEGS_FITTED: [&str; 1] = ["kodak_portra_400"];
+const NEGS_FITTED: [&str; 4] = ["kodak_portra_400", "kodak_ektar_100", "kodak_gold_200", "fujifilm_pro_400h"];

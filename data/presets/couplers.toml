@@ -97,3 +97,30 @@ gamma_samelayer_rgb = [0.1016, 0.0794, 0.0102]
 gamma_interlayer_r_to_gb = [0.148, 0.0068]
 gamma_interlayer_g_to_rb = [0.558, 0.0528]
 gamma_interlayer_b_to_rg = [0.0063, 0.5521]
+[kodak_ektar_100]
+# Fitted in Negs on 2026-11-09 to Color Precision's studio scans of Kodak Ektar 100
+# (ColorChecker Digital SG, daylight, 0 and +1 EV, Frontier and Noritsu lab looks),
+# scripts/lab_scan/couplers.py. Held-out (−1, +2 EV) hue 14.6° -> 13.2°,
+# ΔE 6.2 -> 5.7.
+gamma_samelayer_rgb = [0.0004, 0.0013, 0.0000]
+gamma_interlayer_r_to_gb = [0.2266, 0.2045]
+gamma_interlayer_g_to_rb = [0.3915, 0.3968]
+gamma_interlayer_b_to_rg = [0.0000, 0.2120]
+[kodak_gold_200]
+# Fitted in Negs on 2026-11-09 to Color Precision's studio scans of Kodak Gold 200
+# (ColorChecker Digital SG, daylight, 0 and +1 EV, Frontier and Noritsu lab looks),
+# scripts/lab_scan/couplers.py. Held-out (−1, +2 EV) hue 18.9° -> 16.6°,
+# ΔE 5.3 -> 4.8.
+gamma_samelayer_rgb = [0.8999, 0.7475, 0.0000]
+gamma_interlayer_r_to_gb = [0.0006, 0.1163]
+gamma_interlayer_g_to_rb = [0.0907, 0.5486]
+gamma_interlayer_b_to_rg = [0.0977, 0.0334]
+[fujifilm_pro_400h]
+# Fitted in Negs on 2026-11-09 to Color Precision's studio scans of Fujifilm Pro 400H
+# (ColorChecker Digital SG, daylight, 0 and +1 EV, Frontier and Noritsu lab looks),
+# scripts/lab_scan/couplers.py. Held-out (−1, +2 EV) hue 9.7° -> 8.3°,
+# ΔE 4.1 -> 4.1.
+gamma_samelayer_rgb = [0.0000, 0.0000, 0.0000]
+gamma_interlayer_r_to_gb = [0.6199, 0.1664]
+gamma_interlayer_g_to_rb = [0.7143, 0.6890]
+gamma_interlayer_b_to_rg = [0.0038, 0.0950]
