@@ -178,11 +178,10 @@ fn slide_is_metered_with_inverted_sign() {
 #[test]
 fn balance_ignores_render_size() {
     use spektrafilm_core::pipeline::Pipeline;
-    use spektrafilm_core::params::OutputRoute;
     let data = data_dir();
     let make = |film_mm: f32| {
         let mut params = RuntimeParams::default();
-        params.io.output_route = OutputRoute::LabScan;
+        params.io.output_route = spektrafilm_core::params::OutputRoute::LabScan;
         params.camera.film_format_mm = film_mm;
         let film = profile::load_profile_by_name(&data, "kodak_portra_400").unwrap();
         let print = profile::load_profile_by_name(&data, "kodak_portra_endura").unwrap();
