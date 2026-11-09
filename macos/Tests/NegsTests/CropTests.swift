@@ -3,6 +3,17 @@ import XCTest
 @testable import NegsApp
 
 @MainActor final class CropTests: XCTestCase {
+    /// The last Longest side is kept in the defaults, and a new photograph
+    /// opens with it. Other tests set it, so these start without one.
+    private var savedLongestSide: Any?
+    override func setUp() async throws {
+        savedLongestSide = UserDefaults.standard.object(forKey: "imageSizeLongestSide")
+        UserDefaults.standard.removeObject(forKey: "imageSizeLongestSide")
+    }
+    override func tearDown() async throws {
+        UserDefaults.standard.set(savedLongestSide, forKey: "imageSizeLongestSide")
+    }
+
     private func assertEqual(_ a: CGRect, _ b: CGRect, accuracy: CGFloat = 1e-9, file: StaticString = #filePath, line: UInt = #line) {
         for (x, y) in zip([a.minX, a.minY, a.width, a.height], [b.minX, b.minY, b.width, b.height]) {
             XCTAssertEqual(x, y, accuracy: accuracy, "\(a) ≠ \(b)", file: file, line: line)

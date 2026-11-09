@@ -108,6 +108,12 @@ impl Look {
         })
     }
 
+    /// The curves' knots, values and tangents, the matrix, the cast and the
+    /// gain, for a GPU pass that evaluates the look as [`Self::apply`] does.
+    pub fn parts(&self) -> (&[f64], &[Vec<f64>; 3], &[Vec<f64>; 3], [[f64; 3]; 3], [f64; 3], f64) {
+        (&self.knots, &self.curve, &self.tangents, self.matrix, self.cast, self.gain)
+    }
+
     /// The scan's log10 linear light for a balanced, keyed log signal.
     pub fn apply(&self, log_rgb: [f64; 3]) -> [f64; 3] {
         let y = [0, 1, 2].map(|c| self.curve_at(c, log_rgb[c] * self.gain));

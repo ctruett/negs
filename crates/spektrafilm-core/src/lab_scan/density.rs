@@ -85,6 +85,7 @@ pub struct DensityLut {
     table: Vec<f64>,
     steps: usize,
     data_min: [f64; 3],
+    data_max: [f64; 3],
     inv: [f64; 3],
 }
 
@@ -143,12 +144,23 @@ impl DensityLut {
             });
         let scale = (steps - 1) as f64;
         let inv = [0, 1, 2].map(|c| scale / (data_max[c] - data_min[c]));
-        let mut lut = DensityLut { table, steps, data_min, inv };
+        let mut lut = DensityLut { table, steps, data_min, data_max, inv };
         // Interpolation error means the grid can miss zero by a hair; pin the
         // bare base to exactly zero net density.
         let z = lut.net([0.0; 3]);
         lut.table.chunks_exact_mut(3).for_each(|n| (0..3).for_each(|c| n[c] -= z[c]));
         lut
+    }
+
+    /// The table (`steps`³ × 3, cyan slowest), its origin and the nodes per
+    /// unit of density, for a GPU pass that interpolates as [`Self::net`] does.
+    pub fn grid(&self) -> (&[f64], usize, [f64; 3], [f64; 3]) {
+        (&self.table, self.steps, self.data_min, self.inv)
+    }
+
+    /// The CMY density range the grid covers; outside it, values clamp.
+    pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
+        (self.data_min, self.data_max)
     }
 
     /// The RGB scanner density above the film base.

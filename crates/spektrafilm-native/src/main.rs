@@ -1582,7 +1582,10 @@ mod tests {
         let noritsu = lab(&|p| p.scanner.model = spektrafilm_core::params::ScannerModel::Noritsu);
         let response = session.handle(Request { id: 3, command: command(&noritsu) }, &data).unwrap();
         assert_eq!(response["cached_pipeline"], true, "the scanner needs no new pipeline");
-        assert!(session.developed_photo.reuses() + session.developed_interactive.reuses() >= 1, "nor a new develop");
+        // Off the GPU the kept film is scanned again; on it the whole chain
+        // runs resident, which is faster still.
+        let resident = response["backend"].as_str().is_some_and(|b| b != "cpu" && !b.contains("CPU"));
+        assert!(resident || session.developed_photo.reuses() + session.developed_interactive.reuses() >= 1, "nor a new develop: {}", response["backend"]);
         assert_ne!(session.lab_balance.as_ref().map(|b| &b.0), Some(&metered.0));
 
         let balance = session.lab_balance.as_ref().unwrap().1;

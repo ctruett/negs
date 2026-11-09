@@ -1063,10 +1063,10 @@ impl Pipeline {
         // extended resident chain, including camera/scanner lens blur,
         // highlight boost, and enlarger diffusion. Backends that do not
         // implement the resident chain return `None` and fall through.
-        // The lab scanner isn't in the resident chain.
-        if self.tc_lut.is_some() && lab.is_none() {
+        if self.tc_lut.is_some() {
             let run = |params: &spektrafilm_gpu::FilmChainParams<'_>| backend.try_run_film_chain(params);
-            match self.try_gpu_resident(&image, None, backend, &color_ref, autoexposure_ev, run) {
+            let lab_balance = lab.as_ref().map(|(_, balance)| *balance);
+            match self.try_gpu_resident(&image, None, backend, &color_ref, autoexposure_ev, lab_balance, run) {
                 Ok(Some(out)) => {
                     tracing::info!("pipeline: gpu-resident fast path complete");
                     return Ok((self.finish_resident(out, backend), backend.name()));
@@ -1355,10 +1355,6 @@ impl Pipeline {
         run: impl FnOnce(&spektrafilm_gpu::FilmChainParams<'_>) -> Option<T>,
     ) -> Option<T> {
         self.tc_lut.as_ref()?;
-        // The lab scanner isn't in the resident chain.
-        if self.lab_scanner().is_some() {
-            return None;
-        }
         let io = &self.params.io;
         if io.photo_long_side_px.is_some() || (io.upscale_factor - 1.0).abs() >= 1e-6 {
             return None;
@@ -1377,7 +1373,9 @@ impl Pipeline {
             self.preflash_raw,
         );
         let autoexposure_ev = self.frame_autoexposure_ev(image);
-        self.try_gpu_resident(image, image_key, backend, &color_ref, autoexposure_ev, run).ok()?
+        // The lab scanner's balance, metered on the frame as the CPU path meters it.
+        let lab_balance = self.lab_scanner().map(|_| self.frame_lab_balance(image, autoexposure_ev));
+        self.try_gpu_resident(image, image_key, backend, &color_ref, autoexposure_ev, lab_balance, run).ok()?
     }
 
     /// Resize the working image to the requested size, mirroring Python's
@@ -1401,6 +1399,7 @@ impl Pipeline {
         backend: &dyn ComputeBackend,
         color_ref: &crate::color_reference::ColorReference,
         autoexposure_ev: f64,
+        lab_balance: Option<crate::lab_scan::balance::Balance>,
         run: impl FnOnce(&spektrafilm_gpu::FilmChainParams<'_>) -> Option<T>,
     ) -> Result<Option<T>, String> {
         // The front pass expects linear RGB. Decoded pixels aren't the
@@ -1716,7 +1715,13 @@ impl Pipeline {
         } else {
             &self.params.print_render.glare
         };
-        let glare = if glare_params.active && glare_params.percent > 0.0 {
+        // The lab scanner baked into a LUT over the film's density; the lab
+        // route has no viewing glare and no B&W luminance remap, as on the CPU.
+        let lab = self.lab_scanner().zip(lab_balance).map(|(scanner, balance)| {
+            crate::lab_scan::ScanPixel::new(&self.film, &self.params, &balance, scanner).gpu()
+        });
+        let lab_lut = lab.as_ref().map(crate::lab_scan::GpuScan::params);
+        let glare = if lab_lut.is_none() && glare_params.active && glare_params.percent > 0.0 {
             let g = glare_params;
             // LogNormal parameters (same derivation as `compute_random_glare_amount`).
             let m = g.percent as f64;
@@ -1830,8 +1835,9 @@ impl Pipeline {
             viewing_illuminant: &viewing_illu,
             scan_normalization: scan_norm,
             scan_xyz_to_rgb: &scan_xyz_to_rgb,
-            bw_xyz_remap: color_ref.xyz_remap(),
+            bw_xyz_remap: color_ref.xyz_remap().filter(|_| lab_lut.is_none()),
             scan_film: self.params.scans_film(),
+            lab_lut,
             halation,
             dir_couplers,
             grain,

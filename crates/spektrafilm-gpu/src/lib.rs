@@ -262,6 +262,27 @@ pub enum ChainResult {
 /// All inputs to the GPU-resident film chain. Bundled into a struct so the
 /// trait method stays object-safe and adding more optional stages (halation,
 /// DIR couplers, …) doesn't churn every callsite.
+/// The lab scan, as the CPU's `lab_scan::ScanPixel` computes it: the film's
+/// Status M net-density LUT (`size`³ nodes from `lo`, `inv` nodes a unit of
+/// density, cyan slowest, tetrahedral), the look's input `net × a + b`, its
+/// per-channel monotone cubic (`knots`, then three channels' `values`, then
+/// their `tangents`), `matrix` and `cast` (log10), `10^x`, and `to_output`
+/// (rows, linear Rec. 2020 to the output space).
+#[derive(Clone, Copy)]
+pub struct LabLutGpu<'a> {
+    pub size: u32,
+    pub lo: [f32; 3],
+    pub inv: [f32; 3],
+    pub net: &'a [f32],
+    pub a: [f32; 3],
+    pub b: [f32; 3],
+    pub curve: &'a [f32],
+    pub n_knots: u32,
+    pub matrix: [[f32; 3]; 3],
+    pub cast: [f32; 3],
+    pub to_output: [[f32; 3]; 3],
+}
+
 pub struct FilmChainParams<'a> {
     pub image: &'a ImageBuf,
     /// The caller's name for `image`'s pixels, if it renders them again: a
@@ -298,6 +319,9 @@ pub struct FilmChainParams<'a> {
     /// `viewing_illuminant` / `scan_normalization` / `scan_xyz_to_rgb` from
     /// the film's viewing illuminant). Mirrors the CPU `scan_film` path.
     pub scan_film: bool,
+    /// The lab scanner, baked into a LUT over the developed film's CMY
+    /// density, in place of the spectral scan (`scan_film` is set too).
+    pub lab_lut: Option<LabLutGpu<'a>>,
     /// Optional halation pass — when `Some`, inserted on the raw film
     /// exposure buffer between hanatos2025 and log10.
     pub halation: Option<HalationGpuParams>,

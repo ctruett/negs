@@ -2433,6 +2433,10 @@ impl CudaBackend {
         &self,
         p: &FilmChainParams<'_>,
     ) -> Result<Option<ImageBuf>, Box<dyn std::error::Error + Send + Sync>> {
+        // No lab-scan LUT pass here: the caller renders it on its other path.
+        if p.lab_lut.is_some() {
+            return Ok(None);
+        }
         let image = p.image;
         let n_pixels = image.pixel_count() as u32;
         let input_f32 = scalars_to_f32(&image.data);

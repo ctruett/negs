@@ -1448,6 +1448,65 @@ impl WgpuBackend {
                 },
             ],
         });
+        // The lab scanner's LUT pass, in place of the spectral scan.
+        let lab_lut_pass = p.lab_lut.as_ref().map(|lab| {
+            #[repr(C)]
+            #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+            struct LabLutParams {
+                width: u32,
+                height: u32,
+                size: u32,
+                n_knots: u32,
+                lo: [f32; 4],
+                inv: [f32; 4],
+                a: [f32; 4],
+                b: [f32; 4],
+                cast: [f32; 4],
+                matrix: [[f32; 4]; 3],
+                to_output: [[f32; 4]; 3],
+            }
+            // WGSL's mat3x3 is three columns of four floats.
+            let columns = |m: [[f32; 3]; 3]| [0, 1, 2].map(|c| [m[0][c], m[1][c], m[2][c], 0.0]);
+            let four = |v: [f32; 3], w: f32| [v[0], v[1], v[2], w];
+            let params = LabLutParams {
+                width: image.width,
+                height: image.height,
+                size: lab.size,
+                n_knots: lab.n_knots,
+                lo: four(lab.lo, 0.0),
+                inv: four(lab.inv, 0.0),
+                a: four(lab.a, 0.0),
+                b: four(lab.b, 0.0),
+                cast: four(lab.cast, 0.0),
+                matrix: columns(lab.matrix),
+                to_output: columns(lab.to_output),
+            };
+            let params_buf = mk_uniform("lab_lut_params", bytemuck::bytes_of(&params));
+            let net_buf = mk_storage("lab_net_lut", bytemuck::cast_slice(lab.net));
+            let curve_buf = mk_storage("lab_curve", bytemuck::cast_slice(lab.curve));
+            let pipe = self.cached_pipeline(
+                include_str!("../../spektrafilm-shaders/wgsl/lab_lut.wgsl"),
+                &[
+                    wgpu::BufferBindingType::Uniform,
+                    wgpu::BufferBindingType::Storage { read_only: true },
+                    wgpu::BufferBindingType::Storage { read_only: true },
+                    wgpu::BufferBindingType::Storage { read_only: true },
+                    wgpu::BufferBindingType::Storage { read_only: false },
+                ],
+            );
+            let bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("bg_lab_lut"),
+                layout: &pipe.layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: params_buf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: buf_a.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 2, resource: net_buf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 3, resource: curve_buf.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 4, resource: buf_b.as_entire_binding() },
+                ],
+            });
+            (pipe, bg)
+        });
         let bg_scan = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("bg_scan"),
             layout: &scan_pipe.layout,
@@ -1799,9 +1858,15 @@ impl WgpuBackend {
             );
             profiler.mark("print_density", &mut encoder);
         }
-        // 6. Scan spectral: buf_a → buf_b (linear rgb, unclamped)
-        dispatch(&mut encoder, &scan_pipe, &bg_scan, n_pixels);
-        profiler.mark("scan_spectral", &mut encoder);
+        // 6. Scan: buf_a → buf_b (linear rgb, unclamped), through the lab
+        //    scanner's LUT or the spectral scan.
+        if let Some((pipe, bg)) = lab_lut_pass.as_ref() {
+            dispatch(&mut encoder, pipe, bg, n_pixels);
+            profiler.mark("lab_lut", &mut encoder);
+        } else {
+            dispatch(&mut encoder, &scan_pipe, &bg_scan, n_pixels);
+            profiler.mark("scan_spectral", &mut encoder);
+        }
         // 6b. Glare (in place on buf_b).
         if let Some(gs) = glare_state.as_ref() {
             gs.encode_passes(&mut encoder, n_pixels);

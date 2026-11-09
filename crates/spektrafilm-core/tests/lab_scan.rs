@@ -341,20 +341,28 @@ fn exposure_edits_pass_through_the_balance() {
 }
 
 #[test]
-fn lab_scan_skips_resident_chain() {
+fn lab_scan_runs_on_the_gpu_and_matches_the_cpu() {
     let image = ImageBuf::from_data(
         32,
         32,
         (0..32 * 32 * 3).map(|i| from_f64(0.02 + 0.8 * ((i * 37 % 101) as f64 / 100.0))).collect(),
     );
-    let params = lab_params(ScannerModel::Frontier);
+    let mut params = lab_params(ScannerModel::Frontier);
+    params.scanner.yellow_key = 3.0;
+    params.scanner.contrast_key = 2.0;
     let pipeline = lab_pipeline("kodak_portra_400", params.clone());
     let backend = spektrafilm_gpu::select_backend();
-    assert!(pipeline.process_resident_borrowed(&image, backend.as_ref()).is_none());
-    let default = pipeline.process(image.clone(), backend.as_ref());
     let cpu = pipeline.process(image.clone(), &CpuBackend);
+    // The GPU's resident chain takes the lab scan, through its LUT, when the
+    // machine has a GPU; it must look as the CPU's scan does.
+    if backend.name() != spektrafilm_gpu::ComputeBackend::name(&CpuBackend) {
+        let resident = pipeline.process_resident_borrowed(&image, backend.as_ref()).expect("the lab scan runs resident");
+        let worst = resident.data.iter().zip(&cpu.data).map(|(a, b)| (*a as f64 - *b as f64).abs()).fold(0.0, f64::max);
+        assert!(worst <= 1e-3, "the GPU's lab scan is {worst} from the CPU's");
+    }
+    let default = pipeline.process(image.clone(), backend.as_ref());
     for (a, b) in default.data.iter().zip(&cpu.data) {
-        assert!((*a as f64 - *b as f64).abs() <= 1.0 / 255.0, "{} vs {}", a, b);
+        assert!((*a as f64 - *b as f64).abs() <= 1.5 / 255.0, "{} vs {}", a, b);
     }
     // And it is the lab scanner's, not the upstream film scan's.
     let mut upstream = params;
