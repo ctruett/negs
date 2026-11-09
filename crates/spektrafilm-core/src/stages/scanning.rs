@@ -14,7 +14,7 @@ use crate::profile::Profile;
 
 /// Build a `steps × steps² × 3` ImageBuf holding the LUT-input cmy grid.
 /// Same layout as the enlarger LUT helper in `printing.rs`.
-fn build_lut_grid(steps: usize, data_min: [f64; 3], data_max: [f64; 3]) -> ImageBuf {
+pub(crate) fn build_lut_grid(steps: usize, data_min: [f64; 3], data_max: [f64; 3]) -> ImageBuf {
     let mut grid = ImageBuf::new(steps as u32, (steps * steps) as u32);
     let step_inv = (steps - 1) as f64;
     for i in 0..steps {
@@ -37,7 +37,7 @@ fn build_lut_grid(steps: usize, data_min: [f64; 3], data_max: [f64; 3]) -> Image
 /// Scanner LUT bounds. When scan_film=true: `-grain.density_min` to
 /// `nanmax(film.density_curves)`. Else: `nanmin..nanmax` of
 /// `print.density_curves`. Mirrors Python `ScanningStage._density_to_rgb`.
-fn scanner_lut_bounds(profile: &Profile, params: &RuntimeParams) -> ([f64; 3], [f64; 3]) {
+pub(crate) fn scanner_lut_bounds(profile: &Profile, params: &RuntimeParams) -> ([f64; 3], [f64; 3]) {
     let curves = profile.density_curves_f64();
     let mut dmin_curves = [f64::INFINITY; 3];
     let mut dmax_curves = [f64::NEG_INFINITY; 3];

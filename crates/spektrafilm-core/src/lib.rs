@@ -11,6 +11,7 @@ pub mod illuminants;
 pub mod gamut_compression;
 pub mod grain;
 pub mod image_size;
+pub mod lab_scan;
 pub mod input_gamut;
 pub mod lut_export;
 pub mod neutral_filters;
