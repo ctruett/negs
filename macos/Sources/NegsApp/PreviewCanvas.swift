@@ -137,6 +137,16 @@ struct PreviewCanvas: NSViewRepresentable {
 }
 
 final class CenteringClipView: NSClipView {
+    /// A click on the canvas around the photograph goes back to the whole
+    /// photograph, as a click on it does.
+    override func mouseDown(with event: NSEvent) {
+        if let photo = documentView as? PhotographView, let select = photo.onSelectRegion {
+            select(nil)
+        } else {
+            super.mouseDown(with: event)
+        }
+    }
+
     override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
         var bounds = super.constrainBoundsRect(proposedBounds)
         guard let documentView else { return bounds }

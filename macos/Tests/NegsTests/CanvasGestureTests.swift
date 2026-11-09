@@ -184,6 +184,20 @@ extension CanvasGestureTests {
         XCTAssertEqual(regions.last, .some(nil), "A click goes back to the whole photograph")
     }
 
+    /// A click on the canvas around the photograph clears the selection too.
+    func testAClickBesideThePhotographClearsTheSelection() throws {
+        _ = NSApplication.shared
+        let scroll = ImageScrollView(frame: NSRect(x: 0, y: 0, width: 900, height: 900))
+        scroll.contentView = CenteringClipView()
+        let view = PhotographView(frame: CGRect(origin: .zero, size: size))
+        scroll.documentView = view
+        var regions: [CGRect?] = []
+        view.onSelectRegion = { regions.append($0) }
+        let clip = scroll.contentView
+        clip.mouseDown(with: try mouse(.leftMouseDown, at: CGPoint(x: 2, y: 2)))
+        XCTAssertEqual(regions, [nil])
+    }
+
     /// A ⌃-click reads 3 × 3 of the preview's pixels around it, ⌃⌥ 7 × 7, and
     /// a ⌃-drag the box it draws.
     func testControlClickAndDragReportTheAreaToRead() throws {
