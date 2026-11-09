@@ -350,6 +350,10 @@ impl Pipeline {
         let mut meter_params = params.clone();
         meter_params.film_render.grain.active = false;
         meter_params.film_render.halation.active = false;
+        // The scanner's density is locked against the photographer's
+        // exposure: Camera exposure and Zone Shift reach the scan.
+        meter_params.camera.exposure_compensation_ev = 0.0;
+        meter_params.prep.exposure_ev = 0.0;
         let log_raw = stages::filming::expose(
             preview.clone(),
             &self.film,

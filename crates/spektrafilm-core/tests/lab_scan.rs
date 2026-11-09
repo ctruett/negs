@@ -295,6 +295,32 @@ fn keys_move_the_scan() {
     assert!(warmth(yellow) > warmth(plain) * 1.05, "{plain:?} vs {yellow:?}");
 }
 
+/// The scanner's density is locked against the photographer's exposure:
+/// Camera exposure and Zone Shift are metered out, so they reach the scan.
+#[test]
+fn exposure_edits_pass_through_the_balance() {
+    let preview = two_patches([0.05; 3], [0.4; 3]);
+    let balance = |edit: &dyn Fn(&mut RuntimeParams)| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        edit(&mut params);
+        lab_pipeline("kodak_portra_400", params).lab_balance(&preview).offset
+    };
+    let plain = balance(&|_| {});
+    assert_eq!(balance(&|p| p.prep.exposure_ev = 1.0), plain);
+    assert_eq!(balance(&|p| p.camera.exposure_compensation_ev = -1.0), plain);
+
+    let grey = |ev: f32| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        params.io.output_cctf_encoding = false;
+        params.prep.exposure_ev = ev;
+        px(&render("kodak_portra_400", params, uniform([0.18; 3])), 1, 1)
+    };
+    let (plain, brighter) = (grey(0.0), grey(1.0));
+    for c in 0..3 {
+        assert!(brighter[c] > plain[c] * 1.3, "{plain:?} vs {brighter:?}");
+    }
+}
+
 #[test]
 fn lab_scan_skips_resident_chain() {
     let image = ImageBuf::from_data(

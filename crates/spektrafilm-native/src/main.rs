@@ -298,10 +298,13 @@ struct Session {
 
 /// What a photograph's lab-scanner balance depends on: the source and every
 /// param but the Post adjustments, the size and the operator's keys, which
-/// come after it. A key or a resize doesn't meter the photograph again.
+/// come after it, and the exposure edits, which the meter leaves out. A key,
+/// a resize or a Zone Shift doesn't meter the photograph again.
 fn lab_balance_key(input: &Path, source_generation: u64, film: &str, params: &RuntimeParams) -> String {
     let mut params = params.clone();
     params.post = Default::default();
+    params.camera.exposure_compensation_ev = 0.0;
+    params.prep.exposure_ev = 0.0;
     params.settings.serial_grain = false;
     image_size::clear(&mut params);
     let scanner = &mut params.scanner;
@@ -1552,6 +1555,9 @@ mod tests {
         session.handle(Request { id: 2, command: command(&keyed) }, &data).unwrap();
         assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the key re-renders");
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "without metering again");
+        let shifted = lab(&|p| { p.prep.exposure_ev = 1.0; p.camera.exposure_compensation_ev = 0.5 });
+        session.handle(Request { id: 2, command: command(&shifted) }, &data).unwrap();
+        assert_eq!(session.lab_balance.as_ref(), Some(&metered), "an exposure edit isn't metered");
 
         let noritsu = lab(&|p| p.scanner.model = spektrafilm_core::params::ScannerModel::Noritsu);
         let response = session.handle(Request { id: 3, command: command(&noritsu) }, &data).unwrap();
