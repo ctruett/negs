@@ -28,15 +28,21 @@ The look's numbers live in `data/scanners/*.toml` and come from a committed Pyth
 - **Python parity:** tests are Paper-print or upstream-scan only, and must stay green.
 - **Git:** `HANDOFF.md` stays uncommitted. Push only when asked.
 
-### A decision this plan makes on the spec's behalf
+### Route key (the user's call: use the new key)
 
-The spec names a new key, `io.output_route`. Instead, this plan reuses the existing `io.scan_film` as the route: `true` means Lab scan, `false` means Paper print.
+`io.output_route` (`lab_scan` | `paper_print`) is the source of truth.
 
-It already means "no paper" everywhere: the pipeline, presets' `simulation.route`, the helper, the CLI and the app. Reusing it gives the spec's migration for free:
-- edits that scanned film directly become Lab scans on Frontier
-- paper edits stay paper
+**Reading old edits.** `io.scan_film` is kept only as a legacy input. When `output_route` is missing, it's inferred in the same pass as `infer_input_interpretation`: `scan_film: true` gives `lab_scan`, and anything else gives `paper_print`.
 
-The user-facing name is "Output: Lab scan / Paper print". The new key is `scanner.model`.
+**What new edits write.** They write `output_route` and stop writing `scan_film`. Serialising skips it.
+
+**Engine reads.** `IoParams::scans_film(&self) -> bool` returns `output_route == LabScan || settings.upstream_film_scan`. It replaces every engine read of `io.scan_film` (the list from `rg scan_film crates`).
+
+**Presets.** `simulation.route` maps to and from `output_route`.
+
+**The app.** It reads and writes `io.output_route`, and the CLI's `--scan-film` sets it.
+
+The user-facing name is "Output: Lab scan / Paper print". The other new key is `scanner.model`.
 
 ## Review Focus
 
@@ -91,6 +97,7 @@ The user-facing name is "Output: Lab scan / Paper print". The new key is `scanne
 - Test: inline `#[cfg(test)]` in `params.rs` and `presets.rs`
 
 **Interfaces:**
+- Produces `OutputRoute { LabScan, PaperPrint }` (snake_case serde) as `IoParams.output_route`, and `IoParams::scans_film()`. Replace every engine read of `io.scan_film` with it, in core, native, cli and gpu param builders.
 - Produces new `ScannerParams` fields, all `#[serde(default)]`:
   - `model: ScannerModel` (`Frontier` by default, `Noritsu`), serialised lowercase
   - `density_key: f32`, `cyan_key: f32`, `magenta_key: f32`, `yellow_key: f32`, each in key steps from −20 to +20
@@ -98,6 +105,8 @@ The user-facing name is "Output: Lab scan / Paper print". The new key is `scanne
 - Key directions follow the labs. A positive density key makes the scan darker. A positive C, M or Y key adds that colour.
 
 - [ ] **Step 1: Write the failing tests:**
+  - `output_route_inferred_from_scan_film`: `{"io":{"scan_film":true}}` gives `LabScan`, while `{}` and `{"io":{"scan_film":false}}` give `PaperPrint`. Serialising gives `output_route` and no `scan_film`.
+  - `scans_film_follows_route`: `scans_film()` is true for `LabScan`, false for `PaperPrint`, and true for `PaperPrint` when `settings.upstream_film_scan` is set.
   - `old_params_read_as_frontier_with_no_keys`: `{}` gives `model == Frontier` and every key 0.
   - `noritsu_round_trips`: `{"scanner":{"model":"noritsu"}}` serialises back to `"noritsu"`.
   - `preset_exports_scanner_keys`: the preset state written for a Lab-scan edit holds `negs.scanner.model` and the four keys, and reading it back restores them. Follow how Negs's own keys are already exported in `presets.rs`.
@@ -226,8 +235,8 @@ How metering works:
   - Print tab, top: an **Output** segmented control, Lab scan or Paper print. On Lab scan the tab shows only an `InkNote`, "Lab scans don't use paper", and the Paper card and print controls are hidden.
   - Scan tab: a new **Lab Scanner** section, first in the tab and shown only on Lab scan. It has a Frontier/Noritsu segmented control and Density, Cyan, Magenta and Yellow steppers or sliders from −20 to +20 in steps of 1, with ⌥-click to reset. The section is hideable and movable like the others (`InkSection` with a key).
 - Modify: `macos/Sources/NegsApp/EditorModel.swift`:
-  - `pairFilm` and `reset`: a positive film forces `io.scan_film = true`, while a negative keeps the current value. On a positive, the Output control shows Paper print disabled, with a help tag.
-  - New photos default to `io.scan_film = true`.
+  - `pairFilm` and `reset`: a positive film forces `io.output_route = "lab_scan"`, while a negative keeps the current value. On a positive, the Output control shows Paper print disabled, with a help tag.
+  - New photos default to `io.output_route = "lab_scan"`.
   - Subtitle and `stock`: `"\(filmName) → Frontier"` on Lab scan.
   - The LUT name uses the scanner.
 - Modify: `macos/Sources/NegsApp/Previews.swift:34`, the same pairing rule.
@@ -235,7 +244,7 @@ How metering works:
 - Test: `macos/Tests/NegsTests/LabScanTests.swift`
 
 **Interfaces:**
-- Consumes the param paths `io.scan_film`, `scanner.model`, `scanner.density_key`, `scanner.cyan_key`, `scanner.magenta_key` and `scanner.yellow_key`.
+- Consumes the param paths `io.output_route` (replacing every app read and write of `io.scan_film`), `scanner.model`, `scanner.density_key`, `scanner.cyan_key`, `scanner.magenta_key` and `scanner.yellow_key`.
 - Batch edit and paste carry the scanner keys like other params. Unlike Zone Shift, they aren't per photo.
 
 - [ ] **Step 1: Write the failing tests:**
