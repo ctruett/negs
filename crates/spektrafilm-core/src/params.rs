@@ -944,6 +944,10 @@ pub struct SettingsParams {
     /// tests, which compare against it. Not user-facing.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub upstream_film_scan: bool,
+    /// A lab-scanner look file read in place of the scanners' own, for the
+    /// fitting tool (`scripts/lab_scan`). Not user-facing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lab_look_override: Option<String>,
 }
 
 /// The engine's input is linear and unclamped, so it can hold colours beyond
@@ -1000,6 +1004,7 @@ impl Default for SettingsParams {
             output_adaptation: OutputAdaptation::ViaD65,
             spectral_boundary: SpectralBoundary::Guard,
             upstream_film_scan: false,
+            lab_look_override: None,
         }
     }
 }

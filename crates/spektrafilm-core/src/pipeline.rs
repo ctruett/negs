@@ -653,7 +653,11 @@ impl Pipeline {
         // Both scanners' looks, so changing the scanner needs no new pipeline.
         let lab_scanner = if params.scans_film() {
             let film_type = crate::lab_scan::balance::FilmType::of(&film);
-            Some(std::sync::Arc::new(crate::lab_scan::Scanner::load(data_dir, film_type)?))
+            Some(std::sync::Arc::new(crate::lab_scan::Scanner::load(
+                data_dir,
+                film_type,
+                params.settings.lab_look_override.as_deref().map(Path::new),
+            )?))
         } else {
             None
         };

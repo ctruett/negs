@@ -45,8 +45,12 @@ const ROW_SUM_TOLERANCE: f64 = 1e-6;
 impl Look {
     /// The `film_type` table of `model`'s look file.
     pub fn load(data_dir: &Path, model: ScannerModel, film_type: FilmType) -> Result<Look, String> {
-        let path = data_dir.join("scanners").join(format!("{}.toml", model.name()));
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        Self::load_file(&data_dir.join("scanners").join(format!("{}.toml", model.name())), film_type)
+    }
+
+    /// The look for `film_type` in the look file at `path`.
+    pub fn load_file(path: &Path, film_type: FilmType) -> Result<Look, String> {
+        let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
         Self::parse(&text, film_type).map_err(|e| format!("{}: {e}", path.display()))
     }
 
@@ -167,11 +171,15 @@ mod tests {
 
     #[test]
     fn every_scanner_and_type_loads_and_scans_the_reference_grey_at_18_percent() {
+        // At 18% before the cast: B&W keeps its tint, colour has none.
         for model in [ScannerModel::Frontier, ScannerModel::Noritsu] {
             for t in TYPES {
                 let look = Look::load(&data(), model, t).unwrap();
-                for v in look.apply([0.0; 3]) {
-                    assert!((v - 0.18f64.log10()).abs() < 1e-12, "{model:?} {t:?}: {v}");
+                if !matches!(t, FilmType::BlackAndWhite { .. }) {
+                    assert_eq!(look.cast, [0.0; 3], "{model:?} {t:?}");
+                }
+                for (c, v) in look.apply([0.0; 3]).into_iter().enumerate() {
+                    assert!((v - look.cast[c] - 0.18f64.log10()).abs() < 1e-12, "{model:?} {t:?}: {v}");
                 }
             }
         }
@@ -208,9 +216,11 @@ mod tests {
 
     #[test]
     fn a_matrix_that_tints_greys_is_refused() {
-        let text = std::fs::read_to_string(data().join("scanners/frontier.toml")).unwrap();
+        let table = "curve_knots = [0.0, 1.0]\ncurve = [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]]\n\
+                     matrix = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]\ndefault_offset = [0.0, 0.0, 0.0]\n";
+        let text = ["colour_negative", "slide", "bw"].map(|t| format!("[{t}]\n{table}")).concat();
+        assert!(Look::parse(&text, FilmType::ColourNegative).is_ok());
         let bad = text.replacen("matrix = [[1.0, 0.0, 0.0]", "matrix = [[1.1, 0.0, 0.0]", 1);
-        assert_ne!(bad, text);
         assert!(Look::parse(&bad, FilmType::ColourNegative).unwrap_err().contains("sum to 1"));
     }
 }

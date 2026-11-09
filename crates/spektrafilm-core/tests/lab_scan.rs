@@ -261,9 +261,28 @@ fn negative_is_inverted() {
     }
 }
 
+/// B&W keeps its tint: a grey card scans as the look's cast on 18%, in
+/// Rec. 2020, where the look works.
+#[test]
+fn bw_grey_card_carries_the_looks_tint() {
+    use spektrafilm_core::lab_scan::{balance::FilmType, look::Look};
+    for model in [ScannerModel::Frontier, ScannerModel::Noritsu] {
+        let mut params = lab_params(model);
+        params.io.output_cctf_encoding = false;
+        params.io.output_color_space = "ITU-R BT.2020".into();
+        let v = px(&render("kodak_doublex", params, uniform([0.18; 3])), 1, 1);
+        let look = Look::load(&data_dir(), model, FilmType::BlackAndWhite { positive: false }).unwrap();
+        let want = look.apply([0.0; 3]).map(|v| 10f64.powf(v));
+        for c in 0..3 {
+            assert!((v[c] / want[c] - 1.0).abs() < 0.005, "{model:?}: {v:?} vs {want:?}");
+        }
+    }
+}
+
+/// Colour films scan a grey card neutral, at 18%.
 #[test]
 fn grey_card_is_neutral() {
-    for stock in ["kodak_portra_400", "fujifilm_provia_100f", "kodak_doublex"] {
+    for stock in ["kodak_portra_400", "fujifilm_provia_100f"] {
         for model in [ScannerModel::Frontier, ScannerModel::Noritsu] {
             let mut params = lab_params(model);
             params.io.output_cctf_encoding = false;
@@ -367,5 +386,27 @@ fn zone_readout_uses_photo_balance() {
         )
         .unwrap();
         assert!((reading.printed - rendered).abs() < 0.5, "x {x}: read {} vs rendered {rendered}", reading.printed);
+    }
+}
+
+/// The fitting tool renders a look under test from its own file.
+#[test]
+fn look_override_replaces_the_look() {
+    let text = std::fs::read_to_string(data_dir().join("scanners/frontier.toml")).unwrap();
+    let brighter = text.replace("-0.744727494896694,", "-0.644727494896694,");
+    assert_ne!(brighter, text);
+    let path = std::env::temp_dir().join(format!("lab-look-override-{}.toml", std::process::id()));
+    std::fs::write(&path, brighter).unwrap();
+    let grey = |look: Option<String>| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        params.io.output_cctf_encoding = false;
+        params.settings.lab_look_override = look;
+        px(&render("kodak_portra_400", params, uniform([0.18; 3])), 1, 1)
+    };
+    let (plain, overridden) = (grey(None), grey(Some(path.to_string_lossy().into())));
+    std::fs::remove_file(&path).ok();
+    for c in 0..3 {
+        let ratio = overridden[c] / plain[c];
+        assert!((ratio - 10f64.powf(0.1)).abs() < 0.01, "{plain:?} vs {overridden:?}");
     }
 }

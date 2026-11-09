@@ -1,0 +1,7 @@
+numpy
+scipy
+imageio
+tifffile
+opencv-python-headless
+colour-science
+pytest

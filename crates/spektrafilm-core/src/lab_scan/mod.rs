@@ -33,11 +33,16 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn load(data_dir: &Path, film_type: FilmType) -> Result<Scanner, String> {
+    /// `look_override`, a look file, stands in for both scanners' own.
+    pub fn load(data_dir: &Path, film_type: FilmType, look_override: Option<&Path>) -> Result<Scanner, String> {
+        let look = |model| match look_override {
+            Some(path) => Look::load_file(path, film_type),
+            None => Look::load(data_dir, model, film_type),
+        };
         Ok(Scanner {
             sensitivity: Sensitivity::load(data_dir)?,
-            frontier: Look::load(data_dir, ScannerModel::Frontier, film_type)?,
-            noritsu: Look::load(data_dir, ScannerModel::Noritsu, film_type)?,
+            frontier: look(ScannerModel::Frontier)?,
+            noritsu: look(ScannerModel::Noritsu)?,
         })
     }
 
