@@ -732,11 +732,16 @@ impl Session {
             }
             Command::ToneCurve { film, paper, params, count } => {
                 let started = Instant::now();
+                // On a lab scan, the photograph's balance, as its render has it.
+                let balance = self.lab_balance(&film, &paper, &params);
                 let params = spektrafilm_core::tone_curve::tone_params(&params);
                 let key = preview_pipeline_cache_key(&film, &paper, &params);
                 let (calibrated, cached) =
                     self.pipelines.get_or_build(&key, false, || build_pipeline(data, &film, &paper, &params))?;
-                let pipeline = calibrated.clone().with_params(params);
+                let mut pipeline = calibrated.clone().with_params(params);
+                if let Some(balance) = balance {
+                    pipeline = pipeline.with_lab_balance(balance);
+                }
                 let built = started.elapsed();
                 let curve = spektrafilm_core::tone_curve::tone_curve(&pipeline, count.unwrap_or(256));
                 let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
@@ -1583,6 +1588,16 @@ mod tests {
             x0: 0.2, y0: 0.2, x1: 0.4, y1: 0.4, targets: vec![],
         } }, &data).unwrap();
         assert!(reading["printed"].as_f64().is_some_and(f64::is_finite));
+
+        // The tone graph draws the scan with the photograph's balance, as the render has it.
+        let graph = session.handle(Request { id: 5, command: Command::ToneCurve {
+            film: "kodak_portra_400".into(), paper: "kodak_portra_endura".into(), params: Box::new(noritsu.clone()), count: Some(16),
+        } }, &data).unwrap();
+        let tone = spektrafilm_core::tone_curve::tone_params(&noritsu);
+        let pipeline = build_pipeline(&data, "kodak_portra_400", "kodak_portra_endura", &tone).unwrap()
+            .with_params(tone).with_lab_balance(balance);
+        let want = spektrafilm_core::tone_curve::tone_curve(&pipeline, 16);
+        assert_eq!(graph["rgb"], json!(want.rgb));
         std::fs::remove_dir_all(dir).unwrap();
     }
 
