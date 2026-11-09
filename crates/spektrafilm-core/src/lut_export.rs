@@ -90,18 +90,26 @@ pub fn cube(
     }
     let params = per_pixel_params(params);
     let scan_film = params.scans_film();
+    let lab_scan = params.lab_scan();
+    let scanner = params.scanner.model;
     let print = if scan_film { film } else { paper };
-    let pipeline = Pipeline::new_with_spectral(
+    let mut pipeline = Pipeline::new_with_spectral(
         profile::load_profile_by_name(data, film).map_err(|e| e.to_string())?,
         profile::load_profile_by_name(data, print).map_err(|e| e.to_string())?,
         params,
         data,
     )?;
+    // A LUT has no frame to meter: the lab scanner balances it on a grey card.
+    if lab_scan {
+        let balance = pipeline.grey_card_balance();
+        pipeline = pipeline.with_lab_balance(balance);
+    }
     let output = pipeline.process(input, &CpuBackend);
-    let title = format!(
-        "Negs {film} - {}",
-        if scan_film { "direct scan" } else { paper }
-    )
+    let title = if lab_scan {
+        format!("Negs {film}_{}", scanner.name())
+    } else {
+        format!("Negs {film} - {}", if scan_film { "direct scan" } else { paper })
+    }
     .replace(['"', '\n', '\r'], " ");
     let mut text = format!(
         "# Created by Negs / spektrafilm\n\
@@ -110,6 +118,7 @@ pub fn cube(
          # Excludes auto exposure, grain, halation, scatter, highlight boost, glare,\n\
          # diffusion, lens blur, sharpening, RAW development, resizing and Prep/Post edits.\n\
          # Print filter shifts, preflash and scanner white/black correction are neutral.\n\
+         # A lab scan is balanced on an 18% grey card.\n\
          # DIR color inhibition is retained without spatial diffusion.\n\
          TITLE \"{title}\"\nLUT_3D_SIZE {size}\n\
          DOMAIN_MIN 0.0 0.0 0.0\nDOMAIN_MAX 1.0 1.0 1.0\n\n"

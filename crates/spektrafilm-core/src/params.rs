@@ -195,6 +195,16 @@ pub enum ScannerModel {
     Noritsu,
 }
 
+impl ScannerModel {
+    /// Its name in params, look files and LUT titles.
+    pub fn name(self) -> &'static str {
+        match self {
+            ScannerModel::Frontier => "frontier",
+            ScannerModel::Noritsu => "noritsu",
+        }
+    }
+}
+
 impl Default for ScannerParams {
     fn default() -> Self {
         Self {
@@ -1002,6 +1012,13 @@ impl RuntimeParams {
     pub fn scans_film(&self) -> bool {
         self.io.output_route == OutputRoute::LabScan || self.settings.upstream_film_scan
     }
+
+    /// Whether the film is scanned on the lab scanner
+    /// ([`crate::lab_scan::process`]): the Lab-scan route, unless the parity
+    /// tests ask for upstream's film scan instead.
+    pub fn lab_scan(&self) -> bool {
+        self.io.output_route == OutputRoute::LabScan && !self.settings.upstream_film_scan
+    }
 }
 
 /// Top-level runtime parameters. Combines all sub-parameter groups.
@@ -1264,12 +1281,13 @@ mod route_and_scanner_tests {
     #[test]
     fn scans_film_follows_route() {
         let mut p = RuntimeParams::default();
-        assert!(!p.scans_film());
+        assert!(!p.scans_film() && !p.lab_scan());
         p.io.output_route = OutputRoute::LabScan;
-        assert!(p.scans_film());
-        p.io.output_route = OutputRoute::PaperPrint;
+        assert!(p.scans_film() && p.lab_scan());
         p.settings.upstream_film_scan = true;
-        assert!(p.scans_film());
+        assert!(p.scans_film() && !p.lab_scan());
+        p.io.output_route = OutputRoute::PaperPrint;
+        assert!(p.scans_film() && !p.lab_scan());
     }
 
     #[test]

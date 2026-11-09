@@ -21,6 +21,7 @@ use spektrafilm_math::{
 };
 
 use crate::{
+    lab_scan::balance::Balance,
     lut_export::per_pixel_params,
     params::RuntimeParams,
     pipeline::Pipeline,
@@ -313,8 +314,16 @@ impl Pointwise {
     /// photograph has, which the LUT export leaves neutral. Prep is already in
     /// the colours. Auto exposure applies only with the photograph's own
     /// metering: left to itself it would meter the reading, and expose it as
-    /// middle grey.
-    fn new(data: &Path, film: &str, paper: &str, params: &RuntimeParams, autoexposure_ev: Option<f64>) -> Result<Self, String> {
+    /// middle grey. The lab scanner's balance is the photograph's for the
+    /// same reason; without it, a grey card's.
+    fn new(
+        data: &Path,
+        film: &str,
+        paper: &str,
+        params: &RuntimeParams,
+        autoexposure_ev: Option<f64>,
+        lab_balance: Option<Balance>,
+    ) -> Result<Self, String> {
         let scan = params.scans_film();
         let film_profile = profile::load_profile_by_name(data, film).map_err(|e| e.to_string())?;
         let print_profile =
@@ -336,6 +345,10 @@ impl Pointwise {
         let ae = if metered { autoexposure_ev.unwrap_or(0.0) } else { 0.0 };
         if metered {
             pipeline = pipeline.with_autoexposure_ev(ae);
+        }
+        if pipeline.params.lab_scan() {
+            let balance = lab_balance.unwrap_or_else(|| pipeline.grey_card_balance());
+            pipeline = pipeline.with_lab_balance(balance);
         }
         Ok(Self {
             pipeline,
@@ -448,7 +461,9 @@ pub struct ZoneReadout {
 }
 
 /// Where an area of `image` prints with `params`, its corners as
-/// [`area_colours`] takes them, and the change of Prep's exposure that prints
+/// [`area_colours`] takes them, exposed at the photograph's `autoexposure_ev`
+/// and, on the lab scan, balanced with its `lab_balance`
+/// ([`Pipeline::lab_balance`]), and the change of Prep's exposure that prints
 /// it at each of `targets`, in L\*. Like a pin, the reading runs through the
 /// film and paper one pixel at a time. Prep's exposure is a plain gain the
 /// print doesn't make up for, so scaling the pixels finds the change exactly,
@@ -460,6 +475,7 @@ pub fn readout(
     paper: &str,
     params: &RuntimeParams,
     autoexposure_ev: Option<f64>,
+    lab_balance: Option<Balance>,
     image: &ImageBuf,
     corners: [(f64, f64); 2],
     targets: &[f64],
@@ -469,7 +485,7 @@ pub fn readout(
         area_colours(image, params, ae, corners)?.ok_or_else(|| "That area is outside the photograph".to_owned())
     };
     let pixels = read(params)?;
-    let chain = Pointwise::new(data, film, paper, params, autoexposure_ev)?;
+    let chain = Pointwise::new(data, film, paper, params, autoexposure_ev, lab_balance)?;
     let printed = chain.printed_groups(std::slice::from_ref(&pixels))[0];
     let samples: Vec<ZoneSample> = targets.iter().map(|&target| ZoneSample { pixels: pixels.clone(), target }).collect();
     if samples.is_empty() {
@@ -526,7 +542,7 @@ mod tests {
             params.camera.auto_exposure = metering.is_some();
             params.prep.shadows = shadows;
             let read = |params: &RuntimeParams| {
-                readout(&data(), "kodak_portra_400", "kodak_portra_endura", params, metering, &image, corners, &[30.3, 57.5]).unwrap()
+                readout(&data(), "kodak_portra_400", "kodak_portra_endura", params, metering, None, &image, corners, &[30.3, 57.5]).unwrap()
             };
             let before = read(&params);
             assert!(before.shifts[0] < before.shifts[1]);

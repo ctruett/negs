@@ -209,3 +209,137 @@ fn balance_ignores_render_size() {
     assert_eq!(a.offset, b.offset);
     assert!(a.offset.iter().all(|v| v.is_finite()));
 }
+
+// ---- The lab-scan route ----
+
+use spektrafilm_core::lab_scan::balance::Balance;
+use spektrafilm_core::params::{OutputRoute, ScannerModel};
+use spektrafilm_core::pipeline::Pipeline;
+use spektrafilm_gpu::cpu_backend::CpuBackend;
+
+/// Lab-scan params with the pixel-pitch and random effects off, so a
+/// uniform patch stays uniform.
+fn lab_params(model: ScannerModel) -> RuntimeParams {
+    let mut params = RuntimeParams::default();
+    params.io.output_route = OutputRoute::LabScan;
+    params.scanner.model = model;
+    params.film_render.grain.active = false;
+    params.film_render.halation.active = false;
+    params.io.input_cctf_decoding = false;
+    params
+}
+
+fn lab_pipeline(stock: &str, params: RuntimeParams) -> Pipeline {
+    let data = data_dir();
+    let film = profile::load_profile_by_name(&data, stock).unwrap();
+    let print = profile::load_profile_by_name(&data, "kodak_portra_endura").unwrap();
+    Pipeline::new_with_spectral(film, print, params, &data).unwrap()
+}
+
+fn render(stock: &str, params: RuntimeParams, image: ImageBuf) -> ImageBuf {
+    lab_pipeline(stock, params).process(image, &CpuBackend)
+}
+
+fn px(image: &ImageBuf, x: u32, y: u32) -> [f64; 3] {
+    image.get(x, y).map(|v| v as f64)
+}
+
+/// Left half `a`, right half `b`, 16x16.
+fn two_patches(a: [f64; 3], b: [f64; 3]) -> ImageBuf {
+    let data = (0..16 * 16)
+        .flat_map(|i| if i % 16 < 8 { a } else { b }.map(from_f64))
+        .collect();
+    ImageBuf::from_data(16, 16, data)
+}
+
+#[test]
+fn negative_is_inverted() {
+    let out = render("kodak_portra_400", lab_params(ScannerModel::Frontier), two_patches([0.05; 3], [0.4; 3]));
+    let (dark, bright) = (px(&out, 3, 8), px(&out, 12, 8));
+    for c in 0..3 {
+        assert!(bright[c] > dark[c] + 0.05, "channel {c}: {dark:?} vs {bright:?}");
+    }
+}
+
+#[test]
+fn grey_card_is_neutral() {
+    for stock in ["kodak_portra_400", "fujifilm_provia_100f", "kodak_doublex"] {
+        for model in [ScannerModel::Frontier, ScannerModel::Noritsu] {
+            let mut params = lab_params(model);
+            params.io.output_cctf_encoding = false;
+            let out = render(stock, params, uniform([0.18; 3]));
+            let v = px(&out, 1, 1);
+            let (lo, hi) = (v.iter().cloned().fold(f64::MAX, f64::min), v.iter().cloned().fold(f64::MIN, f64::max));
+            assert!(hi - lo <= 0.005 * hi, "{stock} {model:?}: {v:?}");
+            // The look's reference grey: an 18% card scans as 18%.
+            assert!((v[1] - 0.18).abs() < 1e-3, "{stock} {model:?}: {v:?}");
+        }
+    }
+}
+
+#[test]
+fn keys_move_the_scan() {
+    let grey = |edit: &dyn Fn(&mut RuntimeParams)| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        params.io.output_cctf_encoding = false;
+        edit(&mut params);
+        px(&render("kodak_portra_400", params, uniform([0.18; 3])), 1, 1)
+    };
+    let plain = grey(&|_| {});
+    let darker = grey(&|p| p.scanner.density_key = 4.0);
+    for c in 0..3 {
+        assert!(darker[c] < plain[c] * 0.95, "{plain:?} vs {darker:?}");
+    }
+    let yellow = grey(&|p| p.scanner.yellow_key = 4.0);
+    let warmth = |v: [f64; 3]| (v[0] + v[1]) / 2.0 / v[2];
+    assert!(warmth(yellow) > warmth(plain) * 1.05, "{plain:?} vs {yellow:?}");
+}
+
+#[test]
+fn lab_scan_skips_resident_chain() {
+    let image = ImageBuf::from_data(
+        32,
+        32,
+        (0..32 * 32 * 3).map(|i| from_f64(0.02 + 0.8 * ((i * 37 % 101) as f64 / 100.0))).collect(),
+    );
+    let params = lab_params(ScannerModel::Frontier);
+    let pipeline = lab_pipeline("kodak_portra_400", params.clone());
+    let backend = spektrafilm_gpu::select_backend();
+    assert!(pipeline.process_resident_borrowed(&image, backend.as_ref()).is_none());
+    let default = pipeline.process(image.clone(), backend.as_ref());
+    let cpu = pipeline.process(image.clone(), &CpuBackend);
+    for (a, b) in default.data.iter().zip(&cpu.data) {
+        assert!((*a as f64 - *b as f64).abs() <= 1.0 / 255.0, "{} vs {}", a, b);
+    }
+    // And it is the lab scanner's, not the upstream film scan's.
+    let mut upstream = params;
+    upstream.settings.upstream_film_scan = true;
+    let old = render("kodak_portra_400", upstream, image);
+    let differs = old.data.iter().zip(&cpu.data).any(|(a, b)| (*a as f64 - *b as f64).abs() > 0.02);
+    assert!(differs, "the lab scan rendered the upstream film scan");
+}
+
+#[test]
+fn zone_readout_uses_photo_balance() {
+    let data = data_dir();
+    let image = two_patches([0.06, 0.05, 0.04], [0.45, 0.4, 0.3]);
+    let params = lab_params(ScannerModel::Noritsu);
+    let pipeline = lab_pipeline("kodak_portra_400", params.clone());
+    let preview = spektrafilm_core::stages::filming::metering_preview(&image);
+    let ae = pipeline.autoexposure_ev(&preview);
+    let balance: Balance = pipeline.lab_balance(&preview);
+    let out = pipeline.with_lab_balance(balance).process(image.clone(), &CpuBackend);
+    let lstar = |v: [f64; 3]| {
+        let lin = v.map(|e| if e <= 0.04045 { e / 12.92 } else { ((e + 0.055) / 1.055).powf(2.4) });
+        let y = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+        if y > 216.0 / 24389.0 { 116.0 * y.cbrt() - 16.0 } else { y * 24389.0 / 27.0 }
+    };
+    for (x, corners) in [(3, [(0.1, 0.3), (0.35, 0.7)]), (12, [(0.6, 0.3), (0.9, 0.7)])] {
+        let rendered = lstar(px(&out, x, 8));
+        let reading = spektrafilm_core::zones::readout(
+            &data, "kodak_portra_400", "kodak_portra_endura", &params, Some(ae), Some(balance), &image, corners, &[],
+        )
+        .unwrap();
+        assert!((reading.printed - rendered).abs() < 0.5, "x {x}: read {} vs rendered {rendered}", reading.printed);
+    }
+}

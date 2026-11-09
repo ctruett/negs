@@ -26,10 +26,21 @@ impl FilmType {
             FilmType::ColourNegative
         }
     }
+
+    /// The sign that turns net density into a signal rising with the
+    /// scene's light: +1 for a negative, -1 for a positive (slide or B&W
+    /// reversal).
+    pub fn sign(self) -> f64 {
+        match self {
+            FilmType::Slide | FilmType::BlackAndWhite { positive: true } => -1.0,
+            FilmType::ColourNegative | FilmType::BlackAndWhite { positive: false } => 1.0,
+        }
+    }
 }
 
 /// The log10 value subtracted per channel, in the signed log signal space
-/// (`+net` for negatives, `-net` for slides).
+/// ([`FilmType::sign`] times net: `+net` for negatives, `-net` for slides and
+/// B&W reversal).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Balance {
     pub offset: [f64; 3],
@@ -46,8 +57,7 @@ const THIN_FRACTION: f64 = 0.01;
 /// `default_offset` is the type's trained mean, used when the frame is too
 /// thin to judge.
 pub fn meter(net: &ImageBuf, film_type: FilmType, default_offset: [f64; 3]) -> Balance {
-    let positive = matches!(film_type, FilmType::Slide | FilmType::BlackAndWhite { positive: true });
-    let sign = if positive { -1.0 } else { 1.0 };
+    let sign = film_type.sign();
     let mut chans: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
     let mut total = 0usize;
     let mut exposed = 0usize;

@@ -188,8 +188,11 @@ pub struct Pipeline {
     /// The auto-exposure EV already metered for this frame by a caller that
     /// renders it repeatedly; see [`Self::with_autoexposure_ev`].
     autoexposure_ev: Option<f64>,
-    /// The Status M scanner sensitivity, loaded only for a film-scanning route.
-    lab_sensitivity: Option<std::sync::Arc<crate::lab_scan::density::Sensitivity>>,
+    /// The lab scanner's sensor and both scanners' looks for this film's
+    /// type, loaded only for a film-scanning route. `None` on
+    /// [`Self::new`], which has no data directory: its Lab scan is the
+    /// upstream film scan.
+    lab_scanner: Option<std::sync::Arc<crate::lab_scan::Scanner>>,
     /// The frame's auto colour correction already metered by a caller that
     /// renders it repeatedly; see [`Self::with_lab_balance`].
     lab_balance: Option<crate::lab_scan::balance::Balance>,
@@ -322,22 +325,29 @@ impl Pipeline {
     /// alone, so every render size of the frame balances alike. Identity
     /// (zero offsets) unless the route scans film.
     pub fn lab_balance(&self, preview: &ImageBuf) -> crate::lab_scan::balance::Balance {
+        self.lab_balance_at(preview, self.autoexposure_ev(preview), &self.params)
+    }
+
+    /// [`Self::lab_balance`] with the frame exposed at `autoexposure_ev`
+    /// with `params`, this pipeline's or ones differing only in how the
+    /// frame is given to the film.
+    fn lab_balance_at(&self, preview: &ImageBuf, autoexposure_ev: f64, params: &RuntimeParams) -> crate::lab_scan::balance::Balance {
         use crate::lab_scan::balance::{meter, Balance, FilmType};
-        let Some(sens) = self.lab_sensitivity.as_ref() else {
+        let Some(scanner) = self.lab_scanner.as_ref() else {
             return Balance { offset: [0.0; 3] };
         };
         static CPU: spektrafilm_gpu::cpu_backend::CpuBackend = spektrafilm_gpu::cpu_backend::CpuBackend;
         let color_ref = crate::color_reference::ColorReference::compute(
             &self.film,
             &self.print,
-            &self.params,
+            params,
             &self.print_illuminant,
             self.print_exposure_factor,
             self.preflash_raw,
         );
         // Grain and halation depend on the frame's pixel pitch, and a
         // meter must not: leave them out.
-        let mut meter_params = self.params.clone();
+        let mut meter_params = params.clone();
         meter_params.film_render.grain.active = false;
         meter_params.film_render.halation.active = false;
         let log_raw = stages::filming::expose(
@@ -348,12 +358,42 @@ impl Pipeline {
             self.tc_lut.as_ref(),
             &select_illuminant(&self.front_illuminant),
             color_ref.filming_exposure_correction,
-            self.autoexposure_ev(preview),
+            autoexposure_ev,
         );
         let filmed = stages::filming::develop(log_raw, &self.film, &meter_params, &CPU);
-        let net = crate::lab_scan::density::DensityLut::new(&self.film, &self.params, sens).apply(&filmed);
-        // Task 4's look supplies the type's default offsets.
-        meter(&net, FilmType::of(&self.film), [0.0; 3])
+        let net = crate::lab_scan::density::DensityLut::new(&self.film, params, &scanner.sensitivity).apply(&filmed);
+        let default_offset = scanner.look(params.scanner.model).default_offset;
+        meter(&net, FilmType::of(&self.film), default_offset)
+    }
+
+    /// The balance of a uniform 18% grey frame, without auto exposure: for
+    /// what has no photograph to meter (a LUT, the tone graph, a reading
+    /// without the photograph's balance). The look renders it at 18%.
+    pub fn grey_card_balance(&self) -> crate::lab_scan::balance::Balance {
+        let grey = ImageBuf::from_data(4, 4, vec![from_f64(0.18); 4 * 4 * 3]);
+        let mut params = self.params.clone();
+        params.camera.auto_exposure = false;
+        params.prep = Default::default();
+        params.io.input_cctf_decoding = false;
+        self.lab_balance_at(&grey, 0.0, &params)
+    }
+
+    /// The balance `process` applies to `image`, the full frame it was
+    /// given, exposed at `autoexposure_ev`: the caller's, else metered on
+    /// the metering preview, as auto exposure is.
+    fn frame_lab_balance(&self, image: &ImageBuf, autoexposure_ev: f64) -> crate::lab_scan::balance::Balance {
+        if let Some(b) = self.lab_balance {
+            return b;
+        }
+        match &self.metering_preview {
+            Some(preview) => self.lab_balance_at(preview, autoexposure_ev, &self.params),
+            None => self.lab_balance_at(&stages::filming::metering_preview(image), autoexposure_ev, &self.params),
+        }
+    }
+
+    /// The lab scanner, when this render goes through it.
+    fn lab_scanner(&self) -> Option<&crate::lab_scan::Scanner> {
+        self.lab_scanner.as_deref().filter(|_| self.params.lab_scan())
     }
 
     /// Keep the GPU path's Prep output in `frame` and reuse it while nothing
@@ -508,7 +548,7 @@ impl Pipeline {
             output_gamut,
             metering_preview: None,
             autoexposure_ev: None,
-            lab_sensitivity: None,
+            lab_scanner: None,
             lab_balance: None,
             prepared_frame: None,
         };
@@ -606,8 +646,10 @@ impl Pipeline {
         // (`arctic2026beta04`, `mallett2019`) relight their surfaces by the
         // film reference illuminant, and the runtime projects chromaticity
         // under their scene illuminant instead.
-        let lab_sensitivity = if params.scans_film() {
-            Some(std::sync::Arc::new(crate::lab_scan::density::Sensitivity::load(data_dir)?))
+        // Both scanners' looks, so changing the scanner needs no new pipeline.
+        let lab_scanner = if params.scans_film() {
+            let film_type = crate::lab_scan::balance::FilmType::of(&film);
+            Some(std::sync::Arc::new(crate::lab_scan::Scanner::load(data_dir, film_type)?))
         } else {
             None
         };
@@ -708,7 +750,7 @@ impl Pipeline {
             output_gamut,
             metering_preview: None,
             autoexposure_ev: None,
-            lab_sensitivity,
+            lab_scanner,
             lab_balance: None,
             prepared_frame: None,
         };
@@ -897,6 +939,13 @@ impl Pipeline {
         let t = Instant::now();
         let autoexposure_ev = self.frame_autoexposure_ev(&image);
         print_stage_timing(stage_timings, "autoexposure", t);
+        // The lab scanner's auto correction meters the full frame too.
+        let lab = self.lab_scanner().map(|scanner| {
+            let t = Instant::now();
+            let balance = self.frame_lab_balance(&image, autoexposure_ev);
+            print_stage_timing(stage_timings, "lab_balance", t);
+            (scanner, balance)
+        });
         let t = Instant::now();
         let image = self.rescale_working(image)?;
         print_stage_timing(stage_timings, "rescale", t);
@@ -928,7 +977,8 @@ impl Pipeline {
         // extended resident chain, including camera/scanner lens blur,
         // highlight boost, and enlarger diffusion. Backends that do not
         // implement the resident chain return `None` and fall through.
-        if self.tc_lut.is_some() {
+        // The lab scanner isn't in the resident chain.
+        if self.tc_lut.is_some() && lab.is_none() {
             let run = |params: &spektrafilm_gpu::FilmChainParams<'_>| backend.try_run_film_chain(params);
             match self.try_gpu_resident(&image, None, backend, &color_ref, autoexposure_ev, run) {
                 Ok(Some(out)) => {
@@ -964,7 +1014,21 @@ impl Pipeline {
         tracing::info!("pipeline: filming complete");
         dump_if_env("SPEKTRAFILM_DUMP_FILM_DENSITY", &filmed);
 
-        let result = if self.params.scans_film() {
+        let result = if let Some((scanner, balance)) = &lab {
+            let t = Instant::now();
+            let result = crate::lab_scan::process(
+                filmed,
+                &self.film,
+                &self.params,
+                balance,
+                scanner,
+                backend,
+                &self.output_gamut,
+            );
+            print_stage_timing(stage_timings, "lab_scan", t);
+            tracing::info!("pipeline: scanning complete (lab scan)");
+            result
+        } else if self.params.scans_film() {
             let t = Instant::now();
             let result = stages::scanning::process(
                 filmed,
@@ -1013,7 +1077,8 @@ impl Pipeline {
     /// exposure, the paper's log10 exposure (`None` when the film is
     /// scanned directly), and the scan. For the tone graph
     /// ([`crate::tone_curve`]), so the params should be per-pixel; auto
-    /// exposure isn't applied.
+    /// exposure isn't applied. A lab scan is balanced as
+    /// [`Self::with_lab_balance`] says, else on a grey card.
     pub fn process_taps(&self, image: ImageBuf) -> (ImageBuf, Option<ImageBuf>, ImageBuf) {
         static CPU: spektrafilm_gpu::cpu_backend::CpuBackend = spektrafilm_gpu::cpu_backend::CpuBackend;
         let backend: &dyn ComputeBackend = &CPU;
@@ -1036,6 +1101,19 @@ impl Pipeline {
             0.0,
         );
         let filmed = stages::filming::develop(log_film.clone(), &self.film, &self.params, backend);
+        if let Some(scanner) = self.lab_scanner() {
+            let balance = self.lab_balance.unwrap_or_else(|| self.grey_card_balance());
+            let scan = crate::lab_scan::process(
+                filmed,
+                &self.film,
+                &self.params,
+                &balance,
+                scanner,
+                backend,
+                &self.output_gamut,
+            );
+            return (log_film, None, scan);
+        }
         if self.params.scans_film() {
             let scan = stages::scanning::process(filmed, &self.film, &self.params, backend, &color_ref, &self.output_gamut);
             return (log_film, None, scan);
@@ -1177,6 +1255,10 @@ impl Pipeline {
         run: impl FnOnce(&spektrafilm_gpu::FilmChainParams<'_>) -> Option<T>,
     ) -> Option<T> {
         self.tc_lut.as_ref()?;
+        // The lab scanner isn't in the resident chain.
+        if self.lab_scanner().is_some() {
+            return None;
+        }
         let io = &self.params.io;
         if io.photo_long_side_px.is_some() || (io.upscale_factor - 1.0).abs() >= 1e-6 {
             return None;

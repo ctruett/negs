@@ -137,3 +137,32 @@ fn explicit_dir_gammas_reach_the_cube() {
     cooked.film_render.dir_couplers.gamma_interlayer_r_to_gb = Some([0.16, 0.2]);
     assert_ne!(rows(&lut_export::cube(&data, film, paper, cooked, 5).unwrap()), rows(&unset));
 }
+
+/// A lab-scan LUT is balanced on an 18% grey card, so the grey nearest it
+/// on the grid is close to neutral, its greys rise (the negative is
+/// inverted), and it is named after the film and the scanner. Greys further
+/// from the card cross over as the film's channels' contrasts differ, until
+/// the look is fitted.
+#[test]
+fn lab_scan_cube_is_balanced_on_a_grey_card_and_names_its_scanner() {
+    use spektrafilm_core::params::{OutputRoute, ScannerModel};
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    for (model, name) in [(ScannerModel::Frontier, "frontier"), (ScannerModel::Noritsu, "noritsu")] {
+        let mut params = RuntimeParams::default();
+        params.io.output_route = OutputRoute::LabScan;
+        params.scanner.model = model;
+        let text = lut_export::cube(&data, "kodak_portra_400", "unused_paper", params, 9).unwrap();
+        assert!(text.contains(&format!("TITLE \"Negs kodak_portra_400_{name}\"")), "{}", &text[..600]);
+        let values = rows(&text);
+        let grey = |i: usize| values[i * 81 + i * 9 + i];
+        // 0.5 encoded, 21% linear: the grid's nearest grey to the card.
+        let v = grey(4);
+        let (lo, hi) = (v[0].min(v[1]).min(v[2]), v[0].max(v[1]).max(v[2]));
+        assert!(hi - lo <= 0.02 * hi, "{name}: {v:?}");
+        for i in 1..8 {
+            for c in 0..3 {
+                assert!(grey(i + 1)[c] > grey(i)[c], "{name}, grey {i}, channel {c}");
+            }
+        }
+    }
+}

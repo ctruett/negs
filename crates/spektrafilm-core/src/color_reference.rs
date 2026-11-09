@@ -109,7 +109,14 @@ impl ColorReference {
             return Self::identity();
         }
         if params.scans_film() && film.is_positive() {
-            Self::compute_slide(film, params, white_corr, black_corr)
+            let slide = Self::compute_slide(film, params, white_corr, black_corr);
+            // The lab scanner balances the frame itself and has no luminance
+            // remap; the filming exposure correction stays.
+            if params.lab_scan() {
+                Self { xyz_remap: None, ..slide }
+            } else {
+                slide
+            }
         } else if !params.scans_film() && print.is_negative() {
             Self::compute_print(
                 film,
@@ -510,6 +517,27 @@ mod parity_tests {
             .parent()
             .unwrap()
             .join("data")
+    }
+
+    /// The lab scanner drops the slide's luminance remap and keeps its
+    /// filming exposure correction; upstream's film scan keeps both.
+    #[test]
+    fn lab_scan_has_no_remap_but_keeps_the_filming_correction() {
+        let dir = data_dir();
+        let film = crate::profile::load_profile_by_name(&dir, "fujifilm_provia_100f").unwrap();
+        let mut params = crate::params::RuntimeParams::default();
+        params.io.output_route = crate::params::OutputRoute::LabScan;
+        params.scanner.white_correction = true;
+        params.scanner.black_correction = true;
+        let compute = |params: &crate::params::RuntimeParams| {
+            ColorReference::compute(&film, &film, params, &[], 1.0, [0.0; 3])
+        };
+        let lab = compute(&params);
+        params.settings.upstream_film_scan = true;
+        let upstream = compute(&params);
+        assert!(upstream.has_remap() && !lab.has_remap());
+        assert_ne!(upstream.filming_exposure_correction, 1.0);
+        assert_eq!(lab.filming_exposure_correction, upstream.filming_exposure_correction);
     }
 
     /// Print-path B&W correction regression guard. The luminance remap
