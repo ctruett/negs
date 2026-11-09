@@ -86,3 +86,14 @@ gamma_interlayer_b_to_rg = [0.0518, 0.3089]
 
 # --- Fotufilm ports (CC BY-SA 4.0 profiles by MUAStudio Inc.): class defaults scaled so the
 # --- DIR pre-correction does not fold on these steep curves (tools/fotufilm_port/coupler_presets.py)
+
+# --- Negs: fitted to real film
+# Portra 400 fitted in Negs on 2026-11-08 to a ColorChecker bracket on one roll of
+# Portra 400 (daylight, -1 to +3 stops; held-out -3, -2, +4, +5), lab-scanned and
+# grey-balanced. Mean hue error against the real scans 11.7° -> 6.7° (held out
+# 11.8° -> 8.5°). Couplers leave neutrals unchanged.
+[kodak_portra_400]
+gamma_samelayer_rgb = [0.1016, 0.0794, 0.0102]
+gamma_interlayer_r_to_gb = [0.148, 0.0068]
+gamma_interlayer_g_to_rb = [0.558, 0.0528]
+gamma_interlayer_b_to_rg = [0.0063, 0.5521]

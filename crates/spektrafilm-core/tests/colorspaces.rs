@@ -257,6 +257,14 @@ fn pipelines_across_colour_spaces_match_python() {
         let mut params = case.params.clone();
         params.settings.output_adaptation = spektrafilm_core::params::OutputAdaptation::Direct;
         params.settings.spectral_boundary = spektrafilm_core::params::SpectralBoundary::Upstream;
+        // Python has upstream's class couplers for Portra 400, not Negs's fitted preset.
+        if case.film == "kodak_portra_400" {
+            let dir = &mut params.film_render.dir_couplers;
+            dir.gamma_samelayer_rgb = Some([0.5159, 0.5934, 0.2829]);
+            dir.gamma_interlayer_r_to_gb = Some([0.4032, 0.2488]);
+            dir.gamma_interlayer_g_to_rb = Some([0.2227, 0.4340]);
+            dir.gamma_interlayer_b_to_rg = Some([0.1829, 0.1799]);
+        }
         let pipeline = Pipeline::new_with_spectral(film, print, params, &data_dir).unwrap();
         let input = ImageBuf::from_data(4, 4, case.input.iter().copied().map(from_f32).collect());
         let output = pipeline.process(input, &CpuBackend);

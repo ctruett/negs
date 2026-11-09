@@ -24,11 +24,11 @@ fn digest(stock: &str, params: RuntimeParams) -> RuntimeParams {
 
 #[test]
 fn unset_values_take_the_stock_preset() {
-    // Portra 400: couplers.toml's stock table, and "still" / "strong".
+    // Portra 400: couplers.toml's stock table (fitted to real film), and "still" / "strong".
     let params = digest("kodak_portra_400", RuntimeParams::default());
     let dir = &params.film_render.dir_couplers;
-    assert_eq!(dir.gamma_samelayer_rgb, Some([0.5159, 0.5934, 0.2829]));
-    assert_eq!(dir.gamma_interlayer_r_to_gb, Some([0.4032, 0.2488]));
+    assert_eq!(dir.gamma_samelayer_rgb, Some([0.1016, 0.0794, 0.0102]));
+    assert_eq!(dir.gamma_interlayer_r_to_gb, Some([0.148, 0.0068]));
     let h = &params.film_render.halation;
     assert_eq!(h.halation_strength, Some([0.015, 0.005, 0.0]));
     assert_eq!(h.halation_first_sigma_um, Some([65.0; 3]));
@@ -47,7 +47,7 @@ fn set_values_survive_the_stock_preset() {
     assert_eq!(dir.gamma_samelayer_rgb, Some([0.52, 0.51, 0.26]));
     assert_eq!(dir.gamma_interlayer_r_to_gb, Some([0.16, 0.2]));
     // Fields left unset still take the preset, one by one.
-    assert_eq!(dir.gamma_interlayer_g_to_rb, Some([0.2227, 0.434]));
+    assert_eq!(dir.gamma_interlayer_g_to_rb, Some([0.558, 0.0528]));
     let h = &params.film_render.halation;
     assert_eq!(h.halation_strength, Some([0.095, 0.06, 0.01]));
     assert_eq!(h.halation_first_sigma_um, Some([65.0; 3]));

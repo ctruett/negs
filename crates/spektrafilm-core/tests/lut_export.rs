@@ -128,7 +128,8 @@ fn explicit_dir_gammas_reach_the_cube() {
     let unset = lut_export::cube(&data, film, paper, RuntimeParams::default(), 5).unwrap();
 
     let mut stock = RuntimeParams::default();
-    stock.film_render.dir_couplers.gamma_samelayer_rgb = Some([0.5159, 0.5934, 0.2829]);
+    // Portra 400's own preset (fitted to real film in data/presets/couplers.toml).
+    stock.film_render.dir_couplers.gamma_samelayer_rgb = Some([0.1016, 0.0794, 0.0102]);
     assert_eq!(lut_export::cube(&data, film, paper, stock, 5).unwrap(), unset);
 
     let mut cooked = RuntimeParams::default();

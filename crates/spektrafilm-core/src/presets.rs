@@ -958,7 +958,7 @@ mod tests {
         assert_eq!(p.film_render.dir_couplers.langmuir_receiver_k_rgb, [f64::INFINITY, 2.0, f64::INFINITY]);
         assert_eq!(p.film_render.halation.halation_strength, Some([0.1, 0.02, 0.0]));
         // Unset values come back as Portra 400's presets.
-        assert_eq!(p.film_render.dir_couplers.gamma_samelayer_rgb, Some([0.5159, 0.5934, 0.2829]));
+        assert_eq!(p.film_render.dir_couplers.gamma_samelayer_rgb, Some([0.1016, 0.0794, 0.0102]), "Portra 400's fitted preset");
         assert_eq!(p.film_render.halation.halation_first_sigma_um, Some([65.0; 3]));
         assert!(p.film_render.grain.rms_granularity.is_some());
     }

@@ -96,8 +96,17 @@ fn print_balance_matches_python() {
     for case in &fixture.solves {
         let film = profile::load_profile_by_name(&data_dir(), &case.film).unwrap();
         let print = profile::load_profile_by_name(&data_dir(), &case.paper).unwrap();
+        // Python has upstream's class couplers for Portra 400, not Negs's fitted preset.
+        let mut params = case.params.clone();
+        if case.film == "kodak_portra_400" {
+            let dir = &mut params.film_render.dir_couplers;
+            dir.gamma_samelayer_rgb = Some([0.5159, 0.5934, 0.2829]);
+            dir.gamma_interlayer_r_to_gb = Some([0.4032, 0.2488]);
+            dir.gamma_interlayer_g_to_rb = Some([0.2227, 0.4340]);
+            dir.gamma_interlayer_b_to_rg = Some([0.1829, 0.1799]);
+        }
         let (m, y) =
-            solve_neutral_filter_shifts(film, print, &case.params, &data_dir(), fixture.midgray)
+            solve_neutral_filter_shifts(film, print, &params, &data_dir(), fixture.midgray)
                 .unwrap();
         let err = (m - case.m_filter_shift)
             .abs()
