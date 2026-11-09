@@ -79,7 +79,7 @@ const SKIPPED: [&str; 3] = ["grain.micro_sublayers", "camera.diffusion_filter", 
 /// What a preset doesn't carry: applying one keeps the photograph's values.
 /// How the source is read, its colour space and size, the output encoding,
 /// crop and rotation, the speed and memory settings, CAT16 and the colour
-/// management settings (Negs-only switches) and the Post tab. Every other params value comes from the preset or, where
+/// management settings (Negs-only switches) and the Prep/Post tabs. Every other params value comes from the preset or, where
 /// Python's GUI has no such setting, Negs's default.
 pub const KEPT: [&str; 26] = [
     "post.tone_anchors",
@@ -303,7 +303,7 @@ fn resolved(film: &Profile, paper: &Profile, params: &RuntimeParams) -> RuntimeP
     // A family's default time; a colour stock has none and stays null.
     let default_time = |stock: &Profile| {
         let times = &stock.data.development_time;
-        (times.len() > 1).then(|| times[profile::development_time_index(times, None)])
+        (times.len() > 1).then(|| times[stock.data.development_index(None)])
     };
     params.film_render.development_time = params.film_render.development_time.or_else(|| default_time(film));
     params.print_render.development_time = params.print_render.development_time.or_else(|| default_time(paper));
@@ -870,12 +870,14 @@ mod tests {
         current.io.rotate_cw = 1;
         current.settings.use_cat16 = false;
         current.post.contrast = 0.3;
+        current.prep.highlights = -65.0;
         current.camera.exposure_compensation_ev = 2.0;
         let applied = apply(&preset.params, &current);
         assert_eq!(applied.io.photo_long_side_px, Some(3000));
         assert_eq!(applied.io.rotate_cw, 1);
         assert!(!applied.settings.use_cat16);
         assert_eq!(applied.post.contrast, 0.3);
+        assert_eq!(applied.prep.highlights, -65.0);
         assert_eq!(applied.camera.exposure_compensation_ev, 0.0);
     }
 

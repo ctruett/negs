@@ -6,6 +6,7 @@ pub mod couplers_presets;
 pub mod data;
 pub mod data_fs;
 pub mod enlarger;
+pub mod exposure_placement;
 pub mod illuminants;
 pub mod gamut_compression;
 pub mod grain;
@@ -25,5 +26,6 @@ pub mod zones;
 pub mod profile;
 pub mod spectral_service;
 pub mod stages;
+pub mod tone_curve;
 
 pub mod preview;

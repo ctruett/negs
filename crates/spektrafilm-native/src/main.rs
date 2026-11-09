@@ -27,6 +27,8 @@ use std::{
     time::Instant,
 };
 
+mod pipelines;
+
 /// EditorModel.readPreview rejects larger preview buffers.
 const DISPLAY_MAX_DIM: usize = 8192;
 
@@ -110,6 +112,30 @@ enum Command {
         limit_preview: bool,
         preview_path: PathBuf,
     },
+    /// The colour space a RAW's camera preview says it's in, for the Mac's
+    /// Match camera brightness reference (`spektrafilm_io::brightness::
+    /// preview_colour_space`): "srgb", "adobe_rgb", "other" or null.
+    PreviewColourSpace {
+        input: PathBuf,
+    },
+    /// A colour-managed camera/original reference for clients without a
+    /// native colour-managed extractor. Independent of retained render state.
+    BrightnessReference {
+        input: PathBuf,
+        reference_path: PathBuf,
+        expected_width: u32,
+        expected_height: u32,
+    },
+    /// Fit the graded exposure to an embedded camera-preview reference without
+    /// replacing the current render or changing the decoded source.
+    PlaceExposure {
+        input: PathBuf,
+        source_generation: u64,
+        film: String,
+        paper: String,
+        params: Box<RuntimeParams>,
+        reference_path: PathBuf,
+    },
     Render {
         input: PathBuf,
         #[serde(default)]
@@ -160,6 +186,15 @@ enum Command {
     },
     /// Frees the thumbnails' caches (the previews were turned off).
     ReleaseThumbnails,
+    /// The tone graph's curve: `count` greys through film → print → scan
+    /// (`spektrafilm_core::tone_curve`). Image-independent.
+    ToneCurve {
+        film: String,
+        paper: String,
+        params: Box<RuntimeParams>,
+        #[serde(default)]
+        count: Option<usize>,
+    },
     Save {
         render_id: u64,
         output: PathBuf,
@@ -232,27 +267,29 @@ struct Session {
     /// The same for interactive renders, kept beside `scaled` so a drag
     /// after a full-size render doesn't resample the source again.
     interactive: Option<((u32, u32), ImageBuf)>,
-    /// Prep's output for the photograph-size and interactive frames; each
-    /// slot sees one resample of the source per size and is replaced with it.
+    /// Prep's output for the photograph-size and the interactive frame (see
+    /// `Pipeline::with_prepared_frame`): each slot only ever sees its frame's
+    /// one resample of `source` per size, and is replaced with the source.
     prepared_photo: spektrafilm_core::prep::PreparedFrame,
     prepared_interactive: spektrafilm_core::prep::PreparedFrame,
     /// The source's auto-exposure metering frame. Every render of the source,
     /// at any preview or working size, meters it, as the exporter does, so
     /// the preview's exposure is the export's.
     metering: Option<ImageBuf>,
-    pipeline: Option<(String, Pipeline)>,
+    /// Calibrated pipelines for every command that renders (ticket 29).
+    pipelines: pipelines::Pipelines,
     output: Option<Rendered>,
     /// A small copy of the RAW developed at the neutral base, for picking
     /// white balance: the file and lens correction it was read with.
     wb_base: Option<(PathBuf, spektrafilm_io::LensCorrection, ImageBuf)>,
     /// The source reduced for stock and preset thumbnails.
     thumbnail_source: Option<((u32, u32), ImageBuf)>,
-    /// Calibrated pipelines for thumbnails, most recent last. A stock's
-    /// pipeline outlives edits that don't change its key (exposure, grain…).
-    thumbnail_pipelines: Vec<(String, Pipeline)>,
     /// Reduced sources for preset thumbnails whose RAW white balance isn't
     /// the main source's, most recent last.
     thumbnail_wb_sources: Vec<WbSource>,
+    /// The metering frame's film exposure in stops for the tone graph's
+    /// histogram, keyed by the source and the render pipeline.
+    film_stops: Option<(String, Vec<[f32; 3]>)>,
 }
 
 /// The source decoded with another RAW white balance, reduced to the largest
@@ -266,8 +303,6 @@ struct WbSource {
     metering: ImageBuf,
 }
 
-/// Every film with its paper, and every paper with the current film.
-const THUMBNAIL_PIPELINES: usize = 40;
 /// The longest frame developed for a cropped thumbnail.
 const THUMBNAIL_FRAME_MAX: u32 = 1280;
 /// White balances kept for preset thumbnails (few presets differ).
@@ -350,7 +385,7 @@ fn catalog(data: &Path) -> Result<Value> {
         data.display()
     );
     catalog["protocol"] = json!(1);
-    catalog["capabilities"] = json!({"save_options": true, "crop_after_post": true, "color_space": true, "presets": true, "input_interpretation": true, "preview_color_space": true});
+    catalog["capabilities"] = json!({"save_options": true, "crop_after_post": true, "color_space": true, "presets": true, "input_interpretation": true, "preview_color_space": true, "tone_curve": true, "place_exposure": true, "brightness_reference": true});
     // What a preset leaves as it is: a preset's thumbnail changes only with these.
     catalog["preset_kept"] = json!(presets::KEPT);
     Ok(catalog)
@@ -379,6 +414,7 @@ impl Session {
             self.metering = None;
             self.thumbnail_source = None;
             self.thumbnail_wb_sources = Vec::new();
+            self.film_stops = None;
             let loaded = spektrafilm_io::load_image_colour_limited(
                 input,
                 spektrafilm_io::Formats::Any,
@@ -500,22 +536,9 @@ impl Session {
         };
         let resampled = started.elapsed();
         let key = preview_pipeline_cache_key(&film, &paper, &params);
-        let cached = self.thumbnail_pipelines.iter().position(|(k, _)| *k == key);
-        let calibrated = match cached {
-            Some(index) => self.thumbnail_pipelines.remove(index).1,
-            None => {
-                let film_profile = profile::load_profile_by_name(data, &film)?;
-                let print_profile =
-                    profile::load_profile_by_name(data, if params.io.scan_film { &film } else { &paper })?;
-                Pipeline::new_with_spectral(film_profile, print_profile, (*params).clone(), data)
-                    .map_err(anyhow::Error::msg)?
-            }
-        };
+        let (calibrated, cached) =
+            self.pipelines.get_or_build(&key, false, || build_pipeline(data, &film, &paper, &params))?;
         let mut pipeline = calibrated.clone().with_params((*params).clone());
-        if self.thumbnail_pipelines.len() >= THUMBNAIL_PIPELINES {
-            self.thumbnail_pipelines.remove(0);
-        }
-        self.thumbnail_pipelines.push((key, calibrated));
         if let Some(metering) = metering {
             pipeline = pipeline.with_metering_preview(metering);
         }
@@ -531,7 +554,7 @@ impl Session {
         Ok(json!({
             "width": width, "height": height, "backend": used_backend,
             "display_color_space": DisplaySpace::of(encoding).name(),
-            "elapsed_ms": ms(started.elapsed()), "cached_pipeline": cached.is_some(),
+            "elapsed_ms": ms(started.elapsed()), "cached_pipeline": cached,
             "timing_ms": {"decode": ms(decoded), "resample": ms(resampled - decoded),
                 "pipeline": ms(built - resampled), "process": ms(processed - built),
                 "write": ms(started.elapsed() - processed)},
@@ -540,11 +563,12 @@ impl Session {
 
     /// What the photograph meters at, as the last render applied it, with
     /// auto exposure on.
-    fn autoexposure_ev(&self, params: &RuntimeParams) -> Option<f64> {
+    fn autoexposure_ev(&self, film: &str, paper: &str, params: &RuntimeParams) -> Option<f64> {
         if !params.camera.auto_exposure {
             return None;
         }
-        Some(self.pipeline.as_ref()?.1.frame_autoexposure_ev(self.metering.as_ref()?))
+        let calibrated = self.pipelines.peek(&preview_pipeline_cache_key(film, paper, params))?;
+        Some(calibrated.clone().with_params(params.clone()).frame_autoexposure_ev(self.metering.as_ref()?))
     }
 
     fn handle(&mut self, request: Request, data: &Path) -> Result<Value> {
@@ -601,7 +625,7 @@ impl Session {
             }
             Command::ZoneReadout { film, paper, params, x0, y0, x1, y1, targets } => {
                 let started = Instant::now();
-                let autoexposure_ev = self.autoexposure_ev(&params);
+                let autoexposure_ev = self.autoexposure_ev(&film, &paper, &params);
                 let source = self.source.as_ref().context("No photograph to read")?;
                 let image = match &self.scaled {
                     Some((_, scaled)) if !params.prep.is_identity() => scaled,
@@ -641,11 +665,98 @@ impl Session {
             Command::Thumbnail { input, source_generation, film, paper, params, long_side, decode_long_side, preview_path, crop, preset, include_finish } => {
                 self.thumbnail(input, source_generation, film, paper, params, long_side, decode_long_side, preview_path, crop, preset, include_finish, data)
             }
+            Command::ToneCurve { film, paper, params, count } => {
+                let started = Instant::now();
+                let params = spektrafilm_core::tone_curve::tone_params(&params);
+                let key = preview_pipeline_cache_key(&film, &paper, &params);
+                let (calibrated, cached) =
+                    self.pipelines.get_or_build(&key, false, || build_pipeline(data, &film, &paper, &params))?;
+                let pipeline = calibrated.clone().with_params(params);
+                let built = started.elapsed();
+                let curve = spektrafilm_core::tone_curve::tone_curve(&pipeline, count.unwrap_or(256));
+                let ms = |d: std::time::Duration| d.as_secs_f64() * 1000.0;
+                Ok(json!({
+                    "stops": spektrafilm_core::tone_curve::STOPS,
+                    "film": curve.film, "paper": curve.paper, "rgb": curve.rgb,
+                    "cached_pipeline": cached,
+                    "timing_ms": {"pipeline": ms(built), "curve": ms(started.elapsed() - built)},
+                    "elapsed_ms": ms(started.elapsed()),
+                }))
+            }
             Command::ReleaseThumbnails => {
                 self.thumbnail_source = None;
-                self.thumbnail_pipelines = Vec::new();
+                self.pipelines.release_unpinned();
                 self.thumbnail_wb_sources = Vec::new();
                 Ok(json!({}))
+            }
+            Command::PreviewColourSpace { input } => {
+                use spektrafilm_io::brightness::{Declared, preview_colour_space};
+                let file = std::fs::read(&input).with_context(|| format!("Couldn't read {}", input.display()))?;
+                let space = preview_colour_space(&file).map(|declared| match declared {
+                    Declared::Srgb => "srgb",
+                    Declared::AdobeRgb => "adobe_rgb",
+                    Declared::Other => "other",
+                });
+                Ok(json!({ "colour_space": space }))
+            }
+            Command::BrightnessReference { input, reference_path, expected_width, expected_height } => {
+                ensure!(expected_width > 0 && expected_height > 0,
+                    "The brightness reference needs the photograph's dimensions");
+                ensure!(input != reference_path
+                    && !std::fs::canonicalize(&reference_path).ok().is_some_and(|output|
+                        std::fs::canonicalize(&input).ok().as_ref() == Some(&output)),
+                    "The brightness reference must not replace the original photograph");
+                match spektrafilm_io::brightness::reference(&input, (expected_width, expected_height)) {
+                    Ok(reference) => {
+                        spektrafilm_io::brightness::write_reference(&reference, &reference_path)?;
+                        Ok(json!({"usable": true, "reference_path": reference_path,
+                            "width": reference.width(), "height": reference.height()}))
+                    }
+                    Err(error) => {
+                        if let Some(spektrafilm_io::brightness::Unusable(reason)) = error.downcast_ref::<spektrafilm_io::brightness::Unusable>() {
+                            Ok(json!({"usable": false, "reason": reason, "for_photo": true}))
+                        } else {
+                            Err(error)
+                        }
+                    }
+                }
+            }
+            Command::PlaceExposure { input, source_generation, film, paper, mut params, reference_path } => {
+                let started = Instant::now();
+                params.prep.validate().map_err(anyhow::Error::msg)?;
+                params.io.raw_white_balance.validate()?;
+                params.io.input_interpretation.validate()?;
+                ensure!(params.io.upscale_factor.is_finite()
+                    && (0.1..=1.0).contains(&params.io.upscale_factor), "Invalid working resolution");
+                ensure!(RgbColourspace::find(&params.io.output_color_space).is_some(),
+                    "Unknown output colour space: {}", params.io.output_color_space);
+                let source = self.source.as_ref().context("Open a photograph and wait for its preview before placing exposure")?;
+                ensure!(self.source_generation == source_generation
+                    && source.current(&input, params.io.raw_white_balance, params.io.lens_correction,
+                                      &params.io.input_interpretation),
+                    "The photograph or RAW settings changed; wait for its current preview and try again");
+                let reference = placement_reference(&reference_path, &source.image)?;
+                params.io.apply_input_colour(&source.colour);
+                ensure!(RgbColourspace::find(&params.io.input_color_space).is_some(),
+                    "Unknown input colour space: {}", params.io.input_color_space);
+                image_size::clear(&mut params);
+                let key = preview_pipeline_cache_key(&film, &paper, &params);
+                // Borrow the calibrated look when possible, but keep all
+                // placement work local. Save must still see the last preview.
+                let mut pipeline = match self.pipelines.peek(&key) {
+                    Some(pipeline) => pipeline.clone().with_params((*params).clone()),
+                    None => build_pipeline(data, &film, &paper, &params)?,
+                };
+                if let Some(metering) = &self.metering {
+                    pipeline = pipeline.with_metering_preview(metering.clone());
+                }
+                let backend = self.backend.get_or_insert_with(spektrafilm_gpu::select_backend);
+                let placement = spektrafilm_core::exposure_placement::place_exposure(
+                    &pipeline, &source.image, &reference, backend.as_ref(),
+                ).map_err(anyhow::Error::msg)?;
+                let mut result = serde_json::to_value(placement)?;
+                result["elapsed_ms"] = json!(started.elapsed().as_secs_f64() * 1000.0);
+                Ok(result)
             }
             Command::Save {
                 render_id,
@@ -762,6 +873,7 @@ impl Session {
                 );
                 params.io.raw_white_balance.validate()?;
                 params.settings.serial_grain = false;
+                params.prep.validate().map_err(anyhow::Error::msg)?;
                 // Applied to the display and on save, so the pipeline runs without them.
                 let post = std::mem::take(&mut params.post);
                 let wb = params.io.raw_white_balance;
@@ -814,31 +926,41 @@ impl Session {
                     return Ok(response);
                 }
                 let key = preview_pipeline_cache_key(&film, &paper, &params);
-                if self.pipeline.as_ref().is_none_or(|(old, _)| old != &key) {
-                    let film_profile = profile::load_profile_by_name(data, &film)?;
-                    let print_profile = profile::load_profile_by_name(
-                        data,
-                        if params.io.scan_film { &film } else { &paper },
-                    )?;
-                    let pipeline = Pipeline::new_with_spectral(
-                        film_profile,
-                        print_profile,
-                        (*params).clone(),
-                        data,
-                    )
-                    .map_err(anyhow::Error::msg)?;
-                    self.pipeline = Some((key, pipeline));
-                }
-                let mut pipeline = self
-                    .pipeline
-                    .as_ref()
-                    .unwrap()
-                    .1
-                    .clone()
-                    .with_params((*params).clone());
+                let before_build = started.elapsed();
+                let (calibrated, cached_pipeline) =
+                    self.pipelines.get_or_build(&key, true, || build_pipeline(data, &film, &paper, &params))?;
+                let mut pipeline = calibrated.clone().with_params((*params).clone());
+                let pipeline_ms = (started.elapsed() - before_build).as_secs_f64() * 1000.0;
                 if let Some(metering) = &self.metering {
                     pipeline = pipeline.with_metering_preview(metering.clone());
                 }
+                // The tone graph's histogram: the photograph's film exposure,
+                // from the metering frame (the whole frame, before spatial effects).
+                // Prep's exposure is a uniform gain, so it shifts the stops like
+                // the camera's; its other controls reshape them, so then the
+                // frame goes through Prep and is counted as exposed.
+                let histogram = {
+                    let metering = self
+                        .metering
+                        .get_or_insert_with(|| spektrafilm_core::stages::filming::metering_preview(source));
+                    let ae = if params.camera.auto_exposure { pipeline.metering_film_raw(metering).1 } else { 0.0 };
+                    let reshaped = !spektrafilm_core::prep::PrepParams { exposure_ev: 0.0, ..params.prep }.is_identity();
+                    let mut stops_key = format!("{}|{source_generation}|{}", input.display(), key);
+                    if reshaped {
+                        stops_key += &format!("|{:?}|{ae}|{}", params.prep, params.camera.exposure_compensation_ev);
+                    }
+                    if self.film_stops.as_ref().is_none_or(|(old, _)| old != &stops_key) {
+                        let raw = if reshaped {
+                            pipeline.metering_film_raw_prepared(metering, ae).map_err(anyhow::Error::msg)?
+                        } else {
+                            pipeline.metering_film_raw(metering).0
+                        };
+                        self.film_stops = Some((stops_key, spektrafilm_core::tone_curve::raw_stops(&raw)));
+                    }
+                    let ev = if reshaped { 0.0 } else { ae + params.camera.exposure_compensation_ev as f64 + params.prep.exposure_ev as f64 };
+                    let counts = spektrafilm_core::tone_curve::film_histogram(&self.film_stops.as_ref().unwrap().1, ev, 128);
+                    json!({"stops": spektrafilm_core::tone_curve::STOPS, "ev": ev, "counts": counts})
+                };
                 let working = if dimensions == photo_dimensions {
                     pipeline = pipeline.with_prepared_frame(self.prepared_photo.clone());
                     working_source(
@@ -882,6 +1004,8 @@ impl Session {
                     "output_color_space": encoding.space.name,
                     "display_color_space": DisplaySpace::of(encoding).name(),
                     "elapsed_ms": started.elapsed().as_secs_f64() * 1000.0,
+                    "film_histogram": histogram,
+                    "cached_pipeline": cached_pipeline, "pipeline_ms": pipeline_ms,
                 });
                 self.output = Some(Rendered {
                     id: request.id,
@@ -897,6 +1021,27 @@ impl Session {
             }
         }
     }
+}
+
+/// References are small, upright, complete camera frames. Decode their ICC/
+/// transfer metadata through the same colour-managed loader as other images;
+/// the solver receives linear sRGB, never encoded PNG samples mistaken for light.
+fn placement_reference(path: &Path, source: &ImageBuf) -> Result<ImageBuf> {
+    let metadata = std::fs::metadata(path).context("Reading camera-preview reference")?;
+    ensure!(metadata.is_file() && metadata.len() <= 32 * 1024 * 1024,
+        "The camera-preview reference must be a PNG smaller than 32 MB");
+    let reader = image::ImageReader::open(path)?.with_guessed_format()?;
+    ensure!(reader.format() == Some(image::ImageFormat::Png), "The camera-preview reference must be a PNG");
+    let (width, height) = reader.into_dimensions()?;
+    ensure!((2..=2048).contains(&width) && (2..=2048).contains(&height),
+        "The camera-preview reference must be between 2 and 2048 pixels on each side");
+    let reference = spektrafilm_io::load_image(path, spektrafilm_io::Formats::Any)?;
+    let aspect = reference.width as f64 / reference.height as f64;
+    let source_aspect = source.width as f64 / source.height as f64;
+    ensure!((aspect / source_aspect - 1.0).abs() <= 0.02,
+        "The camera-preview reference must show the whole photograph with matching orientation");
+    ensure!(reference.data.iter().all(|v| v.is_finite()), "The camera-preview reference contains invalid pixels");
+    Ok(reference)
 }
 
 /// A request line. Params from before `io.input_interpretation` keep the
@@ -938,6 +1083,13 @@ fn write_display(
         display_rgba_with_post(image, DISPLAY_MAX_DIM, encoding, post.as_ref());
     std::fs::write(path, bytes).context("Writing preview buffer")?;
     Ok((width, height))
+}
+
+/// A calibrated pipeline for `film` printed on `paper` (or scanned).
+fn build_pipeline(data: &Path, film: &str, paper: &str, params: &RuntimeParams) -> Result<Pipeline> {
+    let film_profile = profile::load_profile_by_name(data, film)?;
+    let print_profile = profile::load_profile_by_name(data, if params.io.scan_film { film } else { paper })?;
+    Pipeline::new_with_spectral(film_profile, print_profile, params.clone(), data).map_err(anyhow::Error::msg)
 }
 
 /// The source at `dimensions`. A resampled copy is kept until the source or
@@ -1001,6 +1153,48 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn brightness_reference_is_independent_and_refuses_to_replace_the_photo() {
+        let dir = std::env::temp_dir().join(format!("negs-reference-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("input.png");
+        let source = ImageBuf::from_data(4, 2, [0.2, 0.5, 0.8].repeat(8));
+        spektrafilm_io::save_image(&source, &input, None).unwrap();
+        let before = std::fs::read(&input).unwrap();
+        let mut session = Session {
+            source_generation: 31,
+            output: Some(Rendered { id: 7, key: Value::Null, response: Value::Null,
+                source: input.clone(), film: "kodak_gold_200".into(), encoding: Encoding::from(true),
+                post: PostParams::default(), image: source.clone() }),
+            ..Default::default()
+        };
+        let output = dir.join("reference.png");
+        let command = |reference_path| Command::BrightnessReference {
+            input: input.clone(), reference_path, expected_width: 4, expected_height: 2,
+        };
+        let result = session.handle(Request { id: 8, command: command(output.clone()) }, Path::new(".")).unwrap();
+        assert_eq!((result["usable"].as_bool(), result["width"].as_u64(), result["height"].as_u64()),
+            (Some(true), Some(4), Some(2)));
+        assert!(session.source.is_none() && !session.pipelines.has_main());
+        assert_eq!(session.source_generation, 31);
+        let retained = session.output.as_ref().unwrap();
+        assert_eq!(retained.id, 7);
+        assert_eq!(retained.image.data, source.data);
+        let reference = placement_reference(&output, &source).unwrap();
+        assert_eq!(reference.width, 4);
+        let error = session.handle(Request { id: 9, command: command(input.clone()) }, Path::new(".")).unwrap_err();
+        assert!(error.to_string().contains("must not replace"));
+        assert_eq!(std::fs::read(&input).unwrap(), before);
+        let alpha = dir.join("alpha.png");
+        image::RgbaImage::from_pixel(4, 2, image::Rgba([128, 128, 128, 255])).save(&alpha).unwrap();
+        let unsuitable = session.handle(Request { id: 10, command: Command::BrightnessReference {
+            input: alpha, reference_path: output, expected_width: 4, expected_height: 2,
+        } }, Path::new(".")).unwrap();
+        assert_eq!(unsuitable["usable"], false);
+        assert_eq!(unsuitable["for_photo"], true);
+        assert_eq!(unsuitable["reason"], "Transparent images can’t be matched.");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
     #[test]
     fn bw_expansion_catalog_keeps_negative_reversal_and_paper_distinct() {
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -1088,7 +1282,7 @@ mod tests {
         assert_eq!(with_preset, applied);
         let (_, plain) = thumbnail(&mut session, "kodak_gold_200", "kodak_supra_endura", current, None, "plain.rgba");
         assert_ne!(with_preset, plain);
-        assert!(session.output.is_none() && session.pipeline.is_none());
+        assert!(session.output.is_none() && !session.pipelines.has_main());
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -1260,6 +1454,44 @@ mod tests {
             paper: "kodak_portra_endura".into(), params: Box::new(params), limit_preview: false,
             preview_path: preview.into(), interactive_scale, crop,
         }
+    }
+
+    /// The app renders a film change at canvas size first (ticket 28): the
+    /// export-size render that follows matches one made without that step,
+    /// in the kept output and in the display buffer.
+    #[test]
+    fn a_quick_frame_before_a_film_change_leaves_its_settled_render_unchanged() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let dir = std::env::temp_dir().join(format!("negs-quick-frame-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (input, preview) = (dir.join("input.png"), dir.join("preview.rgba"));
+        let pixels = (0..96 * 64 * 3).map(|i| ((i * 37) % 255) as spektrafilm_math::Scalar / 255.0).collect();
+        spektrafilm_io::save_image(&ImageBuf::from_data(96, 64, pixels), &input, None).unwrap();
+        let with_film = |film: &str, interactive_scale: Option<f32>| {
+            let Command::Render { mut params, .. } = render(&input, &preview, None, None, None) else { unreachable!() };
+            params.settings.serial_grain = false;
+            Command::Render {
+                input: input.clone(), source_generation: 1, film: film.into(), paper: "kodak_portra_endura".into(),
+                params, limit_preview: false, preview_path: preview.clone(), interactive_scale, crop: None,
+            }
+        };
+        let settled = |quick_first: bool| {
+            let mut session = Session::default();
+            session.handle(Request { id: 1, command: with_film("kodak_portra_400", None) }, &data).unwrap();
+            if quick_first {
+                let quick = session.handle(Request { id: 2, command: with_film("kodak_gold_200", Some(0.5)) }, &data).unwrap();
+                assert_eq!(quick["output_width"].as_u64(), Some(48));
+                assert_eq!(quick["export_resolution"].as_bool(), Some(false));
+            }
+            let response = session.handle(Request { id: 3, command: with_film("kodak_gold_200", None) }, &data).unwrap();
+            assert_eq!(response["export_resolution"].as_bool(), Some(true));
+            (session.output.unwrap().image.data, std::fs::read(&preview).unwrap())
+        };
+        let (direct, direct_display) = settled(false);
+        let (after_quick, after_quick_display) = settled(true);
+        assert!(direct == after_quick, "the settled render differs after a quick frame");
+        assert!(direct_display == after_quick_display, "the display buffer differs after a quick frame");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -105,12 +105,43 @@ two are exclusive, and the open page is remembered. Presets are Python
 spektrafilm GUI-state files in `$XDG_DATA_HOME/negs/presets/`
 (`$NEGS_PROFILE_DIR/presets/` when set), ordered by `.order.json` as on macOS.
 Clicking a preset applies its film, paper and Lab settings as one undo step;
-Image Size, crop, rotation, border, output encoding, the preview limit and Post
-stay. New Preset (Ctrl+Shift+S) saves the current settings and starts naming
+Image Size, crop, rotation, border, Prep and its brightness-match metadata,
+output encoding and app preview/export preferences stay. New Preset
+(Ctrl+Shift+S) saves the current settings and starts naming
 them; Import Presets… (Ctrl+Shift+O) and dropped files copy files the engine
 reads; each row's context menu applies, renames, exports or deletes. Writes
 never replace a file, and renames and deletes act only on the file as listed.
 See [the presets design](presets-design.md).
+
+## Prep, scopes and the post-0.13.0 port
+
+The inspector has Prep / Lab / Output, with film and paper pinned above them.
+Prep contains input preparation, live camera/original brightness matching and
+nine pre-film adjustments. Lab has the stills-format picker and basic controls;
+changed advanced controls remain visible, and Show all controls reveals the rest.
+Output contains Image Size and Border. Film and paper can be starred as favourites.
+The Film preview grid has a search field: every word matches the film's name,
+ID or group, ignoring case and accents. Return chooses the first result and
+Escape clears the search. Searching preserves favourites and cached thumbnails.
+New profiles start with Gold 200, Portra 400, Ektar 100 and C200 starred; saved
+custom or empty lists remain respected.
+All inspector controls and groups have tooltips; native numeric controls also
+expose their help as accessible descriptions.
+
+The scope switches between Histogram and RGB waveform and remembers its mode
+and resized height. Print Curves has an interactive RGB/R/G/B tone graph with
+undoable exposure/gamma handles. Settings controls the new-photo policy,
+automatic brightness matching, preview limit, export memory and viewer background.
+The GTK controls retain the existing appearance; a visual polish pass is separate.
+
+Session schema 4 removes old Post tone/saturation overrides from both the saved
+params and control values. This intentionally neutralizes those finished-image
+edits, as macOS/Windows do; no exact conversion to Prep exists. Older sessions
+without match metadata keep matching off. New photographs default to Start fresh
+and matching on; Keep the previous edits remains available in Settings.
+
+Implementation details, validation results and limitations:
+[Linux feature port](linux-prep-port.md).
 
 `linux/check_presets.py` exercises the page on the desktop with the real engine
 and its own profile. Local test presets in `~/Work/negs-presets-test` (or
@@ -126,7 +157,17 @@ a bounded texture cache. Rapid stock changes coalesce behind one border load.
 See [border performance measurements](linux-border-performance.md) for selection
 latency, cache limits and validation.
 Interactive renders use a viewport proxy; releasing the slider rebuilds the
-full preview. The last image remains visible while processing. Re-selecting
+full preview. Discrete edits also show a canvas-size preview first when the
+photo is at least 4.5 MP and the canvas uses at most half of its pixels.
+The settled render starts immediately afterward. First open, small photos,
+launch-cache restoration and post-only edits that reuse the helper's float
+output skip this extra step. Quick frames never become saveable or enter the
+launch cache. Matching keeps the previous frame visible until the new exposure
+is resolved and uses the small decode before doing the settled render.
+The helper shares calibrated pipelines across main renders, thumbnails,
+Print Curves and brightness matching; input-gamut remap coordinates are cached
+by the shared core. See the [November port results](linux-macos-nov5-port.md)
+for validation, measured latency and memory costs. Re-selecting
 the same filmstrip file preserves the texture, edits and history.
 Filmstrip thumbnails and camera previews use the primary RAW orientation for
 TIFF-based containers (including NEF), overriding conflicting embedded JPEG tags.

@@ -15,13 +15,15 @@ use serde_json::{Value, json};
 use crate::border::{BorderColor, BorderSettings, BorderStyle};
 use crate::crop::{CropSession, CropSettings, Size};
 use crate::engine::{self, EngineClient, EnginePaths, ExportEngine, ExportHandle, ExportRequest};
-use crate::histogram::Histogram;
+use crate::histogram::{Histogram, Waveform};
 use crate::json;
 use crate::picture::Picture;
 use crate::presets::{self, PresetFile, Status as PresetStatus};
+use crate::previews::{self, Previews, Target};
 use crate::session::{CatalogCache, EditorSession, Preferences};
 use crate::rendered_preview::{self, Frame, RenderedPreviewCache};
 use crate::state::{self, EditState, Stock};
+use crate::tone_graph::{self, Controls, Curve, FilmHistogram};
 use spektrafilm_io::image_size::PHOTO_LONG_SIDE_RANGE;
 use crate::ui::{self, App};
 
@@ -38,6 +40,10 @@ pub mod dirty {
     pub const CROP: u32 = 1 << 9;
     pub const LAYOUT: u32 = 1 << 10;
     pub const PRESETS: u32 = 1 << 11;
+    /// A preview tile changed, or what they should show may have.
+    pub const PREVIEWS: u32 = 1 << 12;
+    /// The tone graph's curve or film histogram arrived.
+    pub const TONE_GRAPH: u32 = 1 << 13;
     pub const ALL: u32 = u32::MAX;
 }
 
@@ -246,6 +252,159 @@ pub struct Rendered {
     pub cached: Option<(String, Frame)>,
 }
 
+/// What kind of frame the canvas shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrameKind {
+    /// A render of the photograph at its preview size (export size unless limited).
+    Settled,
+    /// A canvas-size render while a slider or handle moves.
+    Drag,
+    /// A canvas-size render of a discrete edit, ahead of its settled frame
+    /// (ticket 28, `RenderStep::Quick`).
+    Quick,
+    /// The previous launch's frame from the rendered-preview cache.
+    Cached,
+}
+
+impl FrameKind {
+    pub fn name(self) -> &'static str {
+        match self {
+            FrameKind::Settled => "settled",
+            FrameKind::Drag => "drag",
+            FrameKind::Quick => "quick",
+            FrameKind::Cached => "cached",
+        }
+    }
+}
+
+/// What a render develops (the Mac's `RenderStep`): the settled frame (export
+/// size, or the 12 MP limit), or as many pixels as the canvas shows (its
+/// screen pixels per photo pixel), while a slider moves (`Drag`) or ahead of
+/// the settled frame of a discrete edit (`Quick`). Decided when the render
+/// starts (`render_step`) and carried to `render_finished`: only a drag
+/// frame re-renders on release, and a quick frame settles only through
+/// `settle_quick_frame`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RenderStep {
+    Settled,
+    Drag(f64),
+    Quick(f64),
+}
+
+impl RenderStep {
+    pub fn kind(self) -> FrameKind {
+        match self {
+            RenderStep::Settled => FrameKind::Settled,
+            RenderStep::Drag(_) => FrameKind::Drag,
+            RenderStep::Quick(_) => FrameKind::Quick,
+        }
+    }
+    pub fn interactive_scale(self) -> Option<f64> {
+        match self {
+            RenderStep::Settled => None,
+            RenderStep::Drag(scale) | RenderStep::Quick(scale) => Some(scale),
+        }
+    }
+}
+
+/// A quick frame only pays when the settled render takes a while (about
+/// 50 ms per megapixel on the GPU here, so ~230 ms at the minimum) and the
+/// canvas shows at most half of its pixels.
+pub const QUICK_FRAME_MIN_PIXELS: f64 = 4.5e6;
+pub const QUICK_FRAME_MAX_PIXEL_FRACTION: f64 = 0.5;
+
+/// The render step (the Mac's `renderStep`). `screen_scale` is the canvas's
+/// physical screen pixels per photo pixel (`screen_pixels_per_photo_pixel`),
+/// `frame_pixels` the photo frame (`image_size`), `has_frame` a developed
+/// frame of this photograph on screen (not the restored launch frame, not
+/// the placeholder), `quick_done` this edit's quick frame done (or a slider
+/// let go), `reuses_output` the helper can answer from its kept output (a
+/// post-only edit, which a quick frame would make a full render).
+pub fn render_step(interacting: bool, screen_scale: Option<f64>, frame_pixels: f64, has_frame: bool, quick_done: bool, reuses_output: bool) -> RenderStep {
+    let scale = screen_scale.filter(|&s| s > 0.0 && s < 1.0);
+    if interacting {
+        return scale.map_or(RenderStep::Settled, RenderStep::Drag);
+    }
+    match scale {
+        Some(scale)
+            if has_frame
+                && !quick_done
+                && !reuses_output
+                && frame_pixels >= QUICK_FRAME_MIN_PIXELS
+                && scale * scale <= QUICK_FRAME_MAX_PIXEL_FRACTION =>
+        {
+            RenderStep::Quick(scale)
+        }
+        _ => RenderStep::Settled,
+    }
+}
+
+/// The parts of a render request the helper's reuse of its kept output
+/// depends on (the Mac's `reuseKey`): all of it but the preview's path and
+/// the post adjustments, which the helper applies to the kept output.
+pub fn reuse_key(command: &Value) -> Value {
+    let mut key = command.clone();
+    if let Some(object) = key.as_object_mut() {
+        object.remove("preview_path");
+    }
+    if key["params"].is_object() {
+        key["params"]["post"] = Value::Null;
+    }
+    key
+}
+
+/// A frame that `render_finished` accepted but doesn't show yet: its
+/// brightness match is pending, so it may be at the old exposure. Shown once
+/// the match leaves the render as it is (`release_held`); any edit drops it.
+/// Any kind of frame but a drag frame can be held.
+pub struct Held {
+    pub revision: u64,
+    pub generation: u64,
+    pub kind: FrameKind,
+    pub rendered: Rendered,
+}
+
+/// What waits for a pending brightness match (`Model::settle_outputs`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Output {
+    Save,
+    Export,
+}
+
+impl Output {
+    fn verb(self) -> &'static str {
+        match self {
+            Output::Save => "save",
+            Output::Export => "export",
+        }
+    }
+}
+
+/// How long a waiting Save or Export gives a match with nothing running
+/// before it gives up, and how often it looks again meanwhile.
+const OUTPUT_PATIENCE: Duration = Duration::from_secs(30);
+
+/// Which render the shown image came from: the helper's request id, the
+/// edit and photograph it was asked for, and its kind. Only the timing trace
+/// (`crate::trace`) and the tests read it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameTag {
+    pub request: u64,
+    pub revision: u64,
+    pub generation: u64,
+    pub kind: FrameKind,
+}
+
+/// A render request as the model sent it, for the lifecycle tests.
+#[cfg(test)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RenderRequest {
+    pub kind: FrameKind,
+    pub revision: u64,
+    pub generation: u64,
+    pub interactive_scale: Option<f64>,
+}
+
 pub struct Model {
     pub state: EditState,
     pub defaults: Value,
@@ -261,6 +420,13 @@ pub struct Model {
     /// The undeveloped photograph, shown in place of `image` while held.
     pub original: Option<Picture>,
     pub histogram: Option<Histogram>,
+    /// The RGB waveform of the same pixels, across the photograph as shown.
+    pub waveform: Option<Waveform>,
+    /// The tone graph's curve for the current film, paper and settings, or
+    /// the last ones until the next arrives.
+    pub tone_curve: Option<Curve>,
+    /// The photograph's film exposure, from the last render.
+    pub film_histogram: Option<FilmHistogram>,
     /// The developed preview's frame, uncropped, which the canvas lays out:
     /// the working frame, or less with the 12 MP limit.
     pub image_size: Size,
@@ -315,6 +481,9 @@ pub struct Model {
     rendered_space: String,
     /// How the helper read the photograph's colours (`input_colour`).
     pub input_colour: Value,
+    /// The last render's RAW carries lens corrections the decoder can apply
+    /// (`lens_correction_supported`), which shows the Lens corrections switch.
+    pub lens_supported: bool,
     /// The shown frame was rendered at canvas size while a slider moved;
     /// letting go renders the photograph at export size.
     showing_interactive_frame: bool,
@@ -329,9 +498,14 @@ pub struct Model {
     awaiting_restoration: bool,
     restoration: Option<Result<Option<EditorSession>>>,
     catalog_arrived: bool,
-    original_cache: Option<Picture>,
+    /// The decoded original, with the `original_key` it was decoded for.
+    original_cache: Option<(Value, Picture)>,
     original_loading: bool,
     histogram_request: u64,
+    tone_graph_shown: bool,
+    /// A curve is being computed; `tone_curve_stale` asks again when it arrives.
+    tone_curve_pending: bool,
+    tone_curve_stale: bool,
     /// When the app started and when the first developed photograph went on
     /// screen, for the startup report.
     pub first_render_shown: bool,
@@ -344,6 +518,53 @@ pub struct Model {
     pub renaming_preset: Option<PathBuf>,
     /// New Preset's file while it is first named: Escape removes it.
     unnamed_preset: Option<PathBuf>,
+    /// The film, paper and preset thumbnails.
+    pub previews: Previews,
+    /// Lab › Film format › Custom picked while the value is still a format's,
+    /// so the slider stays. Start fresh and Reset Adjustments clear it, as
+    /// they do the edits.
+    pub custom_film_format: bool,
+    /// A brightness solve is with the helper.
+    pub matching_brightness: bool,
+    /// The solve in flight; an answer for another one is dropped. Shared with
+    /// the thread that makes the reference, so a superseded one stops early.
+    match_request: Arc<std::sync::atomic::AtomicU64>,
+    /// A failed solve that trying again can't change: for the photograph
+    /// (no inputs, such as a RAW without a camera preview) or for these match
+    /// inputs, with the source generation and the note.
+    brightness_failure: Option<(u64, Option<Value>, String)>,
+    /// Save or Export waiting for a pending brightness match and its preview,
+    /// so they write what the inspector shows: what it is, when it was asked
+    /// for, and the action (see `settle_outputs`).
+    waiting_output: Option<(Instant, Output, Box<dyn FnOnce(&mut Model)>)>,
+    /// A settled frame of the current edit, held while its brightness match
+    /// is pending: the canvas goes from the previous frame straight to the
+    /// matched one (see `render_finished`).
+    held: Option<Held>,
+    /// The edit (revision, generation) whose quick frame is done: shown, held
+    /// for the brightness match, or failed. Its next render settles. Set by a
+    /// quick render of the current edit and by letting go of a slider;
+    /// cleared once a settled render of the current edit ran, failed or not,
+    /// so a failure doesn't retry (ticket 28).
+    quick_step: Option<(u64, u64)>,
+    /// The shown frame is the quick frame of this edit.
+    quick_frame: Option<(u64, u64)>,
+    /// The helper's kept output when it is a settled render: the epoch of the
+    /// helper that made it (`EngineClient::helper_epoch`) and the request's
+    /// `reuse_key`. A request with the same key is a post-only edit, which the
+    /// helper answers from it in milliseconds, so it gets no quick frame.
+    /// Cleared before any render is sent: the helper replaces its output
+    /// with each render and keeps none after a failure.
+    helper_output: Option<(u64, Value)>,
+    /// The render `image` came from; None for no image.
+    pub shown_frame: Option<FrameTag>,
+    /// Every render request sent, in order (tests only).
+    #[cfg(test)]
+    pub render_log: Vec<RenderRequest>,
+    /// Every frame presented, in order (tests only): each `present`, so a
+    /// frame replaced within one task is still seen.
+    #[cfg(test)]
+    pub frame_log: Vec<FrameTag>,
 }
 
 /// What the adjustments column shows.
@@ -378,6 +599,9 @@ impl Model {
             placeholder: None,
             original: None,
             histogram: None,
+            waveform: None,
+            tone_curve: None,
+            film_histogram: None,
             image_size: Size::ZERO,
             source_size: (0, 0),
             working_size: Size::ZERO,
@@ -415,6 +639,7 @@ impl Model {
             render_on_gpu: false,
             rendered_space: String::new(),
             input_colour: Value::Null,
+            lens_supported: false,
             showing_interactive_frame: false,
             showing_cached_preview: false,
             preview_cache: RenderedPreviewCache::default(),
@@ -429,12 +654,30 @@ impl Model {
             original_cache: None,
             original_loading: false,
             histogram_request: 0,
+            tone_graph_shown: false,
+            tone_curve_pending: false,
+            tone_curve_stale: false,
             first_render_shown: false,
             preset_library: presets::Library::default(),
             presets: vec![],
             preset_status: HashMap::new(),
             renaming_preset: None,
             unnamed_preset: None,
+            previews: Previews::default(),
+            custom_film_format: false,
+            matching_brightness: false,
+            match_request: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            brightness_failure: None,
+            waiting_output: None,
+            held: None,
+            quick_step: None,
+            quick_frame: None,
+            helper_output: None,
+            shown_frame: None,
+            #[cfg(test)]
+            render_log: vec![],
+            #[cfg(test)]
+            frame_log: vec![],
         }
     }
 
@@ -609,6 +852,9 @@ impl Model {
     fn apply_catalog(&mut self, catalog: Value) {
         self.stocks = catalog["profiles"].as_array().map(|a| a.iter().map(Stock::new).collect()).unwrap_or_default();
         self.defaults = catalog["defaults"].clone();
+        // The engine leaves lens corrections off for params from before them,
+        // so their crops keep their place; the app corrects every new edit.
+        json::set(&mut self.defaults, state::LENS_CORRECTION, Value::Bool(true));
         self.nullable_paths = catalog["nullable_paths"]
             .as_array()
             .map(|paths| paths.iter().filter_map(|p| p.as_str().map(str::to_owned)).collect())
@@ -634,6 +880,7 @@ impl Model {
         self.pair_film(&mut next);
         self.state = next;
         self.mark(dirty::STRUCTURE | dirty::INSPECTOR | dirty::CHROME | dirty::STATUS);
+        self.schedule_tone_curve();
     }
 
     // MARK: Parameters
@@ -716,44 +963,36 @@ impl Model {
         if start != self.state {
             self.register_undo(start, action);
         }
+        // The drag frames were canvas-size already: letting go settles,
+        // without a quick frame.
+        self.quick_step = Some((self.revision, self.source_generation));
         if self.showing_interactive_frame && self.ready && self.source.is_some() && !self.closing {
             self.schedule_render();
         }
         if !self.preview_current {
             self.schedule_activity();
         }
+        // A press without a change kept a held frame's solve from starting,
+        // and a quick frame from settling.
+        self.release_held();
+        self.settle_quick_frame();
+        self.settle_outputs();
         self.mark(dirty::CHROME);
     }
 
     pub fn choose_film(&mut self, stock: &str) {
-        let mut next = self.state.clone();
-        next.film = stock.into();
-        json::set(&mut next.params, "film_render.development_time", Value::Null);
-        // A new film brings its own grain, DIR and halation presets, as upstream applies them.
-        for field in state::GRAIN_STOCK_FIELDS {
-            json::set(&mut next.params, &format!("film_render.grain.{field}"), Value::Null);
-        }
-        for path in state::DIR_HALATION_STOCK_PATHS {
-            json::set(&mut next.params, path, Value::Null);
-        }
-        self.pair_film(&mut next);
+        let next = state::choosing(&self.state, stock, false, self.prefs.keep_paper, &self.stocks);
         self.apply(next, "Change Film");
     }
 
     pub fn choose_paper(&mut self, stock: &str) {
-        let mut next = self.state.clone();
-        next.paper = stock.into();
-        json::set(&mut next.params, "print_render.development_time", Value::Null);
+        let next = state::choosing(&self.state, stock, true, self.prefs.keep_paper, &self.stocks);
         self.apply(next, "Change Paper");
     }
 
+    /// When the catalog loads, the film brings its own paper whatever the setting.
     fn pair_film(&self, state: &mut EditState) {
-        let Some(film) = self.stocks.iter().find(|s| !s.paper && s.id == state.film) else { return };
-        json::set(&mut state.params, "io.scan_film", Value::Bool(film.positive));
-        if self.stocks.iter().any(|s| s.paper && s.id == film.target) && state.paper != film.target {
-            state.paper = film.target.clone();
-            json::set(&mut state.params, "print_render.development_time", Value::Null);
-        }
+        state::pair_film(state, &self.stocks, true);
     }
 
     /// Original develops the source's own pixels; Longest side resizes the
@@ -804,10 +1043,80 @@ impl Model {
         Ok(())
     }
 
-    pub fn limit_preview(&mut self, enabled: bool) {
-        let mut next = self.state.clone();
-        next.limit_preview = enabled;
-        self.apply(next, "Change Preview Resolution");
+    /// Settings › Limit preview to 12 MP. A preference, outside Undo and
+    /// Reset; the state carries a copy so the render and its cache follow it.
+    pub fn set_limit_preview(&mut self, enabled: bool) {
+        if self.prefs.limit_preview == Some(enabled) {
+            return;
+        }
+        self.prefs.limit_preview = Some(enabled);
+        self.prefs.save();
+        self.replace_state(self.state.clone());
+    }
+
+    /// Settings › Use less memory for export: only exports read it.
+    pub fn set_low_memory_export(&mut self, enabled: bool) {
+        if self.prefs.low_memory_export != enabled {
+            self.prefs.low_memory_export = enabled;
+            self.prefs.save();
+        }
+    }
+
+    /// Settings › New photographs: Start fresh, or keep the previous edits.
+    pub fn set_fresh_edits(&mut self, fresh: bool) {
+        if self.prefs.fresh_edits != fresh {
+            self.prefs.fresh_edits = fresh;
+            self.prefs.save();
+        }
+    }
+
+    /// Settings › Match new photographs to camera brightness.
+    pub fn set_match_new_photos(&mut self, on: bool) {
+        if self.prefs.match_new_photos != on {
+            self.prefs.match_new_photos = on;
+            self.prefs.save();
+        }
+    }
+
+    /// The state with the app's preferences that travel in it.
+    fn with_preferences(&self, mut state: EditState) -> EditState {
+        state.limit_preview = self.prefs.limits_preview();
+        state
+    }
+
+    /// A new match for a new photograph or Reset, when Settings asks for one.
+    fn new_match(&self) -> Option<state::BrightnessMatch> {
+        self.prefs.match_new_photos.then(state::BrightnessMatch::default)
+    }
+
+    /// Lab › Film format: a stills format writes its long edge; Custom keeps
+    /// the value and shows the slider.
+    pub fn choose_film_format(&mut self, format: Option<usize>) {
+        match format.and_then(|i| state::FILM_FORMATS.get(i)) {
+            Some((_, mm)) => {
+                self.custom_film_format = false;
+                self.set(state::FILM_FORMAT.path(), json::num(*mm));
+            }
+            None => self.custom_film_format = true,
+        }
+        self.mark(dirty::INSPECTOR | dirty::STRUCTURE);
+    }
+
+    /// Whether the Lab shows the long-edge slider.
+    pub fn film_format_custom(&self) -> bool {
+        self.custom_film_format || state::film_format(json::number(self.value(state::FILM_FORMAT.path()))).is_none()
+    }
+
+    /// Stars a film or paper, or unstars it; favourites lead the grid.
+    pub fn toggle_favorite(&mut self, id: &str, paper: bool) {
+        self.prefs.toggle_favorite(id, paper);
+        self.prefs.save();
+        self.mark(dirty::STRUCTURE | dirty::INSPECTOR | dirty::PREVIEWS);
+    }
+
+    /// The starred stocks of one kind that the catalog has, in the order starred.
+    pub fn favorite_stocks(&self, paper: bool) -> Vec<&Stock> {
+        self.prefs.favorites(paper).iter().filter_map(|id| self.stocks.iter().find(|s| s.paper == paper && &s.id == id)).collect()
     }
 
     pub fn set_border(&mut self, change: impl FnOnce(&mut BorderSettings), action: &'static str) {
@@ -839,11 +1148,13 @@ impl Model {
         }
         let mut next = self.state.clone();
         next.params = self.defaults.clone();
-        next.limit_preview = false;
+        next.brightness_match = self.new_match();
         json::set(&mut next.params, "io.rotate_cw", self.state.value("io.rotate_cw").clone());
         json::set(&mut next.params, state::SIZE_TARGET, self.state.value(state::SIZE_TARGET).clone());
         let positive = self.stocks.iter().find(|s| !s.paper && s.id == next.film).is_some_and(|s| s.positive);
         json::set(&mut next.params, "io.scan_film", Value::Bool(positive));
+        self.custom_film_format = false;
+        self.mark(dirty::STRUCTURE);
         self.apply(next, "Reset Adjustments");
     }
 
@@ -861,6 +1172,7 @@ impl Model {
     /// A border, crop, or rotation change only redraws the canvas; anything
     /// else re-renders.
     fn replace_state(&mut self, next: EditState) {
+        let next = self.with_preferences(next);
         let render = next.rendered() != self.state.rendered();
         let structure = self.structure_key(&next) != self.structure_key(&self.state);
         let crop_changed = next.crop != self.state.crop;
@@ -872,13 +1184,16 @@ impl Model {
                 session.update(shown, rotation);
             }
         }
-        if crop_changed {
+        if crop_changed || rotation_changed {
             self.update_histogram();
         }
         self.mark(dirty::INSPECTOR | dirty::CANVAS | dirty::CHROME | if structure { dirty::STRUCTURE } else { 0 });
         if render {
             self.changed();
         }
+        self.reconcile_brightness_match();
+        self.release_held();
+        self.settle_outputs();
     }
 
     /// What decides which inspector rows exist.
@@ -905,6 +1220,7 @@ impl Model {
             return;
         }
         let Some((previous, action)) = self.undo.undo.pop() else { return };
+        let previous = self.with_preferences(previous);
         if previous != self.state {
             self.undo.redo.push((self.state.clone(), action));
             self.replace_state(previous);
@@ -918,6 +1234,7 @@ impl Model {
             return;
         }
         let Some((next, action)) = self.undo.redo.pop() else { return };
+        let next = self.with_preferences(next);
         if next != self.state {
             self.undo.undo.push((self.state.clone(), action));
             self.replace_state(next);
@@ -991,6 +1308,17 @@ impl Model {
         }
     }
 
+    /// The title bar's panel button: hide the column, or show it with the
+    /// panel it last showed.
+    pub fn toggle_inspector(&mut self) {
+        if self.inspector_visible {
+            self.inspector_visible = false;
+            self.mark(dirty::LAYOUT | dirty::CHROME);
+        } else {
+            self.show_pane(self.pane());
+        }
+    }
+
     /// Shows a panel, remembered across launches. Opening Presets lists the
     /// folder again, so files copied in by hand appear.
     pub fn show_pane(&mut self, pane: Pane) {
@@ -1021,7 +1349,8 @@ impl Model {
         }
         let presets = &self.presets;
         self.preset_status.retain(|file, _| presets.contains(file));
-        self.mark(dirty::PRESETS);
+        self.previews.retain_presets(&self.presets.iter().map(|p| p.path.clone()).collect::<Vec<_>>());
+        self.mark(dirty::PRESETS | dirty::PREVIEWS);
         self.check_presets();
     }
 
@@ -1045,14 +1374,15 @@ impl Model {
                 }
             };
             self.preset_status.insert(preset.clone(), PresetStatus::Checking);
-            engine.request(json!({"command": "preset_import", "text": text}), engine::timeout_for("preset_import"), move |result| {
-                ui::post(move |app: &mut App| app.model.preset_checked(preset, result));
+            let command = json!({"command": "preset_import", "text": text});
+            engine.request(command, engine::timeout_for("preset_import"), move |result| {
+                ui::post(move |app: &mut App| app.model.preset_checked(preset, text, result));
             });
         }
         self.mark(dirty::PRESETS);
     }
 
-    fn preset_checked(&mut self, preset: PresetFile, result: Result<(u64, Value)>) {
+    fn preset_checked(&mut self, preset: PresetFile, text: String, result: Result<(u64, Value)>) {
         if !self.presets.contains(&preset) {
             return;
         }
@@ -1061,6 +1391,8 @@ impl Model {
                 film: json::string(&result["film"]).into(),
                 paper: json::string(&result["paper"]).into(),
                 scan: json::boolean(&result["params"]["io"]["scan_film"]),
+                text,
+                white_balance: result["params"]["io"]["raw_white_balance"].clone(),
             },
             Err(error) => PresetStatus::Invalid(format!("{error:#}")),
         };
@@ -1256,8 +1588,9 @@ impl Model {
         if name == preset.name() {
             return;
         }
-        if let Err(error) = self.preset_library.rename(preset, name) {
-            self.report(&error);
+        match self.preset_library.rename(preset, name) {
+            Ok(renamed) => self.previews.move_preset(&preset.path, &renamed.path),
+            Err(error) => self.report(&error),
         }
         self.refresh_presets();
     }
@@ -1315,6 +1648,9 @@ impl Model {
             json::set(&mut next.params, "io.rotate_cw", rotation);
             self.replace_state(next);
         }
+        // Cropping kept a held frame's solve from starting.
+        self.release_held();
+        self.settle_outputs();
         self.mark(dirty::CROP | dirty::CANVAS | dirty::CHROME | dirty::LAYOUT | dirty::STRIP);
         self.zoom(true);
     }
@@ -1340,6 +1676,7 @@ impl Model {
         }
         self.source = Some(path.to_path_buf());
         self.image = None;
+        self.shown_frame = None;
         self.placeholder = None;
         self.source_size = (0, 0);
         self.working_size = Size::ZERO;
@@ -1349,33 +1686,82 @@ impl Model {
         self.showing_cached_preview = false;
         self.render_failed = false;
         self.update_histogram();
+        if self.film_histogram.take().is_some() {
+            self.mark(dirty::TONE_GRAPH);
+        }
         self.interaction_start = None;
         self.crop_session = None;
         self.original = None;
         self.original_cache = None;
         self.original_loading = false;
         self.holding_original = false;
+        self.cancel_brightness_match();
+        self.drop_held("open");
+        self.brightness_failure = None;
         self.source_generation += 1;
         let generation = self.source_generation;
         let restoring = session.is_some();
         let fit = session.as_ref().map_or(true, |s| s.fit_image);
+        if self.prefs.fresh_edits {
+            self.custom_film_format = false;
+        }
         if let Some(session) = session {
             let mut restored = session.state;
-            restored.params = json::restoring(&self.defaults, &restored.params, &self.nullable_paths);
+            restored.params = state::restored_params(&self.defaults, &restored.params, &self.nullable_paths);
             // Sessions from before Image Size may carry the old working-resolution factor.
             let factor = json::get(&self.defaults, state::SIZE_FACTOR).clone();
             if !factor.is_null() {
                 json::set(&mut restored.params, state::SIZE_FACTOR, factor);
             }
-            self.state = restored;
+            // The inspector no longer edits Post tone or colour; an older
+            // session's Post edits would otherwise stay applied with no
+            // control to undo them.
+            let post = json::get(&self.defaults, "post").clone();
+            if !post.is_null() {
+                json::set(&mut restored.params, "post", post);
+            }
+            // Sessions from before it was a preference carried it per photograph.
+            if self.prefs.limit_preview.is_none() && restored.limit_preview {
+                self.prefs.limit_preview = Some(true);
+                self.prefs.save();
+            }
+            self.state = self.with_preferences(restored);
         } else {
+            // The exposure set above the previous photograph's match carries
+            // with Keep the previous edits; the match is solved anew.
+            let previous_offset = json::number(self.state.value(state::PREP_EXPOSURE)) - self.state.brightness_match.as_ref().and_then(|m| m.ev).unwrap_or(0.0);
+            if self.prefs.fresh_edits {
+                // Film/paper and output preferences belong to the workflow;
+                // the previous photograph's Prep, Lab and Post edits do not.
+                let retained: Vec<(&str, Value)> = [state::SIZE_TARGET, "io.output_color_space", "io.output_cctf_encoding"]
+                    .into_iter()
+                    .map(|path| (path, self.state.value(path).clone()))
+                    .collect();
+                self.state.params = self.defaults.clone();
+                for (path, value) in retained {
+                    if !value.is_null() {
+                        json::set(&mut self.state.params, path, value);
+                    }
+                }
+                let positive = self.stocks.iter().find(|s| !s.paper && s.id == self.state.film).is_some_and(|s| s.positive);
+                json::set(&mut self.state.params, "io.scan_film", Value::Bool(positive));
+                self.state.border = BorderSettings::default();
+            }
             json::set(&mut self.state.params, "io.rotate_cw", json::num(0.0));
             // How one file's colours are read never carries over to the next.
             let interpretation = json::get(&self.defaults, "io.input_interpretation").clone();
             if !interpretation.is_null() {
                 json::set(&mut self.state.params, "io.input_interpretation", interpretation);
             }
+            // Lens corrections are per photograph: on for a new one.
+            json::set(&mut self.state.params, state::LENS_CORRECTION, json::get(&self.defaults, state::LENS_CORRECTION).clone());
             self.state.crop = CropSettings::default();
+            self.state.brightness_match = self.new_match();
+            if !self.prefs.fresh_edits {
+                let (low, high) = state::PREP_EXPOSURE_RANGE;
+                json::set(&mut self.state.params, state::PREP_EXPOSURE, json::num(previous_offset.clamp(low, high)));
+            }
+            self.state = self.with_preferences(self.state.clone());
         }
         self.is_raw = is_raw(path);
         self.undo.undo.clear();
@@ -1390,7 +1776,12 @@ impl Model {
         let path = path.to_path_buf();
         let state = self.render_state();
         self.input_colour = Value::Null;
+        self.lens_supported = false;
+        #[cfg(test)]
+        let background = ui::testing::background();
         let fallback = move || {
+            #[cfg(test)]
+            let _background = background;
             if let Some((picture, size)) = crate::thumbnail::placeholder(&path) {
                 ui::post(move |app: &mut App| app.model.show_placeholder(picture, size, generation));
             }
@@ -1403,15 +1794,18 @@ impl Model {
                     let source_size = (frame.source_width as u32, frame.source_height as u32);
                     let working = Size::new(frame.working_width, frame.working_height);
                     let scale = (frame.width as f64 / frame.working_width).min(1.0);
-                    let raw = frame.raw;
+                    let (raw, lens_supported) = (frame.raw, frame.lens_correction_supported);
                     let picture = Picture::new(frame.pixels, frame.width, frame.height).in_display_space(&frame.display_space);
                     ui::post(move |app: &mut App| {
                         let model = &mut app.model;
                         if generation != model.source_generation || model.image.is_some() || model.closing { return; }
                         if model.render_state().rendered() != expected { std::thread::spawn(fallback); return; }
-                        model.image = Some(picture); model.image_size = size; model.is_raw = raw;
+                        model.image = Some(picture); model.image_size = size; model.is_raw = raw; model.lens_supported = lens_supported;
                         model.source_size = source_size; model.working_size = working; model.preview_scale = scale;
                         model.showing_cached_preview = true; model.placeholder = None; model.hide_activity();
+                        model.shown_frame = Some(FrameTag { request: 0, revision: model.revision, generation, kind: FrameKind::Cached });
+                        #[cfg(test)]
+                        model.frame_log.extend(model.shown_frame);
                         model.update_histogram();
                         model.mark(dirty::CANVAS | dirty::STATUS | dirty::INSPECTOR);
                     });
@@ -1437,6 +1831,7 @@ impl Model {
     /// Decodes the original ahead of a press, such as when the pointer
     /// reaches the button.
     pub fn prepare_original(&mut self) {
+        self.drop_stale_original();
         if self.can_show_original() && self.original_cache.is_none() {
             self.load_original();
         }
@@ -1458,11 +1853,28 @@ impl Model {
         }
         self.holding_original = true;
         self.mark(dirty::CANVAS | dirty::STATUS);
-        if let Some(cached) = &self.original_cache {
+        self.drop_stale_original();
+        if let Some((_, cached)) = &self.original_cache {
             self.original = Some(cached.clone());
             return;
         }
         self.load_original();
+    }
+
+    /// What the original's decode depends on: the RAW development (white
+    /// balance, lens corrections), how other files' colours are read, the
+    /// preview limit and the output space.
+    fn original_key(&self) -> Value {
+        let params = self.render_state().params;
+        let io = &params["io"];
+        json!([io["raw_white_balance"], io["lens_correction"], io["input_interpretation"], io["input_color_space"],
+            io["input_cctf_decoding"], io["output_color_space"], io["output_cctf_encoding"], self.state.limit_preview])
+    }
+
+    fn drop_stale_original(&mut self) {
+        if self.original_cache.as_ref().is_some_and(|(key, _)| *key != self.original_key()) && !self.original_loading {
+            self.original_cache = None;
+        }
     }
 
     /// Decodes at the developed preview's resolution, so it is as sharp at
@@ -1476,6 +1888,7 @@ impl Model {
         let source_long = self.source_size.0.max(self.source_size.1);
         let max_pixels = if source_long > 0 { image.width.max(image.height).min(source_long) } else { image.width.max(image.height) };
         let generation = self.source_generation;
+        let key = self.original_key();
         self.original_loading = true;
         let name = file_name(&source);
         let finish = move |app: &mut App, picture: Result<Picture>| {
@@ -1486,7 +1899,7 @@ impl Model {
             model.original_loading = false;
             match picture {
                 Ok(picture) => {
-                    model.original_cache = Some(picture.clone());
+                    model.original_cache = Some((key, picture.clone()));
                     if model.holding_original {
                         model.original = Some(picture);
                         model.mark(dirty::CANVAS | dirty::STATUS);
@@ -1523,6 +1936,193 @@ impl Model {
                 let picture = crate::thumbnail::original(&path, max_pixels);
                 ui::post(move |app: &mut App| finish(app, picture));
             });
+        }
+    }
+
+    // MARK: Previews
+
+    /// Settings › Film, paper and preset previews. Off shows the menus and
+    /// the plain preset list, and frees the thumbnails here and in the engine.
+    pub fn set_previews(&mut self, on: bool) {
+        if self.prefs.previews == on {
+            return;
+        }
+        self.prefs.previews = on;
+        self.prefs.save();
+        // The grid goes, and its search with it, as the Mac's foldout does.
+        if !on {
+            self.previews.film_query.clear();
+        }
+        if !on && self.previews.clear() {
+            if let Some(engine) = &self.engine {
+                engine.request(json!({"command": "release_thumbnails"}), engine::timeout_for("release_thumbnails"), |_| {});
+            }
+        }
+        self.mark(dirty::STRUCTURE | dirty::PRESETS | dirty::PREVIEWS);
+    }
+
+    /// Settings › Keep paper when changing film. The film tiles show what a
+    /// click would develop, so they follow it: their keys include the paper.
+    pub fn set_keep_paper(&mut self, on: bool) {
+        if self.prefs.keep_paper != on {
+            self.prefs.keep_paper = on;
+            self.prefs.save();
+            self.mark(dirty::PREVIEWS);
+        }
+    }
+
+    /// Opens or closes the Film or Paper foldout.
+    pub fn toggle_foldout(&mut self, paper: bool) {
+        let open = if paper { &mut self.previews.paper_open } else { &mut self.previews.film_open };
+        *open = !*open;
+        self.mark(dirty::STRUCTURE | dirty::PREVIEWS);
+    }
+
+    /// Whether the Film or Paper grid is open and on screen.
+    pub fn grid_shown(&self, paper: bool) -> bool {
+        self.prefs.previews
+            && self.previews.open(paper)
+            && self.inspector_visible
+            && self.pane() == Pane::Adjustments
+            && !self.cropping()
+            && !(paper && json::boolean(self.value("io.scan_film")))
+    }
+
+    /// Whether any thumbnails are on screen.
+    pub fn previews_on_screen(&self) -> bool {
+        self.grid_shown(false) || self.grid_shown(true) || self.preset_thumbnails_shown()
+    }
+
+    /// Whether the Presets list, with its thumbnails, is on screen.
+    fn preset_thumbnails_shown(&self) -> bool {
+        self.prefs.previews && self.inspector_visible && self.pane() == Pane::Presets && !self.cropping()
+    }
+
+    /// The main preview has nothing to do: thumbnails may use the engine.
+    fn previews_may_render(&self) -> bool {
+        self.ready
+            && !self.closing
+            && !self.rendering
+            && !self.pending_render
+            && !self.interacting()
+            && self.image.is_some()
+            && (self.preview_current || self.render_failed)
+    }
+
+    /// The thumbnails on screen, in the order they're made, with their keys
+    /// and requests: the open grids top to bottom, then the presets once the
+    /// engine has checked them all.
+    fn wanted_previews(&self) -> Vec<(Target, previews::Key, Value)> {
+        let Some(source) = &self.source else { return vec![] };
+        let generation = self.source_generation;
+        let state = self.render_state();
+        let mut wanted = vec![];
+        for paper in [false, true] {
+            if !self.grid_shown(paper) {
+                continue;
+            }
+            let (films, papers) = (self.films(), self.papers());
+            // While the Film grid searches, only its matches, as listed.
+            let query = if paper { "" } else { self.previews.film_query.as_str() };
+            let searching = !query.trim().is_empty();
+            let groups = if paper { state::paper_groups(&papers) } else { state::matching(query, state::film_groups(&films, &papers)) };
+            // The favourites first, so their thumbnails come first; a search hides them.
+            let favorites = if searching { vec![] } else { self.favorite_stocks(paper) };
+            let rest = groups.iter().flat_map(|g| g.stocks.iter().copied()).filter(|s| !favorites.iter().any(|f| f.id == s.id));
+            for stock in favorites.iter().copied().chain(rest) {
+                let command = previews::stock_command(&state, stock, &self.stocks, self.prefs.keep_paper, source, generation);
+                wanted.push((Target::Stock { id: stock.id.clone(), paper }, previews::Key::new(generation, &command), command));
+            }
+        }
+        let checking = self.presets.iter().any(|p| matches!(self.preset_status.get(p), None | Some(PresetStatus::Checking)));
+        if self.preset_thumbnails_shown() && !checking {
+            let kept: Option<Vec<String>> = self.catalog["preset_kept"].as_array().map(|a| a.iter().filter_map(|p| p.as_str().map(str::to_owned)).collect());
+            let valid: Vec<(&PresetFile, &str, &Value)> = self
+                .presets
+                .iter()
+                .filter_map(|p| match self.preset_status.get(p) {
+                    Some(PresetStatus::Valid { text, white_balance, .. }) => Some((p, text.as_str(), white_balance)),
+                    _ => None,
+                })
+                .collect();
+            let photo = state.value("io.raw_white_balance");
+            for (preset, text, _) in previews::render_order(valid, self.is_raw, |p| Some(p.2.clone()), photo) {
+                let command = previews::preset_command(text, &state, source, generation);
+                wanted.push((Target::Preset(preset.path.clone()), previews::preset_key(&command, kept.as_deref(), generation), command));
+            }
+        }
+        wanted
+    }
+
+    /// Dims or blanks out-of-date thumbnails, and asks the engine for the
+    /// next one on screen: one request at a time, and only while the main
+    /// preview has nothing to do. True when a tile's look changed.
+    pub fn pump_previews(&mut self) -> bool {
+        if !self.prefs.previews {
+            return false;
+        }
+        let mut changed = false;
+        let mut next = None;
+        for (target, key, command) in self.wanted_previews() {
+            let (needs, look) = self.previews.thumb_mut(&target).mark(&key);
+            changed |= look;
+            if needs && next.is_none() {
+                next = Some((target, key, command));
+            }
+        }
+        if self.previews.busy || !self.previews_may_render() {
+            return changed;
+        }
+        let (Some((target, key, mut command)), Some(engine)) = (next, self.engine.clone()) else { return changed };
+        self.previews.busy = true;
+        self.previews.requests += 1;
+        let buffer = engine.directory().join(format!("thumbnail-{}.rgba", self.previews.requests));
+        command["preview_path"] = json!(buffer);
+        let (color, rotation) = (self.previews.color.clone(), self.rotation());
+        engine.request(command, engine::timeout_for("thumbnail"), move |result| {
+            let bitmap = result.and_then(|(_, r)| {
+                let rgba = std::fs::read(&buffer)?;
+                let wide = crate::picture::is_wide(json::string(&r["display_color_space"]));
+                previews::Bitmap::from_rgba(&rgba, json::number(&r["width"]) as u32, json::number(&r["height"]) as u32, wide, color.as_deref(), rotation)
+            });
+            let _ = std::fs::remove_file(&buffer);
+            ui::post(move |app: &mut App| app.model.thumbnail_finished(target, key, bitmap));
+        });
+        changed
+    }
+
+    fn thumbnail_finished(&mut self, target: Target, key: previews::Key, bitmap: Result<previews::Bitmap>) {
+        self.previews.busy = false;
+        if self.closing || !self.prefs.previews {
+            return;
+        }
+        // The photograph changed meanwhile: drop it, the next pump asks again.
+        if key.generation == self.source_generation {
+            let bitmap = match bitmap {
+                Ok(bitmap) => Some(Arc::new(bitmap)),
+                // Leave the placeholder; a later edit retries. Don't spin on a failure.
+                Err(error) => {
+                    eprintln!("thumbnail {target:?}: {error:#}");
+                    None
+                }
+            };
+            self.previews.thumb_mut(&target).show(bitmap, key);
+        }
+        self.mark(dirty::PREVIEWS);
+    }
+
+    /// The canvas moved to a monitor with another profile: thumbnails are
+    /// made again through it.
+    pub fn set_preview_color(&mut self, color: Option<Arc<crate::icc::Transform>>) {
+        let same = match (&self.previews.color, &color) {
+            (Some(a), Some(b)) => a.profile == b.profile,
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.previews.color = color;
+            self.previews.clear();
+            self.mark(dirty::PREVIEWS);
         }
     }
 
@@ -1566,11 +2166,16 @@ impl Model {
     }
 
     fn changed_with_cache(&mut self, invalidate: bool) {
+        // Every edit, undo, redo and new photograph comes here: a held frame
+        // is of an older state, and the render scheduled below replaces it.
+        self.drop_held("edit");
+        self.schedule_tone_curve();
         if invalidate {
             self.preview_cache.invalidate();
             self.showing_cached_preview = false;
         }
         self.revision += 1;
+        crate::trace::event("edit", || json!({"revision": self.revision, "generation": self.source_generation, "interacting": self.interacting()}));
         self.preview_current = false;
         if self.render_failed {
             self.render_failed = false;
@@ -1601,15 +2206,18 @@ impl Model {
         }
         let (Some(source), Some(engine)) = (self.source.clone(), self.engine.clone()) else { return };
         let (revision, generation) = (self.revision, self.source_generation);
-        // While a slider moves, render only as many pixels as the canvas
-        // shows; the frame on release is the export-size one.
-        let interactive_scale = if self.interacting() {
-            crate::ui::canvas::screen_pixels_per_photo_pixel().filter(|&s| s < 1.0)
-        } else {
-            None
-        };
-        self.rendering = true;
-        self.mark(dirty::CHROME);
+        // A quick frame's settled render waits for a solve that started
+        // after it was scheduled (matching turned on while the quick frame
+        // shows, which is no edit at exposure 0): the old exposure never
+        // renders at export size. The solve's end settles it
+        // (`settle_quick_frame`). The Mac does the same.
+        if self.quick_step == Some((revision, generation))
+            && !self.preview_current
+            && !self.interacting()
+            && (self.matching_brightness || self.held.is_some())
+        {
+            return;
+        }
         let buffer = engine.directory().join("preview.rgba");
         let state = self.render_state();
         let mut command = json!({
@@ -1617,19 +2225,55 @@ impl Model {
             "film": state.film, "paper": state.paper, "params": state.params,
             "limit_preview": self.state.limit_preview, "preview_path": buffer,
         });
-        if let Some(scale) = interactive_scale {
-            command["interactive_scale"] = json!(scale);
-        }
         // The target describes the cropped photograph; the helper sizes the frame from the crop.
         if self.size_mode() == state::SizeMode::LongestSide && self.state.crop.cropped() {
             let r = self.state.crop.rect;
             command["crop"] = json!({"x": r.x, "y": r.y, "width": r.width, "height": r.height, "angle": self.state.crop.angle});
         }
+        // While a slider moves, render only as many pixels as the canvas
+        // shows; the frame on release is the export-size one. A discrete
+        // edit shows such a frame first, unless the helper can answer
+        // quickly anyway: a small photograph, or post adjustments alone.
+        let key = reuse_key(&command);
+        let epoch = engine.helper_epoch();
+        let reuses_output = self.helper_output.as_ref().is_some_and(|(kept, output)| *kept == epoch && json::same(output, &key));
+        let frame = (revision, generation);
+        let step = render_step(
+            self.interacting(),
+            crate::ui::canvas::screen_pixels_per_photo_pixel(),
+            self.image_size.width * self.image_size.height,
+            self.has_developed_frame(),
+            self.quick_step == Some(frame),
+            reuses_output,
+        );
+        let (kind, interactive_scale) = (step.kind(), step.interactive_scale());
+        if let Some(scale) = interactive_scale {
+            command["interactive_scale"] = json!(scale);
+        }
+        self.rendering = true;
+        self.mark(dirty::CHROME);
+        // The helper replaces its kept output with this render (and keeps
+        // none if it fails): forget it now, on this thread, before the
+        // request can reach the helper.
+        self.helper_output = None;
+        #[cfg(test)]
+        self.render_log.push(RenderRequest { kind, revision, generation, interactive_scale });
+        crate::trace::event("render_request", || json!({"kind": kind.name(), "revision": revision, "generation": generation, "interactive_scale": interactive_scale, "reuses_output": reuses_output}));
         let started = Instant::now();
         let paths = self.paths.clone();
         std::thread::spawn(move || {
             let cache_key = if interactive_scale.is_none() { paths.and_then(|paths| rendered_preview::key(&source, &state, &paths)) } else { None };
+            let client = engine.clone();
             engine.request(command, engine::timeout_for("render"), move |result| {
+                // The worker sends nothing between this request and its
+                // reply, so this is the epoch of the helper that kept it.
+                let kept = (kind == FrameKind::Settled && result.is_ok()).then(|| (client.helper_epoch(), key));
+                crate::trace::event("render_reply", || match &result {
+                    Ok((id, r)) => json!({"kind": kind.name(), "revision": revision, "generation": generation, "request": id,
+                        "elapsed_ms": r["elapsed_ms"], "cached_pipeline": r["cached_pipeline"], "pipeline_ms": r["pipeline_ms"],
+                        "backend": r["backend"], "width": r["width"], "height": r["height"], "round_trip_ms": engine::elapsed_ms(started)}),
+                    Err(error) => json!({"kind": kind.name(), "revision": revision, "generation": generation, "error": format!("{error:#}")}),
+                });
                 // Read the buffer off the UI thread, before the next render can
                 // overwrite it.
                 let rendered = result.and_then(|(id, result)| {
@@ -1642,6 +2286,7 @@ impl Model {
                         source_width: json::number(&result["source_width"]), source_height: json::number(&result["source_height"]),
                         working_width: json::number(&result["working_width"]), working_height: json::number(&result["working_height"]),
                         raw: json::boolean(&result["raw"]), display_space: json::string(&result["display_color_space"]).to_string(),
+                        lens_correction_supported: json::boolean(&result["lens_correction_supported"]),
                         pixels: pixels.clone(),
                     }));
                     let picture = Picture::new(pixels, w, h).in_display_space(json::string(&result["display_color_space"]));
@@ -1654,76 +2299,245 @@ impl Model {
                     }
                     Ok(Rendered { id, revision, generation, interactive: interactive_scale.is_some(), result, picture, cached })
                 });
-                ui::post(move |app: &mut App| app.model.render_finished(rendered, revision, generation, interactive_scale.is_some()));
+                ui::post(move |app: &mut App| {
+                    // Renders run one at a time: nothing replaced it since.
+                    if kept.is_some() {
+                        app.model.helper_output = kept;
+                    }
+                    app.model.render_finished(rendered, revision, generation, kind);
+                });
             });
         });
     }
 
-    fn render_finished(&mut self, rendered: Result<Rendered>, revision: u64, generation: u64, interactive: bool) {
+    /// A render is back. Acceptance: a frame of the current photograph and
+    /// edit (or any frame while a slider moves) is taken, and the match reads
+    /// its `source_size` and `is_raw` at once. A settled frame whose
+    /// brightness match is pending would show the old exposure for as long as
+    /// the solve and the next render take: it is held instead, with the
+    /// previous frame and the activity badge left up, and the solve starts
+    /// from it (the helper holds its decode). `release_held` shows it if the
+    /// match leaves the render as it is; an edit drops it. Anything else is
+    /// presented now.
+    ///
+    /// A quick frame (ticket 28) is accepted whenever its photograph is still
+    /// open, so a quick frame of an earlier edit shows while edits keep coming
+    /// (Ctrl+Z held, fast clicks); the current edit renders next. It is held
+    /// like a settled frame, and the match can start from it. It settles only
+    /// through `settle_quick_frame`. A failed quick frame is silent: the
+    /// settled render that follows reports the error once.
+    fn render_finished(&mut self, rendered: Result<Rendered>, revision: u64, generation: u64, kind: FrameKind) {
         self.rendering = false;
         self.mark(dirty::CHROME);
-        match rendered {
-            Ok(rendered) if self.should_show(revision, generation) => {
-                let result = &rendered.result;
-                self.image_size = Size::new(json::number(&result["photo_width"]), json::number(&result["photo_height"]));
-                self.source_size = (json::number(&result["source_width"]) as u32, json::number(&result["source_height"]) as u32);
-                self.working_size = Size::new(json::number(&result["working_width"]), json::number(&result["working_height"]));
-                if !rendered.interactive {
-                    self.preview_scale = if self.working_size.width > 0.0 { (json::number(&result["width"]) / self.working_size.width).min(1.0) } else { 1.0 };
-                }
-                self.showing_interactive_frame = rendered.interactive;
-                self.image = Some(rendered.picture);
-                self.placeholder = None;
-                self.update_histogram();
-                let (shown, rotation) = (self.shown_image_size(), self.rotation());
-                if let Some(session) = &mut self.crop_session {
-                    session.update(shown, rotation);
-                }
-                self.is_raw = json::boolean(&result["raw"]);
-                self.rendered_space = json::string(&result["output_color_space"]).to_string();
-                if self.input_colour != result["input_colour"] {
-                    self.input_colour = result["input_colour"].clone();
-                }
-                if self.revision == revision && !rendered.interactive {
-                    self.render_id = rendered.id;
-                    self.preview_current = true;
-                    self.hide_activity();
-                    self.render_at_export_size = json::boolean(&result["export_resolution"]);
-                    self.render_on_gpu = ExportEngine::ran_on_gpu(json::string(&result["backend"]));
-                    self.showing_cached_preview = false;
-                    if let Some((key, frame)) = rendered.cached { self.preview_cache.save(key, frame); }
-                }
-                let seconds = json::number(&result["elapsed_ms"]) / 1000.0;
-                let time = format!("developed in {seconds:.*} s", if seconds < 10.0 { 2 } else { 1 });
-                let backend = if ExportEngine::ran_on_gpu(json::string(&result["backend"])) { "" } else { " on the CPU" };
-                self.status = if rendered.interactive {
-                    format!(
-                        "Preview · {} × {} · {time}{backend}",
-                        json::number(&result["output_width"]) as u64,
-                        json::number(&result["output_height"]) as u64
-                    )
-                } else {
-                    // The photograph as exported, and whether the shown texture
-                    // has fewer pixels: inspect grain in an export when it does.
-                    let photograph = self.state.crop.size_of(self.working_size);
-                    let shown = if self.preview_scale < 1.0 { format!(" · shown at {}", percent(self.preview_scale)) } else { String::new() };
-                    format!("{} × {}{shown} · {time}{backend}", photograph.width as u64, photograph.height as u64)
-                };
-                self.mark(dirty::CANVAS | dirty::STATUS | dirty::INSPECTOR | dirty::CROP);
-                self.check_presets();
+        // The quick frame is done: the next render settles. Once that ran,
+        // failed or not, nothing waits to settle (no retries).
+        if (revision, generation) == (self.revision, self.source_generation) {
+            match kind {
+                FrameKind::Quick => self.quick_step = Some((revision, generation)),
+                FrameKind::Settled => self.quick_step = None,
+                _ => {}
             }
-            Ok(_) => {}
-            Err(error) => {
-                if revision == self.revision && generation == self.source_generation && !self.closing {
+        }
+        let showable = match kind {
+            FrameKind::Quick => !self.closing && generation == self.source_generation,
+            _ => self.should_show(revision, generation),
+        };
+        let accepted = rendered.is_ok() && showable;
+        match rendered {
+            Ok(rendered) if accepted => {
+                let result = &rendered.result;
+                self.source_size = (json::number(&result["source_width"]) as u32, json::number(&result["source_height"]) as u32);
+                self.is_raw = json::boolean(&result["raw"]);
+                let hold = kind != FrameKind::Drag
+                    && self.revision == revision
+                    && !self.interacting()
+                    && !self.cropping()
+                    && self.brightness_match_pending();
+                crate::trace::event("render_finished", || json!({
+                    "revision": revision, "generation": generation, "kind": kind.name(), "ok": true,
+                    "shown": !hold, "held": hold, "current_revision": self.revision,
+                }));
+                if hold {
+                    // Replaces a frame held for the same edit (a slider
+                    // pressed and let go without a change renders it again).
+                    self.held = Some(Held { revision, generation, kind, rendered });
+                    self.mark(dirty::STATUS);
+                } else {
+                    self.drop_held("superseded");
+                    self.present(rendered, kind);
+                }
+            }
+            rendered => {
+                crate::trace::event("render_finished", || json!({
+                    "revision": revision, "generation": generation, "kind": kind.name(), "ok": rendered.is_ok(),
+                    "shown": false, "held": false, "current_revision": self.revision,
+                }));
+                if let Err(error) = rendered
+                    && kind != FrameKind::Quick
+                    && revision == self.revision
+                    && generation == self.source_generation
+                    && !self.closing
+                {
                     self.render_failed = true;
                     self.hide_activity();
                     self.report(&error);
                 }
             }
         }
-        if (self.revision != revision || (interactive && !self.interacting())) && !self.closing {
+        if (self.revision != revision || (kind == FrameKind::Drag && !self.interacting())) && !self.closing {
             self.schedule_render();
         }
+        // Starts the solve from a frame just held (a quick one too: the
+        // helper then holds the decode); shows a held frame whose match is no
+        // longer pending.
+        self.release_held();
+        self.settle_quick_frame();
+        self.settle_outputs();
+    }
+
+    /// After a quick frame of the current edit, renders it at its settled
+    /// size once nothing holds it: no render running or due, no brightness
+    /// solve running and no frame held for one (a match that changes the
+    /// exposure is a new edit, with its own quick frame), no slider held.
+    /// Called wherever one of these can clear: a render's or a solve's end,
+    /// a held frame shown, and the end of an interaction. Does nothing until
+    /// all hold. No delay: a 400 ms debounce was tried on the Mac and dropped.
+    fn settle_quick_frame(&mut self) {
+        if self.quick_step != Some((self.revision, self.source_generation))
+            || self.preview_current
+            || self.render_failed
+            || self.interacting()
+            || self.rendering
+            || self.pending_render
+            || self.matching_brightness
+            || self.held.is_some()
+            || !self.ready
+            || self.source.is_none()
+            || self.closing
+        {
+            return;
+        }
+        self.schedule_render();
+    }
+
+    /// A frame this helper developed of the open photograph is on screen: not
+    /// the placeholder (`placeholder`), not the restored launch frame from the
+    /// preview cache. A quick frame replaces only such a frame.
+    fn has_developed_frame(&self) -> bool {
+        self.image.is_some() && !self.showing_cached_preview
+    }
+
+    /// The shown frame is the current edit's quick frame: the helper holds
+    /// its decode.
+    fn shows_quick_frame(&self) -> bool {
+        self.quick_frame == Some((self.revision, self.source_generation))
+    }
+
+    /// Shows an accepted frame: everything `render_finished` did before the
+    /// held frame, in the same order.
+    fn present(&mut self, rendered: Rendered, kind: FrameKind) {
+        let (revision, generation) = (rendered.revision, rendered.generation);
+        self.shown_frame = Some(FrameTag { request: rendered.id, revision, generation, kind });
+        #[cfg(test)]
+        self.frame_log.extend(self.shown_frame);
+        self.quick_frame = (kind == FrameKind::Quick).then_some((revision, generation));
+        let result = &rendered.result;
+        self.image_size = Size::new(json::number(&result["photo_width"]), json::number(&result["photo_height"]));
+        self.working_size = Size::new(json::number(&result["working_width"]), json::number(&result["working_height"]));
+        if !rendered.interactive {
+            self.preview_scale = if self.working_size.width > 0.0 { (json::number(&result["width"]) / self.working_size.width).min(1.0) } else { 1.0 };
+        }
+        self.showing_interactive_frame = rendered.interactive;
+        self.image = Some(rendered.picture);
+        self.placeholder = None;
+        self.update_histogram();
+        let film = FilmHistogram::parse(&result["film_histogram"]);
+        if film != self.film_histogram {
+            self.film_histogram = film;
+            self.mark(dirty::TONE_GRAPH);
+        }
+        let (shown, rotation) = (self.shown_image_size(), self.rotation());
+        if let Some(session) = &mut self.crop_session {
+            session.update(shown, rotation);
+        }
+        self.lens_supported = json::boolean(&result["lens_correction_supported"]);
+        self.rendered_space = json::string(&result["output_color_space"]).to_string();
+        if self.input_colour != result["input_colour"] {
+            self.input_colour = result["input_colour"].clone();
+        }
+        if self.revision == revision && !rendered.interactive {
+            self.render_id = rendered.id;
+            self.preview_current = true;
+            self.hide_activity();
+            self.render_at_export_size = json::boolean(&result["export_resolution"]);
+            self.render_on_gpu = ExportEngine::ran_on_gpu(json::string(&result["backend"]));
+            self.showing_cached_preview = false;
+            if let Some((key, frame)) = rendered.cached {
+                self.preview_cache.save(key, frame);
+            }
+            self.reconcile_brightness_match();
+        }
+        let seconds = json::number(&result["elapsed_ms"]) / 1000.0;
+        let time = format!("developed in {seconds:.*} s", if seconds < 10.0 { 2 } else { 1 });
+        let backend = if ExportEngine::ran_on_gpu(json::string(&result["backend"])) { "" } else { " on the CPU" };
+        self.status = if rendered.interactive {
+            format!(
+                "Preview · {} × {} · {time}{backend}",
+                json::number(&result["output_width"]) as u64,
+                json::number(&result["output_height"]) as u64
+            )
+        } else {
+            // The photograph as exported, and whether the shown texture
+            // has fewer pixels: inspect grain in an export when it does.
+            let photograph = self.state.crop.size_of(self.working_size);
+            let shown = if self.preview_scale < 1.0 { format!(" · shown at {}", percent(self.preview_scale)) } else { String::new() };
+            format!("{} × {}{shown} · {time}{backend}", photograph.width as u64, photograph.height as u64)
+        };
+        self.mark(dirty::CANVAS | dirty::STATUS | dirty::INSPECTOR | dirty::CROP);
+        // Between a quick frame and its settled render the helper has nothing
+        // else to do (ticket 28): the presets are checked after the latter.
+        if kind != FrameKind::Quick {
+            self.check_presets();
+        }
+    }
+
+    /// Resolves a held frame wherever its match can stop being pending
+    /// without an edit: the solve answered (unchanged, or failed), matching
+    /// was turned off, or what kept the solve from starting (a slider held,
+    /// cropping, a render running) let go. Starts the solve if it can, then
+    /// shows the frame once nothing about the match is pending or running.
+    /// A changed exposure is an edit, which dropped the frame already.
+    fn release_held(&mut self) {
+        let Some(held) = &self.held else { return };
+        if held.revision != self.revision || held.generation != self.source_generation || self.closing {
+            return self.drop_held("stale");
+        }
+        self.reconcile_brightness_match();
+        if self.matching_brightness || self.brightness_match_pending() {
+            return;
+        }
+        let Some(held) = self.held.take() else { return };
+        crate::trace::event("held_shown", || json!({"revision": held.revision, "generation": held.generation, "kind": held.kind.name()}));
+        self.present(held.rendered, held.kind);
+        // Thumbnails wait for the current preview (`App::refresh` pumps and
+        // redraws them), and so do Save and Export. A quick frame settles now.
+        self.mark(dirty::PREVIEWS);
+        self.settle_quick_frame();
+        self.settle_outputs();
+    }
+
+    /// Forgets a held frame without showing it.
+    fn drop_held(&mut self, why: &'static str) {
+        if let Some(held) = self.held.take() {
+            crate::trace::event("held_dropped", || json!({"revision": held.revision, "generation": held.generation, "why": why}));
+        }
+    }
+
+    /// The frame waiting for its brightness match, tagged as `shown_frame`
+    /// would tag it (tests).
+    #[cfg(test)]
+    pub fn held_frame(&self) -> Option<FrameTag> {
+        self.held.as_ref().map(|h| FrameTag { request: h.rendered.id, revision: h.revision, generation: h.generation, kind: h.kind })
     }
 
     /// While a slider moves, show each finished frame. Otherwise only the
@@ -1732,26 +2546,101 @@ impl Model {
         !self.closing && generation == self.source_generation && (self.revision == revision || self.interacting())
     }
 
-    /// Counts the preview's tones off the UI thread. A newer preview or
-    /// crop supersedes a count still running.
+    /// Counts the preview's tones and waveform off the UI thread. A newer
+    /// preview, crop or turn supersedes a count still running.
     fn update_histogram(&mut self) {
         self.histogram_request += 1;
         let Some(image) = self.image.clone() else {
             self.histogram = None;
+            self.waveform = None;
             self.mark(dirty::HISTOGRAM);
             return;
         };
-        let (request, crop) = (self.histogram_request, self.state.crop);
+        let (request, crop, rotation) = (self.histogram_request, self.state.crop, self.rotation());
+        #[cfg(test)]
+        let background = ui::testing::background();
         std::thread::spawn(move || {
-            let counted = image.histogram(&crop);
+            #[cfg(test)]
+            let _background = background;
+            let scopes = image.scopes(&crop, rotation);
             ui::post(move |app: &mut App| {
                 let model = &mut app.model;
-                if request == model.histogram_request && model.histogram.as_ref() != Some(&counted) {
-                    model.histogram = Some(counted);
+                if request == model.histogram_request
+                    && (model.histogram.as_ref() != Some(&scopes.histogram) || model.waveform.as_ref() != Some(&scopes.waveform))
+                {
+                    model.histogram = Some(scopes.histogram);
+                    model.waveform = Some(scopes.waveform);
                     model.mark(dirty::HISTOGRAM);
                 }
             });
         });
+    }
+
+    // MARK: Tone graph
+
+    /// The inspector shows the tone graph, or stopped showing it.
+    pub fn show_tone_graph(&mut self, shown: bool) {
+        if self.tone_graph_shown != shown {
+            self.tone_graph_shown = shown;
+            self.schedule_tone_curve();
+        }
+    }
+
+    /// What the tone graph's next curve is for.
+    fn tone_request(&self) -> Value {
+        let state = self.render_state();
+        tone_graph::request(&state.film, &state.paper, &state.params)
+    }
+
+    pub fn tone_controls(&self) -> Controls {
+        Controls::read(|path| self.value(path))
+    }
+
+    /// The shown curve is for the current settings, apart from the controls
+    /// its prediction follows; otherwise it stands in, dimmed, until the next.
+    pub fn tone_curve_current(&self) -> bool {
+        self.tone_curve.as_ref().is_some_and(|curve| curve.matches(&self.tone_request()))
+    }
+
+    /// Asks the helper for the current settings' curve, one request at a
+    /// time; edits made meanwhile ask again once it answers.
+    fn schedule_tone_curve(&mut self) {
+        if !self.tone_graph_shown || !self.has_catalog() || self.closing || !json::boolean(&self.catalog["capabilities"]["tone_curve"]) {
+            return;
+        }
+        let Some(engine) = self.engine.clone() else { return };
+        if self.tone_curve_pending {
+            self.tone_curve_stale = true;
+            return;
+        }
+        let request = self.tone_request();
+        if self.tone_curve.as_ref().is_some_and(|curve| json::same(&curve.request, &request)) {
+            return;
+        }
+        let controls = self.tone_controls();
+        self.tone_curve_pending = true;
+        self.tone_curve_stale = false;
+        let mut command = request.clone();
+        command["command"] = json!("tone_curve");
+        command["count"] = json!(tone_graph::POINTS);
+        engine.request(command, engine::timeout_for("tone_curve"), move |result| {
+            ui::post(move |app: &mut App| app.model.tone_curve_arrived(request, controls, result));
+        });
+    }
+
+    fn tone_curve_arrived(&mut self, request: Value, controls: Controls, result: Result<(u64, Value)>) {
+        self.tone_curve_pending = false;
+        // A curve that can't be computed leaves the last one; the render reports errors.
+        if let Ok((_, result)) = result
+            && let Some(curve) = Curve::parse(&result, request, controls)
+            && self.tone_curve.as_ref() != Some(&curve)
+        {
+            self.tone_curve = Some(curve);
+            self.mark(dirty::TONE_GRAPH);
+        }
+        if self.tone_curve_stale {
+            self.schedule_tone_curve();
+        }
     }
 
     /// Only mention an update once it has visibly taken a while.
@@ -1866,6 +2755,346 @@ impl Model {
         true
     }
 
+    // MARK: Camera brightness
+
+    /// Prep › Match camera brightness for this photograph.
+    pub fn matches_brightness(&self) -> bool {
+        self.state.brightness_match.is_some()
+    }
+
+    /// Why matching can't run for this photograph, or None.
+    pub fn brightness_match_unavailable(&self) -> Option<String> {
+        if let Some((generation, None, message)) = &self.brightness_failure
+            && *generation == self.source_generation
+        {
+            return Some(message.clone());
+        }
+        if !self.is_raw && json::string(self.value("io.input_interpretation.mode")) != "auto" {
+            return Some("Matching reads the file’s own colour tags. Set Input Colour to Automatic to use it.".into());
+        }
+        None
+    }
+
+    fn brightness_match_failed_here(&self) -> bool {
+        matches!(&self.brightness_failure, Some((generation, Some(inputs), _))
+            if *generation == self.source_generation && json::same(inputs, &state::match_inputs(&self.state)))
+    }
+
+    /// On, possible, and not failed for the current settings: the meter then
+    /// only sets where the highlight limit starts.
+    pub fn brightness_match_active(&self) -> bool {
+        self.matches_brightness() && self.brightness_match_unavailable().is_none() && !self.brightness_match_failed_here()
+    }
+
+    /// On and not yet solved for the current settings. Save and Export wait.
+    pub fn brightness_match_pending(&self) -> bool {
+        let Some(m) = &self.state.brightness_match else { return false };
+        if !self.brightness_match_active() {
+            return false;
+        }
+        m.ev.is_none() || !m.inputs.as_ref().is_some_and(|inputs| json::same(inputs, &state::match_inputs(&self.state)))
+    }
+
+    /// The note under the Exposure slider.
+    pub fn brightness_match_note(&self) -> Option<String> {
+        if !self.matches_brightness() {
+            return None;
+        }
+        if let Some(unavailable) = self.brightness_match_unavailable() {
+            return Some(unavailable);
+        }
+        if self.brightness_match_failed_here()
+            && let Some((_, _, message)) = &self.brightness_failure
+        {
+            return Some(message.clone());
+        }
+        if self.brightness_match_pending() || self.matching_brightness {
+            return Some("Matching…".into());
+        }
+        let m = self.state.brightness_match.as_ref()?;
+        let ev = m.ev?;
+        let value = format!("{}{:.2}", if ev >= 0.0 { "+" } else { "−" }, ev.abs());
+        let reference = if self.is_raw { "the camera" } else { "the original" };
+        Some(if m.highlight_limited {
+            format!("Starts at {value} EV to match {reference}, held back to protect highlights.")
+        } else {
+            format!("Starts at {value} EV to match {reference}.")
+        })
+    }
+
+    /// Turns matching on (from the match, Exposure back to 0) or off (the
+    /// brightness stays; Exposure then shows all of it). One undo step.
+    pub fn set_matches_brightness(&mut self, on: bool) {
+        if on == self.matches_brightness() {
+            return;
+        }
+        let mut next = self.state.clone();
+        if on {
+            next.brightness_match = Some(state::BrightnessMatch::default());
+            json::set(&mut next.params, state::PREP_EXPOSURE, json::num(0.0));
+        } else {
+            next.brightness_match = None;
+        }
+        self.apply(next, if on { "Match Camera Brightness" } else { "Stop Matching Camera Brightness" });
+    }
+
+    fn matched_ev(&self) -> f64 {
+        if self.brightness_match_active() { self.state.brightness_match.as_ref().and_then(|m| m.ev).unwrap_or(0.0) } else { 0.0 }
+    }
+
+    /// The Exposure slider's range: the engine's total stays within ±3 EV.
+    pub fn exposure_offset_range(&self) -> (f64, f64) {
+        let matched = self.matched_ev();
+        (state::PREP_EXPOSURE_RANGE.0 - matched, state::PREP_EXPOSURE_RANGE.1 - matched)
+    }
+
+    /// The Exposure slider: the user's exposure above the match.
+    pub fn exposure_offset(&self) -> f64 {
+        json::number(self.value(state::PREP_EXPOSURE)) - self.matched_ev()
+    }
+
+    pub fn set_exposure_offset(&mut self, value: f64) {
+        let (low, high) = self.exposure_offset_range();
+        let offset = ((value / state::PREP_EXPOSURE_STEP).round() * state::PREP_EXPOSURE_STEP).clamp(low, high);
+        let matched = self.matched_ev();
+        let total = if offset.abs() < 1e-9 { matched } else { matched + offset };
+        let (min, max) = state::PREP_EXPOSURE_RANGE;
+        self.set(state::PREP_EXPOSURE, json::num(total.clamp(min, max)));
+    }
+
+    pub fn exposure_offset_modified(&self) -> bool {
+        (json::number(self.value(state::PREP_EXPOSURE)) - self.matched_ev()).abs() > 1e-6
+    }
+
+    pub fn reset_exposure_offset(&mut self) {
+        let matched = self.matched_ev();
+        self.set(state::PREP_EXPOSURE, json::num(matched));
+    }
+
+    /// Whether Prep shows Auto exposure and Metering: while matched the meter
+    /// only sets where the highlight limit starts, so they show when matching
+    /// is off or unavailable, or when changed.
+    pub fn shows_meter(&self) -> bool {
+        !self.brightness_match_active() || self.is_modified("camera.auto_exposure") || self.is_modified("camera.auto_exposure_method")
+    }
+
+    fn cancel_brightness_match(&mut self) {
+        self.match_request.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if self.matching_brightness {
+            self.matching_brightness = false;
+            self.mark(dirty::INSPECTOR);
+        }
+    }
+
+    /// Solves the match when it's on and stale, once the preview of the
+    /// current settings is shown or held, its quick frame included (the
+    /// helper then holds their decode), so before their settled render. One
+    /// solve at a time; its answer looks again, so edits made meanwhile
+    /// coalesce. A result is applied only if the inputs it was
+    /// solved for are still current, without an undo step of its own: Undo
+    /// restores a state together with the match solved for it, and a
+    /// restored state whose match is stale is solved again.
+    fn reconcile_brightness_match(&mut self) {
+        // Cheap checks first: this runs on every edit, drag frames included.
+        if self.matching_brightness
+            || self.interacting()
+            || !(self.preview_current || self.held.is_some() || self.shows_quick_frame())
+            || self.rendering
+            || !self.ready
+            || self.cropping()
+            || self.closing
+            || self.state.brightness_match.is_none()
+            || !self.brightness_match_pending()
+        {
+            return;
+        }
+        let (Some(engine), Some(source)) = (self.engine.clone(), self.source.clone()) else { return };
+        let inputs = state::match_inputs(&self.state);
+        let id = self.match_request.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        let current = self.match_request.clone();
+        let (generation, size, raw) = (self.source_generation, self.source_size, self.is_raw);
+        // The solve's own exposure: Prep and the print exposure are the user's.
+        let mut request = self.render_state();
+        json::set(&mut request.params, "prep", json::get(&self.defaults, "prep").clone());
+        json::set(&mut request.params, "enlarger.print_exposure", json::get(&self.defaults, "enlarger.print_exposure").clone());
+        let reference = engine.directory().join(format!("camera-brightness-{id}.png"));
+        crate::trace::event("match_start", || json!({"match": id, "revision": self.revision, "generation": generation}));
+        self.matching_brightness = true;
+        self.mark(dirty::INSPECTOR);
+        std::thread::spawn(move || {
+            crate::thumbnail::com_thread();
+            let made = if raw { crate::brightness::camera_reference(&source, size) } else { crate::brightness::file_reference(&source, size) };
+            let superseded = || current.load(std::sync::atomic::Ordering::Relaxed) != id;
+            let written = made.and_then(|png| Ok(std::fs::write(&reference, png)?));
+            if let Err(error) = written {
+                return ui::post(move |app: &mut App| app.model.brightness_solved(id, generation, inputs, Err(error)));
+            }
+            if superseded() {
+                let _ = std::fs::remove_file(&reference);
+                return ui::post(move |app: &mut App| app.model.brightness_solved(id, generation, inputs, Err(anyhow!("superseded"))));
+            }
+            let command = json!({
+                "command": "place_exposure", "input": source, "source_generation": generation,
+                "film": request.film, "paper": request.paper, "params": request.params, "reference_path": reference,
+            });
+            engine.request(command, engine::timeout_for("place_exposure"), move |result| {
+                let _ = std::fs::remove_file(&reference);
+                ui::post(move |app: &mut App| app.model.brightness_solved(id, generation, inputs, result.map(|(_, r)| r)));
+            });
+        });
+    }
+
+    fn brightness_solved(&mut self, id: u64, generation: u64, inputs: Value, result: Result<Value>) {
+        crate::trace::event("match_solved", || match &result {
+            Ok(r) => json!({"match": id, "generation": generation, "exposure_ev": r["exposure_ev"], "elapsed_ms": r["elapsed_ms"]}),
+            Err(error) => json!({"match": id, "generation": generation, "error": format!("{error:#}")}),
+        });
+        // Opening another photograph or shutting down superseded this one.
+        if id != self.match_request.load(std::sync::atomic::Ordering::Relaxed) {
+            return;
+        }
+        self.matching_brightness = false;
+        self.mark(dirty::INSPECTOR | dirty::STRUCTURE);
+        if self.closing || generation != self.source_generation {
+            return;
+        }
+        let solved = result.and_then(|r| match r["exposure_ev"].as_f64() {
+            Some(ev) if ev.is_finite() && (state::PREP_EXPOSURE_RANGE.0..=state::PREP_EXPOSURE_RANGE.1).contains(&ev) => {
+                Ok((ev, json::boolean(&r["highlight_limited"])))
+            }
+            _ => Err(anyhow!("No reliable brightness match with these settings.")),
+        });
+        match solved {
+            Ok((ev, limited)) => self.apply_brightness_match(ev, limited, inputs),
+            Err(error) => {
+                if json::same(&state::match_inputs(&self.state), &inputs) {
+                    let (message, photograph) = crate::brightness::failure(&error);
+                    self.brightness_failure = Some((generation, (!photograph).then_some(inputs), message));
+                }
+            }
+        }
+        self.reconcile_brightness_match();
+        // An unchanged answer or a failure leaves the held frame current:
+        // shown, unless another solve started. A changed exposure was an
+        // edit, which dropped it and renders the matched one. A quick frame
+        // then settles (at the matched exposure).
+        self.release_held();
+        self.settle_quick_frame();
+        self.settle_outputs();
+    }
+
+    /// Nothing for the preview to do: no render running or scheduled, no
+    /// solve running or due, and the shown preview is the current edit's (or
+    /// it failed). The render benchmark (`crate::trace`) waits for this.
+    pub fn render_idle(&self) -> bool {
+        !self.rendering
+            && !self.pending_render
+            && !self.matching_brightness
+            && !self.brightness_match_pending()
+            && (self.preview_current || self.render_failed)
+    }
+
+    /// Moves the total with the match, keeping the user's exposure above it.
+    /// A change under 0.05 EV keeps the values and only marks them current.
+    fn apply_brightness_match(&mut self, ev: f64, limited: bool, inputs: Value) {
+        let Some(mut matched) = self.state.brightness_match.clone() else { return };
+        if !json::same(&state::match_inputs(&self.state), &inputs) {
+            return;
+        }
+        let mut next = self.state.clone();
+        let offset = json::number(next.value(state::PREP_EXPOSURE)) - matched.ev.unwrap_or(0.0);
+        if matched.ev.is_none_or(|old| (ev - old).abs() >= 0.05) {
+            matched.ev = Some(ev);
+            let (low, high) = state::PREP_EXPOSURE_RANGE;
+            let total = if offset.abs() < 1e-9 { ev } else { ev + offset };
+            json::set(&mut next.params, state::PREP_EXPOSURE, json::num(total.clamp(low, high)));
+        }
+        matched.inputs = Some(inputs);
+        matched.highlight_limited = limited;
+        next.brightness_match = Some(matched);
+        self.replace_state(next);
+    }
+
+    /// Save and Export wait for a pending match and its preview, and for the
+    /// settled frame after a quick one.
+    fn outputs_wait(&self) -> bool {
+        self.brightness_match_pending()
+            || self.matching_brightness
+            || (!self.preview_current && !self.render_failed && self.brightness_match_active())
+            || self.quick_frame_unsettled()
+    }
+
+    /// Something running or due will end the wait: a render, a solve, a held
+    /// frame (its solve, or what keeps it from starting), a slider held, or
+    /// a quick frame whose settled render `settle_quick_frame` starts.
+    fn outputs_progressing(&self) -> bool {
+        self.rendering || self.pending_render || self.matching_brightness || self.held.is_some() || self.interacting() || self.quick_frame_unsettled()
+    }
+
+    /// The current edit's quick frame is done and its settled frame isn't
+    /// (ticket 28).
+    fn quick_frame_unsettled(&self) -> bool {
+        self.quick_step == Some((self.revision, self.source_generation)) && !self.preview_current && !self.render_failed
+    }
+
+    fn after_brightness(&mut self, output: Output, action: impl FnOnce(&mut Model) + 'static) {
+        if !self.outputs_wait() {
+            return action(self);
+        }
+        self.waiting_output = Some((Instant::now(), output, Box::new(action)));
+        self.status = if self.quick_frame_unsettled() && !self.brightness_match_pending() && !self.matching_brightness {
+            "Developing the preview…".into()
+        } else {
+            "Matching camera brightness…".into()
+        };
+        self.mark(dirty::STATUS | dirty::CHROME);
+        self.check_outputs_later();
+        // A failed render won't finish the wait.
+        self.settle_outputs();
+    }
+
+    /// Looks again every `OUTPUT_PATIENCE` while Save or Export waits.
+    fn check_outputs_later(&mut self) {
+        ui::after(OUTPUT_PATIENCE, |app: &mut App| {
+            let model = &mut app.model;
+            model.settle_outputs();
+            if model.waiting_output.is_some() {
+                model.check_outputs_later();
+            }
+        });
+    }
+
+    /// Runs a waiting Save or Export once nothing is pending, so it writes the
+    /// matched frame. It never runs on another frame: while a render or solve
+    /// is running or due it keeps waiting (a large RAW on the CPU takes about
+    /// a minute); once nothing is, after `OUTPUT_PATIENCE`, or at once when
+    /// the render failed, it gives up and says so.
+    fn settle_outputs(&mut self) {
+        let Some((started, output, _)) = &self.waiting_output else { return };
+        let (started, output) = (*started, *output);
+        if self.closing {
+            self.waiting_output = None;
+            return;
+        }
+        if self.outputs_wait() {
+            let stuck = !self.outputs_progressing() && (self.render_failed || started.elapsed() >= OUTPUT_PATIENCE);
+            if stuck {
+                self.waiting_output = None;
+                crate::trace::event("output_abandoned", || json!({"output": output.verb(), "revision": self.revision, "render_failed": self.render_failed}));
+                let verb = output.verb();
+                self.report(&if self.render_failed {
+                    anyhow!("Couldn’t {verb}: the preview didn’t develop, so the camera brightness couldn’t be matched.")
+                } else {
+                    anyhow!("Couldn’t {verb}: the preview with the camera brightness match isn’t ready. Try again once it shows.")
+                });
+                self.mark(dirty::CHROME);
+            }
+            return;
+        }
+        let Some((_, _, action)) = self.waiting_output.take() else { return };
+        action(self);
+    }
+
     /// Solves the enlarger's magenta and yellow shifts so a mid-grey prints
     /// neutral with the current settings (upstream's print balance), and
     /// sets them as one undoable edit. Doesn't depend on the photograph.
@@ -1925,7 +3154,16 @@ impl Model {
         });
     }
 
+    /// Saves once a pending brightness match and its preview are done; the
+    /// preview then develops in the save's colour space.
     pub fn save_preview(&mut self, destination: PathBuf, size: ExportSize, save: SaveSettings) {
+        self.after_brightness(Output::Save, move |model| {
+            model.save_preview_now(destination, size, save);
+            model.follow_preview_space();
+        });
+    }
+
+    fn save_preview_now(&mut self, destination: PathBuf, size: ExportSize, save: SaveSettings) {
         if !self.can_save() || !self.check_destination(&destination) {
             return;
         }
@@ -1952,6 +3190,13 @@ impl Model {
     /// meanwhile), the exporter runs. An export in another colour space than
     /// the preview's always develops again in it.
     pub fn export(&mut self, destination: PathBuf, engine_choice: ExportEngine, size: ExportSize, save: SaveSettings) {
+        self.after_brightness(Output::Export, move |model| {
+            model.export_now(destination, engine_choice, size, save);
+            model.follow_preview_space();
+        });
+    }
+
+    fn export_now(&mut self, destination: PathBuf, engine_choice: ExportEngine, size: ExportSize, save: SaveSettings) {
         if !self.check_destination(&destination) || self.exporting || self.saving {
             return;
         }
@@ -1997,6 +3242,8 @@ impl Model {
             Err(error) => return self.report(&error),
         };
         let photo = self.photo_size();
+        let mut params = self.state.params.clone();
+        json::set(&mut params, "settings.serial_grain", Value::Bool(self.prefs.low_memory_export));
         let request = ExportRequest {
             executable,
             engine: engine_choice,
@@ -2006,7 +3253,7 @@ impl Model {
             destination: destination.clone(),
             film: self.state.film.clone(),
             paper: self.state.paper.clone(),
-            params: self.state.params.clone(),
+            params,
             scan_film: json::boolean(self.state.value("io.scan_film")),
             crop: self.state.crop.cropped().then_some(self.state.crop),
             border: self.state.border.exported(photo.width as u32, photo.height as u32),
@@ -2049,6 +3296,9 @@ impl Model {
 
     pub fn shutdown(&mut self) {
         self.closing = true;
+        self.cancel_brightness_match();
+        self.drop_held("close");
+        self.waiting_output = None;
         self.cancel_export();
         if let Some(engine) = &self.engine {
             engine.stop();
@@ -2137,6 +3387,88 @@ mod tests {
         Rendered { id: 1, revision: model.revision, generation: model.source_generation, interactive, result, picture, cached: None }
     }
 
+    /// Settings › Keep paper when changing film, through the film menu.
+    #[test]
+    fn keep_paper_leaves_the_paper_alone() {
+        let stock = |id: &str, paper: bool, target: &str| Stock {
+            id: id.into(), name: id.into(), paper, positive: false, bw: false, target: target.into(), times: vec![], grain: Value::Null,
+        };
+        for keep in [false, true] {
+            let mut model = Model::new(Preferences { keep_paper: keep, ..Preferences::default() });
+            model.stocks = vec![stock("portra", false, "endura"), stock("vision", false, "print_film"), stock("endura", true, ""), stock("crystal", true, ""), stock("print_film", true, "")];
+            model.state = EditState { film: "portra".into(), paper: "crystal".into(), params: json!({"print_render": {"development_time": 2.0}}), ..Default::default() };
+            model.choose_film("vision");
+            assert_eq!(model.state.film, "vision");
+            assert_eq!(model.state.paper, if keep { "crystal" } else { "print_film" });
+            assert_eq!(model.state.value("print_render.development_time").is_null(), !keep);
+            assert_eq!(model.undo_title(), Some("Change Film"));
+            // Loading a catalog still pairs the film with its paper.
+            let mut loaded = model.state.clone();
+            model.pair_film(&mut loaded);
+            assert_eq!(loaded.paper, "print_film");
+        }
+    }
+
+    /// The Film grid's search: thumbnails only for its matches, in the order
+    /// the grid lists them, without the favourites; cleared, every film
+    /// again with the favourites first. Searching never edits.
+    #[test]
+    fn a_film_search_asks_only_for_its_matching_thumbnails() {
+        let prefs = Preferences { previews: true, inspector_pane: "Adjustments".into(), favorite_films: vec!["gold".into()], ..Preferences::default() };
+        let mut model = catalog_model(prefs);
+        model.source = Some(PathBuf::from("photo.png"));
+        model.previews.film_open = true;
+        model.previews.paper_open = true;
+        let wanted = |model: &Model, paper: bool| -> Vec<String> {
+            model.wanted_previews().into_iter().filter_map(|(target, ..)| match target { Target::Stock { id, paper: p } if p == paper => Some(id), _ => None }).collect()
+        };
+        assert_eq!(wanted(&model, false), ["gold", "portra"]);
+        let (edit, undo) = (model.state.clone(), model.undo_title().map(str::to_owned));
+        model.previews.film_query = "PORTRA".into();
+        assert_eq!(wanted(&model, false), ["portra"]);
+        // A favourite that matches is asked for once, under its group.
+        model.previews.film_query = "gold color negative".into();
+        assert_eq!(wanted(&model, false), ["gold"]);
+        // Both, in catalog order: the favourite no longer leads.
+        model.previews.film_query = "color".into();
+        assert_eq!(wanted(&model, false), ["portra", "gold"]);
+        model.previews.film_query = "nothing like it".into();
+        assert!(wanted(&model, false).is_empty());
+        // Papers have no search.
+        assert_eq!(wanted(&model, true), ["endura", "crystal"]);
+        // Only spaces, or cleared: everything, favourites first.
+        for query in ["   ", ""] {
+            model.previews.film_query = query.into();
+            assert_eq!(wanted(&model, false), ["gold", "portra"]);
+        }
+        assert_eq!((model.state.clone(), model.undo_title().map(str::to_owned)), (edit, undo));
+    }
+
+    /// Lens corrections: on for every new edit and after Reset, though the
+    /// engine's default is off; the switch shows only for a supported RAW.
+    #[test]
+    fn lens_corrections_are_on_for_new_edits_and_after_reset() {
+        let mut model = Model::new(Preferences::default());
+        model.apply_catalog(json!({"profiles": [], "defaults": {"io": {"lens_correction": {"enabled": false}, "rotate_cw": 0}}}));
+        assert_eq!(model.value(state::LENS_CORRECTION), &json!(true));
+        model.set(state::LENS_CORRECTION, json!(false));
+        assert_eq!(model.value(state::LENS_CORRECTION), &json!(false));
+        model.reset();
+        assert_eq!(model.value(state::LENS_CORRECTION), &json!(true));
+        let (revision, generation) = (model.revision, model.source_generation);
+        let mut frame = rendered(&model, 1200, false);
+        frame.result["raw"] = json!(true);
+        frame.result["lens_correction_supported"] = json!(true);
+        model.render_finished(Ok(frame), revision, generation, FrameKind::Settled);
+        // Reset started a new match (Settings matches new photographs), so
+        // the frame is held: the match reads `is_raw` at once, the switch
+        // follows the frame once it shows.
+        assert!(model.is_raw && !model.lens_supported && model.held_frame().is_some());
+        model.set_matches_brightness(false);
+        assert!(model.held_frame().is_none() && model.preview_current);
+        assert!(model.is_raw && model.lens_supported);
+    }
+
     /// The Image Size notice describes the settled preview, so reduced drag
     /// frames don't insert or reword it and move the sliders below it.
     #[test]
@@ -2144,21 +3476,465 @@ mod tests {
         for settled in [2400, 1200] {
             let mut model = Model::new(Preferences::default());
             let (revision, generation) = (model.revision, model.source_generation);
-            model.render_finished(Ok(rendered(&model, settled, false)), revision, generation, false);
+            model.render_finished(Ok(rendered(&model, settled, false)), revision, generation, FrameKind::Settled);
             let scale = model.preview_scale;
             assert_eq!(scale, settled as f64 / 2400.0);
 
             model.begin_interaction();
-            model.render_finished(Ok(rendered(&model, 600, true)), revision, generation, true);
+            model.render_finished(Ok(rendered(&model, 600, true)), revision, generation, FrameKind::Drag);
             assert!(model.showing_interactive_frame);
             assert_eq!(model.preview_scale, scale, "A drag frame must not change the Image Size notice");
 
             model.end_interaction("Adjust");
-            model.render_finished(Ok(rendered(&model, settled, false)), revision, generation, false);
+            model.render_finished(Ok(rendered(&model, settled, false)), revision, generation, FrameKind::Settled);
             assert_eq!(model.preview_scale, scale);
         }
     }
+
+    /// The tone graph's histogram is the shown photograph's: each render
+    /// replaces it, and opening another photograph clears it at once.
+    #[test]
+    fn the_film_histogram_follows_the_shown_photograph() {
+        let mut model = Model::new(Preferences::default());
+        let (revision, generation) = (model.revision, model.source_generation);
+        let mut frame = rendered(&model, 1200, false);
+        frame.result["film_histogram"] = json!({"stops": [-8, 8], "ev": 0, "counts": [[1, 2], [3, 4], [5, 6]]});
+        model.render_finished(Ok(frame), revision, generation, FrameKind::Settled);
+        assert_eq!(model.film_histogram.as_ref().map(|h| h.bins(None)), Some(vec![3.0, 4.0]));
+        // A render for the previous photograph is dropped with its histogram.
+        let file = std::env::temp_dir().join(format!("negs-film-histogram-{}.png", std::process::id()));
+        std::fs::write(&file, b"not a photograph").unwrap();
+        model.dirty = 0;
+        model.open(&file);
+        let _ = std::fs::remove_file(&file);
+        assert!(model.film_histogram.is_none());
+        assert_ne!(model.dirty & dirty::TONE_GRAPH, 0);
+        let mut old = rendered(&model, 1200, false);
+        old.result["film_histogram"] = json!({"stops": [-8, 8], "ev": 0, "counts": [[9, 9], [9, 9], [9, 9]]});
+        model.render_finished(Ok(old), model.revision, generation, FrameKind::Settled);
+        assert!(model.film_histogram.is_none());
+    }
+
+    /// A catalog with two films and two papers, and defaults for what the
+    /// new rules read.
+    fn catalog_model(prefs: Preferences) -> Model {
+        let mut model = Model::new(prefs);
+        let stock = |id: &str, paper: bool, target: &str| json!({"id": id, "name": id, "paper": paper, "positive": false, "bw": false, "target_print": target});
+        model.apply_catalog(json!({
+            "profiles": [stock("portra", false, "endura"), stock("gold", false, "endura"), stock("endura", true, ""), stock("crystal", true, "")],
+            "defaults": {
+                "io": {"lens_correction": {"enabled": false}, "rotate_cw": 0, "photo_long_side_px": null, "scan_film": false,
+                    "output_cctf_encoding": true, "input_interpretation": {"mode": "auto"}, "raw_white_balance": {"mode": "as_shot"}},
+                "prep": {"exposure_ev": 0.0, "shadows": 0.0, "highlights": 0.0},
+                "post": {"contrast": 0.0, "saturation": 0.0},
+                "camera": {"exposure_compensation_ev": 0.0, "film_format_mm": 35.0, "auto_exposure": true, "auto_exposure_method": "center_weighted"},
+                "enlarger": {"print_exposure": 1.0},
+            },
+        }));
+        model.ready = true;
+        model
+    }
+
+    fn photo(name: &str) -> PathBuf {
+        let file = std::env::temp_dir().join(format!("negs-{name}-{}.png", std::process::id()));
+        std::fs::write(&file, b"not a photograph").unwrap();
+        file
+    }
+
+    /// Edits a photograph the way a user would before opening the next.
+    fn edit(model: &mut Model) {
+        model.choose_film("gold");
+        model.set("prep.shadows", json!(30));
+        model.set("camera.exposure_compensation_ev", json!(1.5));
+        model.set(state::SIZE_TARGET, json!(3000));
+        model.set("io.output_cctf_encoding", json!(false));
+        model.set("io.rotate_cw", json!(1));
+        model.set_border(|b| b.enabled = true, "Change Border");
+        model.state.crop.angle = 2.0;
+    }
+
+    /// Settings › New photographs: Start fresh (the default) keeps the film,
+    /// paper, Image Size and output colour and resets the rest; Keep the
+    /// previous edits carries them, apart from crop, rotation and lens
+    /// corrections, and the exposure above the match (`LifecycleTests`).
+    #[test]
+    fn new_photographs_start_fresh_or_keep_the_previous_edits() {
+        let file = photo("fresh");
+        let mut model = catalog_model(Preferences::default());
+        edit(&mut model);
+        model.custom_film_format = true;
+        model.open(&file);
+        let s = &model.state;
+        assert_eq!((s.film.as_str(), s.paper.as_str()), ("gold", "endura"));
+        assert_eq!(json::number(s.value("prep.shadows")), 0.0);
+        assert_eq!(json::number(s.value("camera.exposure_compensation_ev")), 0.0);
+        assert_eq!(json::number(s.value(state::SIZE_TARGET)), 3000.0);
+        assert_eq!(s.value("io.output_cctf_encoding"), &json!(false));
+        assert_eq!((s.rotation(), s.crop, s.border.enabled), (0, CropSettings::default(), false));
+        assert_eq!(s.value(state::LENS_CORRECTION), &json!(true));
+        assert_eq!(s.brightness_match, Some(state::BrightnessMatch::default()), "Settings › Match new photographs is on");
+        assert!(!model.custom_film_format);
+
+        let mut prefs = Preferences::default();
+        prefs.fresh_edits = false;
+        prefs.match_new_photos = false;
+        let mut model = catalog_model(prefs);
+        edit(&mut model);
+        model.state.brightness_match = Some(state::BrightnessMatch { ev: Some(0.4), ..Default::default() });
+        model.set(state::PREP_EXPOSURE, json!(0.9));
+        model.open(&file);
+        let s = &model.state;
+        assert_eq!(json::number(s.value("prep.shadows")), 30.0);
+        assert_eq!(json::number(s.value("camera.exposure_compensation_ev")), 1.5);
+        assert!(s.border.enabled);
+        assert_eq!((s.rotation(), s.crop), (0, CropSettings::default()));
+        assert_eq!(s.brightness_match, None);
+        assert!((json::number(s.value(state::PREP_EXPOSURE)) - 0.5).abs() < 1e-9, "Only the exposure above the match carries");
+        let _ = std::fs::remove_file(file);
+    }
+
+    /// Restoring: an older session's Post edits go (no control can undo
+    /// them now), and its per-photograph preview limit becomes the setting.
+    #[test]
+    fn restored_sessions_drop_post_edits_and_lend_the_preview_limit() {
+        let file = photo("restore");
+        let mut model = catalog_model(Preferences::default());
+        let mut state = model.state.clone();
+        json::set(&mut state.params, "post.contrast", json!(20));
+        json::set(&mut state.params, "prep.shadows", json!(15));
+        state.limit_preview = true;
+        state.brightness_match = Some(state::BrightnessMatch { ev: Some(0.3), inputs: Some(json!({"a": 1})), highlight_limited: true });
+        let session = EditorSession { schema: EditorSession::SCHEMA, source: file.clone(), state, inspector_visible: true, fit_image: true };
+        model.open_restoring(&file, Some(session.clone()));
+        assert_eq!(json::number(model.state.value("post.contrast")), 0.0);
+        assert_eq!(json::number(model.state.value("prep.shadows")), 15.0);
+        assert_eq!((model.prefs.limit_preview, model.state.limit_preview), (Some(true), true));
+        assert_eq!(model.state.brightness_match, session.state.brightness_match, "The match restores with the session");
+        // Once a preference, a session no longer changes it.
+        model.prefs.limit_preview = Some(false);
+        model.open_restoring(&file, Some(session));
+        assert_eq!((model.prefs.limit_preview, model.state.limit_preview), (Some(false), false));
+        let _ = std::fs::remove_file(file);
+    }
+
+    /// Limit preview to 12 MP is a preference: Undo and Reset leave it.
+    #[test]
+    fn the_preview_limit_stays_through_undo_and_reset() {
+        let mut model = catalog_model(Preferences::default());
+        model.set("prep.shadows", json!(10));
+        model.prefs.limit_preview = Some(true);
+        model.replace_state(model.state.clone());
+        assert!(model.state.limit_preview);
+        model.perform_undo();
+        assert!(model.state.limit_preview && json::number(model.value("prep.shadows")) == 0.0);
+        model.reset();
+        assert!(model.state.limit_preview);
+        assert_eq!(model.undo_title(), Some("Reset Adjustments"));
+    }
+
+    /// Lab › Film format: a format writes its long edge; Custom keeps the
+    /// value and the slider until a format, Reset or Start fresh.
+    #[test]
+    fn film_formats_write_the_long_edge() {
+        let mut model = catalog_model(Preferences::default());
+        assert!(!model.film_format_custom(), "The engine's 35 is 135");
+        model.choose_film_format(Some(4));
+        assert_eq!(json::number(model.value("camera.film_format_mm")), 70.0);
+        model.choose_film_format(None);
+        assert!(model.film_format_custom());
+        assert_eq!(json::number(model.value("camera.film_format_mm")), 70.0, "Custom keeps the value");
+        model.choose_film_format(Some(0));
+        assert!(!model.film_format_custom());
+        model.set("camera.film_format_mm", json!(45));
+        assert!(model.film_format_custom(), "A value no format has reads as Custom");
+        model.reset();
+        assert!(!model.film_format_custom());
+    }
+
+    /// A solve as the helper answers it.
+    fn solve(model: &mut Model, inputs: Value, ev: f64) {
+        let id = model.match_request.load(std::sync::atomic::Ordering::Relaxed);
+        let generation = model.source_generation;
+        model.matching_brightness = true;
+        model.brightness_solved(id, generation, inputs, Ok(json!({"exposure_ev": ev, "highlight_limited": false})));
+    }
+
+    fn matched(model: &Model) -> f64 {
+        json::number(model.value(state::PREP_EXPOSURE))
+    }
+
+    /// The match moves the total; Exposure is the offset above it and
+    /// survives a new match; Undo restores the film with its match; answers
+    /// for other inputs or superseded requests are dropped (`ExposurePlacementTests`).
+    #[test]
+    fn brightness_matches_apply_for_their_own_inputs() {
+        let mut model = catalog_model(Preferences::default());
+        model.is_raw = true;
+        model.set_matches_brightness(true);
+        assert!(model.brightness_match_pending());
+        assert_eq!(model.brightness_match_note().as_deref(), Some("Matching…"));
+        let first = state::match_inputs(&model.state);
+        solve(&mut model, first.clone(), 0.8);
+        assert_eq!((matched(&model), model.exposure_offset()), (0.8, 0.0));
+        assert!(!model.brightness_match_pending() && !model.exposure_offset_modified());
+        assert_eq!(model.brightness_match_note().as_deref(), Some("Starts at +0.80 EV to match the camera."));
+        let (low, high) = model.exposure_offset_range();
+        assert!((low + 3.8).abs() < 1e-9 && (high - 2.2).abs() < 1e-9, "The total stays within ±3 EV");
+        // Prep and the print exposure are the user's: they never re-solve.
+        model.set("prep.shadows", json!(20));
+        model.set("enlarger.print_exposure", json!(1.2));
+        assert!(!model.brightness_match_pending());
+        model.set_exposure_offset(0.5);
+        assert!((matched(&model) - 1.3).abs() < 1e-9 && model.exposure_offset_modified());
+        let before = model.state.clone();
+        // Another paper prints brighter: the match is stale until solved again.
+        model.choose_paper("crystal");
+        assert!(model.brightness_match_pending());
+        solve(&mut model, first.clone(), 0.1);
+        assert!(model.brightness_match_pending(), "An answer for the old paper is dropped");
+        let inputs = state::match_inputs(&model.state);
+        solve(&mut model, inputs, 1.4);
+        assert!((matched(&model) - 1.9).abs() < 1e-9 && (model.exposure_offset() - 0.5).abs() < 1e-9);
+        // Under 0.05 EV only marks the match current.
+        model.choose_paper("endura");
+        let inputs = state::match_inputs(&model.state);
+        solve(&mut model, inputs, 1.42);
+        assert!((matched(&model) - 1.9).abs() < 1e-9 && !model.brightness_match_pending());
+        model.perform_undo();
+        model.perform_undo();
+        assert_eq!(model.state, before, "Undo restores the paper with its match");
+        assert!(!model.brightness_match_pending());
+        // A request superseded by opening another photograph is dropped.
+        let id = model.match_request.load(std::sync::atomic::Ordering::Relaxed);
+        model.cancel_brightness_match();
+        model.choose_paper("crystal");
+        let (inputs, generation) = (state::match_inputs(&model.state), model.source_generation);
+        model.brightness_solved(id, generation, inputs, Ok(json!({"exposure_ev": 2.0})));
+        assert!(model.brightness_match_pending());
+    }
+
+    #[test]
+    fn turning_matching_off_keeps_the_brightness() {
+        let mut model = catalog_model(Preferences::default());
+        model.is_raw = true;
+        model.set_matches_brightness(true);
+        let inputs = state::match_inputs(&model.state);
+        solve(&mut model, inputs, 0.6);
+        model.set_matches_brightness(false);
+        assert_eq!(model.undo_title(), Some("Stop Matching Camera Brightness"));
+        assert!(!model.brightness_match_active() && model.shows_meter());
+        assert_eq!((matched(&model), model.exposure_offset()), (0.6, 0.6), "Off, Exposure shows all of it");
+        model.choose_paper("crystal");
+        assert!(!model.brightness_match_pending(), "Off, nothing re-solves");
+        model.set_matches_brightness(true);
+        assert_eq!(matched(&model), 0.0);
+        assert!(!model.shows_meter(), "While matched the meter hides unless changed");
+        model.set("camera.auto_exposure_method", json!("matrix"));
+        assert!(model.shows_meter());
+    }
+
+    /// A RAW without a usable preview can't be matched, for the photograph;
+    /// a failed solve holds until the next edit; the engine's reasons are
+    /// worded for the note.
+    #[test]
+    fn failed_matches_explain_themselves() {
+        let mut model = catalog_model(Preferences::default());
+        model.is_raw = true;
+        model.set_matches_brightness(true);
+        let (id, generation) = (model.match_request.load(std::sync::atomic::Ordering::Relaxed), model.source_generation);
+        let inputs = state::match_inputs(&model.state);
+        model.brightness_solved(id, generation, inputs.clone(), Err(crate::brightness::Unusable("This RAW has no camera preview to match.".into()).into()));
+        assert_eq!(model.brightness_match_unavailable().as_deref(), Some("This RAW has no camera preview to match."));
+        assert!(!model.brightness_match_active() && !model.brightness_match_pending() && model.shows_meter());
+        model.set("prep.shadows", json!(5));
+        assert!(model.brightness_match_unavailable().is_some(), "Another try can't find a preview either");
+
+        let mut model = catalog_model(Preferences::default());
+        model.is_raw = true;
+        model.set_matches_brightness(true);
+        let inputs = state::match_inputs(&model.state);
+        let generation = model.source_generation;
+        model.brightness_solved(model.match_request.load(std::sync::atomic::Ordering::Relaxed), generation, inputs, Err(anyhow!("Camera brightness requires exposure outside the supported ±3 EV range")));
+        assert_eq!(model.brightness_match_note().as_deref(), Some("Matching would take more than ±3 EV."));
+        assert!(!model.brightness_match_pending());
+        model.choose_paper("crystal");
+        assert!(model.brightness_match_pending(), "The next edit tries again");
+        // Files: matching reads their own tags.
+        model.is_raw = false;
+        model.set("io.input_interpretation.mode", json!("assume"));
+        assert!(model.brightness_match_unavailable().unwrap().contains("Set Input Colour to Automatic"));
+    }
+
+    /// Save and Export wait for a pending match, then run.
+    #[test]
+    fn outputs_wait_for_a_pending_match() {
+        let mut model = catalog_model(Preferences::default());
+        model.is_raw = true;
+        model.set_matches_brightness(true);
+        let ran = std::rc::Rc::new(std::cell::Cell::new(0));
+        let counter = ran.clone();
+        model.after_brightness(Output::Save, move |_| counter.set(counter.get() + 1));
+        assert_eq!(ran.get(), 0);
+        assert_eq!(model.status, "Matching camera brightness…");
+        model.preview_current = true;
+        let inputs = state::match_inputs(&model.state);
+        solve(&mut model, inputs, 0.2);
+        // The solved exposure develops again; the output waits for that preview.
+        model.preview_current = false;
+        model.settle_outputs();
+        assert_eq!(ran.get(), 0);
+        model.preview_current = true;
+        model.settle_outputs();
+        assert_eq!(ran.get(), 1);
+        model.after_brightness(Output::Save, move |_| ran.set(ran.get() + 10));
+    }
+
+    /// Favourites lead the film tiles' thumbnails, in the order starred.
+    #[test]
+    fn favourites_come_first() {
+        let mut model = catalog_model(Preferences::default());
+        model.prefs.toggle_favorite("gold", false);
+        model.prefs.toggle_favorite("crystal", true);
+        model.prefs.toggle_favorite("missing", false);
+        assert_eq!(model.favorite_stocks(false).iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["gold"]);
+        assert_eq!(model.favorite_stocks(true).iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["crystal"]);
+    }
+
+    /// `render_step`'s inputs, as the Mac's `QuickFrameStepTests` sets them:
+    /// a 24 MP photograph on a canvas at a quarter of its pixels per side.
+    #[derive(Clone, Copy)]
+    struct Step {
+        interacting: bool,
+        scale: Option<f64>,
+        pixels: f64,
+        has_frame: bool,
+        done: bool,
+        reuses: bool,
+    }
+
+    impl Default for Step {
+        fn default() -> Self {
+            Step { interacting: false, scale: Some(0.25), pixels: 24e6, has_frame: true, done: false, reuses: false }
+        }
+    }
+
+    impl Step {
+        fn step(self) -> RenderStep {
+            render_step(self.interacting, self.scale, self.pixels, self.has_frame, self.done, self.reuses)
+        }
+    }
+
+    /// The Mac's `testDiscreteEditsOfLargePhotosRenderAQuickFrameFirst`.
+    #[test]
+    fn discrete_edits_of_large_photos_render_a_quick_frame_first() {
+        let s = Step::default();
+        assert_eq!(s.step(), RenderStep::Quick(0.25));
+        assert_eq!(Step { done: true, ..s }.step(), RenderStep::Settled, "its quick frame is done: settle");
+        assert_eq!(Step { has_frame: false, ..s }.step(), RenderStep::Settled, "a new photograph has no frame to replace yet");
+        assert_eq!(Step { reuses: true, ..s }.step(), RenderStep::Settled, "post-only edits reuse the helper's output");
+        assert_eq!(Step { pixels: 4e6, ..s }.step(), RenderStep::Settled, "small photographs render fast enough");
+        assert_eq!(Step { scale: Some(0.8), ..s }.step(), RenderStep::Settled, "the canvas shows most pixels anyway");
+        assert_eq!(Step { scale: Some(1.0), ..s }.step(), RenderStep::Settled, "zoomed in");
+        assert_eq!(Step { scale: None, ..s }.step(), RenderStep::Settled, "no canvas");
+        // The limits themselves: 4.5 MP and half the pixels are in.
+        assert_eq!(Step { pixels: QUICK_FRAME_MIN_PIXELS, ..s }.step(), RenderStep::Quick(0.25));
+        assert_eq!(Step { pixels: QUICK_FRAME_MIN_PIXELS - 1.0, ..s }.step(), RenderStep::Settled);
+        let half = QUICK_FRAME_MAX_PIXEL_FRACTION.sqrt();
+        assert_eq!(Step { scale: Some(half - 1e-9), ..s }.step(), RenderStep::Quick(half - 1e-9));
+        assert_eq!(Step { scale: Some(half + 1e-9), ..s }.step(), RenderStep::Settled);
+        assert_eq!(Step { scale: Some(0.0), ..s }.step(), RenderStep::Settled, "no canvas (`set_fixed_scale(Some(0.0))`)");
+    }
+
+    /// The Mac's `testDragsAreUnchanged`.
+    #[test]
+    fn drags_are_unchanged() {
+        let s = Step { interacting: true, ..Step::default() };
+        assert_eq!(s.step(), RenderStep::Drag(0.25));
+        assert_eq!(Step { pixels: 1e6, has_frame: false, done: true, reuses: true, ..s }.step(), RenderStep::Drag(0.25));
+        assert_eq!(Step { scale: Some(1.0), ..s }.step(), RenderStep::Settled);
+        assert_eq!(Step { scale: None, ..s }.step(), RenderStep::Settled);
+        assert_eq!(RenderStep::Drag(0.25).kind(), FrameKind::Drag);
+        assert_eq!(RenderStep::Quick(0.25).kind(), FrameKind::Quick);
+        assert_eq!((RenderStep::Quick(0.3).interactive_scale(), RenderStep::Settled.interactive_scale()), (Some(0.3), None));
+    }
+
+    /// The canvas scale is in physical pixels (`view.zoom`, PerMonitorV2):
+    /// the same window in DIPs shows 1.5 times the pixels at 150 %. A
+    /// 1300 DIP wide view of the 3072 px test photograph gets a quick frame
+    /// at 100 % and 150 %; a 2000 DIP one only at 100 %.
+    #[test]
+    fn the_quick_frame_limit_counts_physical_pixels() {
+        let photo = (3072.0, 2048.0);
+        let step = |view_dips: f64, dpi_scale: f64| {
+            let screen_scale = view_dips * dpi_scale / photo.0;
+            Step { scale: Some(screen_scale), pixels: photo.0 * photo.1, ..Step::default() }.step()
+        };
+        assert!(matches!(step(1300.0, 1.0), RenderStep::Quick(s) if (s - 0.4232).abs() < 1e-3));
+        assert!(matches!(step(1300.0, 1.5), RenderStep::Quick(s) if (s - 0.6348).abs() < 1e-3));
+        assert!(matches!(step(2000.0, 1.0), RenderStep::Quick(_)));
+        assert_eq!(step(2000.0, 1.5), RenderStep::Settled, "0.98 of the pixels per side");
+        // The measurements' window: 1600 × 1000 DIP at 125 % on the 60 MP DNG.
+        assert!(matches!(Step { scale: Some(1300.0 * 1.25 / 9504.0), pixels: 9504.0 * 6320.0, ..Step::default() }.step(), RenderStep::Quick(_)));
+    }
+
+    /// The Mac's `testReuseKeyIgnoresOnlyPostAndThePreviewPath`, plus: the
+    /// comparison is by value (`json::same`), and the crop is in the key.
+    #[test]
+    fn the_reuse_key_ignores_only_post_and_the_preview_path() {
+        let command = json!({
+            "command": "render", "film": "a", "preview_path": "C:\\x",
+            "params": {"post": {"contrast": 0}, "camera": {"exposure_compensation_ev": 0}},
+        });
+        let mut post = command.clone();
+        post["params"]["post"]["contrast"] = json!(20);
+        post["preview_path"] = json!("C:\\y");
+        assert!(json::same(&reuse_key(&command), &reuse_key(&post)));
+        assert!(reuse_key(&post).get("preview_path").is_none());
+        assert_eq!(reuse_key(&post)["params"]["post"], Value::Null);
+        let mut camera = command.clone();
+        camera["params"]["camera"]["exposure_compensation_ev"] = json!(1);
+        assert!(!json::same(&reuse_key(&command), &reuse_key(&camera)));
+        let mut scaled = command.clone();
+        scaled["interactive_scale"] = json!(0.25);
+        assert!(!json::same(&reuse_key(&command), &reuse_key(&scaled)));
+        // 0 and 0.0 are the same value.
+        let mut float = command.clone();
+        float["params"]["camera"]["exposure_compensation_ev"] = json!(0.0);
+        assert_ne!(reuse_key(&command), reuse_key(&float));
+        assert!(json::same(&reuse_key(&command), &reuse_key(&float)));
+        // A crop (Longest side) is part of the request, so of the key: the
+        // helper itself keys on the resolved working size instead.
+        let mut cropped = command.clone();
+        cropped["crop"] = json!({"x": 0.1, "y": 0.1, "width": 0.5, "height": 0.5, "angle": 0});
+        assert!(!json::same(&reuse_key(&command), &reuse_key(&cropped)));
+    }
+
+    /// A quick frame is a preview of the edit, not the edit's frame: Save,
+    /// the export-size flag and the render id stay as they were; the status
+    /// says "Preview", with the backend. (The preview cache: lifecycle test.)
+    #[test]
+    fn a_quick_frame_is_not_the_current_preview() {
+        let mut model = Model::new(Preferences::default());
+        model.render_id = 7;
+        model.render_at_export_size = true;
+        let mut quick = rendered(&model, 600, true);
+        quick.result["backend"] = json!("cpu");
+        model.present(quick, FrameKind::Quick);
+        assert!(!model.preview_current && !model.can_save() && model.showing_interactive_frame);
+        assert_eq!((model.render_id, model.render_at_export_size), (7, true));
+        assert_eq!(model.status, "Preview · 600 × 400 · developed in 0.01 s on the CPU");
+        assert!(model.shows_quick_frame());
+        assert_eq!(model.shown_frame.map(|f| f.kind), Some(FrameKind::Quick));
+        // A settled frame of the same edit replaces it.
+        model.present(rendered(&model, 2400, false), FrameKind::Settled);
+        assert!(model.preview_current && !model.shows_quick_frame() && model.render_id == 1);
+    }
 }
+
+#[cfg(test)]
+pub mod harness;
+#[cfg(test)]
+mod lifecycle_tests;
 
 /// Presets through the real helper (`target\release`, built from this
 /// checkout); skipped without it. `NEGS_PRESETS_TEST_DIR` (or
@@ -2193,6 +3969,7 @@ mod preset_tests {
     /// own requests go nowhere (no window); tests ask the helper themselves.
     fn live(test: &str) -> Option<Live> {
         let Ok(paths) = EnginePaths::locate() else {
+            assert!(std::env::var_os("NEGS_REQUIRE_HELPER").is_none(), "NEGS_REQUIRE_HELPER is set and the release helper isn't built");
             eprintln!("skipped: build the release helper first");
             return None;
         };
@@ -2241,8 +4018,10 @@ mod preset_tests {
         model.set("io.rotate_cw", json!(1));
         model.set("post.contrast", json!(20));
         model.set("settings.use_cat16", json!(false));
+        model.set(state::LENS_CORRECTION, json!(false));
         model.set("camera.exposure_compensation_ev", json!(1.5));
-        model.limit_preview(true);
+        model.prefs.limit_preview = Some(true);
+        model.replace_state(model.state.clone());
         let before = model.state.clone();
         let steps = model.undo.undo.len();
 
@@ -2254,7 +4033,7 @@ mod preset_tests {
         assert_eq!(json::number(model.value("film_render.development_time")), 9.0);
         assert_eq!(model.value("film_render.dir_couplers.langmuir_donor_k_rgb.0"), &Value::Null);
         assert_eq!(model.value("io.raw_white_balance.mode"), &json!("daylight"));
-        for path in [state::SIZE_TARGET, "io.rotate_cw", "post.contrast", "settings.use_cat16"] {
+        for path in [state::SIZE_TARGET, "io.rotate_cw", "post.contrast", "settings.use_cat16", state::LENS_CORRECTION] {
             assert!(json::same(model.value(path), before.value(path)), "{path}");
         }
         assert!(model.state.limit_preview);
@@ -2351,8 +4130,9 @@ mod preset_tests {
         let Some(mut live) = live("refused") else { return };
         let exotic = live.model.preset_library.add(br#"{"output_gamut_compress": {"algorithm": "jzazbz"}}"#, "Exotic").unwrap();
         live.model.refresh_presets();
-        let result = ask(&live.engine, json!({"command": "preset_import", "text": presets::text(&std::fs::read(&exotic.path).unwrap()).unwrap()}));
-        live.model.preset_checked(exotic.clone(), result.map(|v| (0, v)));
+        let text = presets::text(&std::fs::read(&exotic.path).unwrap()).unwrap();
+        let result = ask(&live.engine, json!({"command": "preset_import", "text": text}));
+        live.model.preset_checked(exotic.clone(), text, result.map(|v| (0, v)));
         match live.model.preset_status.get(&exotic) {
             Some(PresetStatus::Invalid(reason)) => assert!(reason.contains("jzazbz"), "{reason}"),
             other => panic!("accepted: {other:?}"),
@@ -2402,5 +4182,120 @@ mod preset_tests {
             let ev = |p: &Value| json::number(json::get(p, "camera.exposure_compensation_ev"));
             assert_eq!(ev(&live.model.state.params), ev(&params), "{name}");
         }
+    }
+
+    /// Matches a photograph the way `reconcile_brightness_match` does, through
+    /// the helper: develop it, make the reference, solve, and hand the answer
+    /// to the model.
+    fn match_through_the_helper(live: &mut Live, path: &Path, raw: bool) -> Value {
+        let model = &mut live.model;
+        model.is_raw = raw;
+        model.set_matches_brightness(false);
+        model.set_matches_brightness(true);
+        let preview = live.folder.join("preview.rgba");
+        std::fs::create_dir_all(&live.folder).unwrap();
+        let state = model.render_state();
+        let rendered = ask(&live.engine, json!({"command": "render", "input": path, "source_generation": model.source_generation,
+            "film": state.film, "paper": state.paper, "params": state.params, "limit_preview": true, "preview_path": preview})).unwrap();
+        let size = (json::number(&rendered["source_width"]) as u32, json::number(&rendered["source_height"]) as u32);
+        let png = if raw { crate::brightness::camera_reference(path, size) } else { crate::brightness::file_reference(path, size) }.unwrap();
+        let reference = image::load_from_memory(&png).unwrap();
+        assert!(reference.width().max(reference.height()) <= 512);
+        assert!(crate::brightness::same_shape(reference.width() as f64 / reference.height() as f64, size.0 as f64 / size.1 as f64));
+        let file = live.folder.join("reference.png");
+        std::fs::write(&file, png).unwrap();
+        let mut params = state.params.clone();
+        json::set(&mut params, "prep", json::get(&model.defaults, "prep").clone());
+        let inputs = state::match_inputs(&model.state);
+        let reply = ask(&live.engine, json!({"command": "place_exposure", "input": path, "source_generation": model.source_generation,
+            "film": state.film, "paper": state.paper, "params": params, "reference_path": file}));
+        let id = model.match_request.load(std::sync::atomic::Ordering::Relaxed);
+        let generation = model.source_generation;
+        model.matching_brightness = true;
+        model.brightness_solved(id, generation, inputs, reply);
+        assert!(!model.brightness_match_pending(), "{:?}", model.brightness_match_note());
+        let ev = model.state.brightness_match.as_ref().and_then(|m| m.ev).unwrap();
+        assert!((json::number(model.value(state::PREP_EXPOSURE)) - ev).abs() < 1e-9 && model.exposure_offset().abs() < 1e-9);
+        json!(ev)
+    }
+
+    /// Optional: a real RAW (`NEGS_TEST_RAW`) is matched to its camera's
+    /// preview; docs/card.jpg to itself.
+    #[test]
+    fn photographs_are_matched_through_the_helper() {
+        let Some(mut live) = live("brightness") else { return };
+        let card = live.engine.paths.data.parent().unwrap().join("docs").join("card.jpg");
+        let ev = match_through_the_helper(&mut live, &card, false);
+        eprintln!("card.jpg matched at {ev} EV: {:?}", live.model.brightness_match_note());
+        assert!(live.model.brightness_match_note().unwrap().contains("match the original"));
+        let Some(raw) = std::env::var_os("NEGS_TEST_RAW").map(PathBuf::from) else {
+            eprintln!("skipped the RAW: set NEGS_TEST_RAW");
+            return;
+        };
+        let ev = match_through_the_helper(&mut live, &raw, true);
+        eprintln!("{} matched at {ev} EV: {:?}", raw.display(), live.model.brightness_match_note());
+        assert!(live.model.brightness_match_note().unwrap().contains("match the camera"));
+    }
+
+    /// The tone graph through the real helper: one curve request at a time,
+    /// edits meanwhile ask again on its answer, and the prediction from the
+    /// last curve matches the helper's own for a new print exposure.
+    #[test]
+    fn tone_curves_are_asked_one_at_a_time_and_predicted_between() {
+        let Some(mut live) = live("tone") else { return };
+        let model = &mut live.model;
+        assert_eq!(model.catalog["capabilities"]["tone_curve"], json!(true), "the helper predates the tone graph");
+        // Hidden: nothing asked.
+        model.set(tone_graph::PRINT_EXPOSURE, json!(1.0));
+        assert!(!model.tone_curve_pending);
+        model.show_tone_graph(true);
+        assert!(model.tone_curve_pending);
+        let (first, controls) = (model.tone_request(), model.tone_controls());
+        // Edits while it's computed don't ask again yet.
+        model.set(tone_graph::PRINT_EXPOSURE, json!(2.0));
+        assert!(model.tone_curve_stale);
+
+        let mut command = first.clone();
+        command["command"] = json!("tone_curve");
+        command["count"] = json!(tone_graph::POINTS);
+        let reply = ask(&live.engine, command).unwrap();
+        let model = &mut live.model;
+        model.tone_curve_arrived(first.clone(), controls, Ok((0, reply)));
+        let curve = model.tone_curve.clone().unwrap();
+        assert!(json::same(&curve.request, &first));
+        // It stands in for print exposure 2 while that curve is asked for.
+        assert!(model.tone_curve_current());
+        assert!(model.tone_curve_pending && !model.tone_curve_stale);
+        // A failed answer keeps the last curve.
+        model.tone_curve_arrived(model.tone_request(), model.tone_controls(), Err(anyhow!("helper stopped")));
+        assert_eq!(model.tone_curve.as_ref(), Some(&curve));
+        assert!(!model.tone_curve_pending);
+
+        let display = curve.predicted(model.tone_controls());
+        let mut command = model.tone_request();
+        command["command"] = json!("tone_curve");
+        command["count"] = json!(tone_graph::POINTS);
+        let exact = Curve::parse(&ask(&live.engine, command).unwrap(), Value::Null, live.model.tone_controls()).unwrap();
+        // Over the stops the graph shows, where the shifted paper exposure is
+        // one the last curve reached: beyond it (the deepest shadows, where
+        // the paper's exposure flattens) the prediction holds the last value.
+        let paper = curve.paper.as_ref().unwrap();
+        let shift = 2f64.log10();
+        let reached = |c: usize, i: usize| (paper[c][paper[c].len() - 1]..=paper[c][0]).contains(&(paper[c][i] + shift));
+        let shown: Vec<(usize, usize)> = (0..3)
+            .flat_map(|c| (0..exact.stops.len()).map(move |i| (c, i)))
+            .filter(|&(c, i)| (tone_graph::SHOWN.0..=tone_graph::SHOWN.1).contains(&exact.stops[i]) && reached(c, i))
+            .collect();
+        assert!(shown.len() > 300);
+        let worst = shown.iter().map(|&(c, i)| (display.rgb[c][i] - exact.rgb[c][i]).abs()).fold(0.0, f64::max);
+        assert!(worst < 0.002, "predicted vs helper: {worst}");
+        let (_, middle, _) = exact.predicted(exact.controls).handles(None).unwrap();
+        assert!((display.handles(None).unwrap().1 - middle).abs() < 0.05);
+
+        // Another paper: the old curve no longer stands in.
+        let model = &mut live.model;
+        let other = model.papers().into_iter().map(|s| s.id.clone()).find(|id| *id != model.state.paper).unwrap();
+        model.choose_paper(&other);
+        assert!(!model.tone_curve_current());
     }
 }

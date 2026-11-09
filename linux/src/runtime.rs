@@ -9,11 +9,77 @@ use gtk::{gdk, gio, glib};
 use serde_json::{Value, json};
 use std::{path::PathBuf, rc::Rc, sync::Arc, time::Duration};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FrameID {
+    revision: u64,
+    generation: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RenderStep {
+    Settled,
+    Drag(f32),
+    Quick(f32),
+}
+impl RenderStep {
+    fn scale(self) -> Option<f32> {
+        match self {
+            Self::Settled => None,
+            Self::Drag(scale) | Self::Quick(scale) => Some(scale),
+        }
+    }
+    fn quick(self) -> bool {
+        matches!(self, Self::Quick(_))
+    }
+}
+
+fn render_step(
+    interacting: bool,
+    scale: f32,
+    pixels: f64,
+    has_frame: bool,
+    quick_done: bool,
+    reuses_output: bool,
+) -> RenderStep {
+    let scale = (scale > 0. && scale < 1.).then_some(scale);
+    if interacting {
+        return scale.map(RenderStep::Drag).unwrap_or(RenderStep::Settled);
+    }
+    match scale {
+        Some(scale)
+            if has_frame
+                && !quick_done
+                && !reuses_output
+                && pixels >= 4.5e6
+                && scale * scale <= 0.5 =>
+        {
+            RenderStep::Quick(scale)
+        }
+        _ => RenderStep::Settled,
+    }
+}
+
+fn reuse_key(mut command: Value) -> Value {
+    command.as_object_mut().unwrap().remove("preview_path");
+    command["params"]["post"] = Value::Null;
+    command
+}
+
+struct CompletedFrame {
+    identity: FrameID,
+    step: RenderStep,
+    id: u64,
+    frame: Arc<Frame>,
+    cache_key: Option<String>,
+}
+
 #[derive(Default)]
 pub struct Runtime {
     pub client: Option<Arc<Engine>>,
     pub defaults: Value,
     pub ready: bool,
+    pub supports_tone_curve: bool,
+    pub supports_brightness_reference: bool,
     pub starting: bool,
     pub closing: bool,
     pub rendering: bool,
@@ -42,8 +108,45 @@ pub struct Runtime {
     pub original_key: Value,
     pub histogram_crop: Value,
     pub interactive_frames: u64,
+    quick_step: Option<FrameID>,
+    quick_frame: Option<FrameID>,
+    held: Option<CompletedFrame>,
+    helper_output: Option<(u64, Value)>,
+    showing_interactive: bool,
+    /// Restored launch-cache pixels do not establish a helper decode.
+    live_frame: bool,
+    #[cfg(test)]
+    test_scale: Option<f32>,
+    #[cfg(test)]
+    render_log: Vec<(FrameID, RenderStep)>,
+    #[cfg(test)]
+    fail_quick: bool,
+    #[cfg(test)]
+    fail_settled: bool,
+    #[cfg(test)]
+    errors: Vec<String>,
 }
 impl Runtime {
+    fn identity(&self) -> FrameID {
+        FrameID {
+            revision: self.revision,
+            generation: self.source_generation,
+        }
+    }
+    /// Matching can use a quick/held decode before anything is saveable.
+    pub fn matching_frame(&self) -> Option<Arc<Frame>> {
+        if let Some(held) = &self.held
+            && held.identity == self.identity()
+        {
+            return Some(held.frame.clone());
+        }
+        if self.current_revision == Some(self.revision) || self.quick_frame == Some(self.identity())
+        {
+            self.developed.clone()
+        } else {
+            None
+        }
+    }
     pub fn set_developed(&mut self, frame: Arc<Frame>, interactive: bool) {
         if !interactive {
             let full = frame.result["working_width"]
@@ -130,6 +233,8 @@ impl Editor {
                         runtime.client = Some(client);
                         runtime.defaults = defaults;
                         runtime.ready = true;
+                        runtime.supports_tone_curve = catalog["capabilities"]["tone_curve"] == true;
+                        runtime.supports_brightness_reference = catalog["capabilities"]["brightness_reference"] == true;
                     }
                     ui.perf.mark("engine_catalog_ready_ms");
                     ui.maybe_build_inspector();
@@ -222,6 +327,8 @@ impl Editor {
         });
     }
     pub fn engine_error(&self, message: &str) {
+        #[cfg(test)]
+        self.runtime.borrow_mut().errors.push(message.into());
         eprintln!("Engine: {message}");
         if !ui_only() {
             self.badge.set_visible(false);
@@ -254,32 +361,49 @@ impl Editor {
         let paper = crate::catalog::selected(&state, true).id.clone();
         let extent = (!params["io"]["photo_long_side_px"].is_null())
             .then(|| state.crop.map(|c| [c[2], c[3]]));
-        let desired = json!({"params":params,"film":film,"paper":paper,"limit_preview":crate::inspector::flag(&state,"Limit preview to 12 MP",false),"extent":extent,"interactive":r.interacting});
+        let desired = json!({"params":params,"film":film,"paper":paper,"limit_preview":self.preferences.borrow().limit_preview.unwrap_or(false),"extent":extent,"interactive":r.interacting});
         let identity = Some((source.clone(), stamp));
-        if r.source != identity {
+        let source_changed = r.source != identity;
+        if source_changed {
+            // The first decoded source may restore an already-solved session.
+            // A subsequent source refresh needs a new solution for its pixels.
+            if r.source.is_some()
+                && let Some(matched) = self.history.borrow_mut().state.brightness_match.as_mut()
+            {
+                matched.inputs = None;
+            }
             r.source = identity;
             r.source_generation += 1;
             r.hist_generation += 1;
             r.original = None;
             r.original_loading = false;
             r.developed = None;
+            r.live_frame = false;
             r.preview_scale = None;
             r.current_revision = None;
             r.showing_original = false;
+            r.helper_output = None;
+            r.quick_frame = None;
             r.desired = Value::Null;
             self.lens_supported.set(false);
         }
         // The original view follows the decode and the preview space.
-        let original_key = json!([params["io"]["raw_white_balance"], params["io"]["lens_correction"], desired["limit_preview"],
-            params["io"]["input_interpretation"], params["io"]["input_color_space"],
-            params["io"]["input_cctf_decoding"], params["io"]["output_color_space"]]);
+        let original_key = json!([
+            params["io"]["raw_white_balance"],
+            params["io"]["lens_correction"],
+            desired["limit_preview"],
+            params["io"]["input_interpretation"],
+            params["io"]["input_color_space"],
+            params["io"]["input_cctf_decoding"],
+            params["io"]["output_color_space"]
+        ]);
         let release_original = r.showing_original && r.original_key != original_key;
         if r.original_key != original_key {
             r.original_key = original_key;
             r.original = None;
             r.original_loading = false;
         }
-        let histogram_crop = json!([state.crop, state.straighten]);
+        let histogram_crop = json!([state.crop, state.straighten, state.rotation]);
         let histogram_changed = r.histogram_crop != histogram_crop;
         r.histogram_crop = histogram_crop;
         if r.desired == desired {
@@ -296,11 +420,20 @@ impl Editor {
             r.cached_restoring = false;
             self.cache.invalidate();
         }
+        let released_drag = r.desired["interactive"] == true && !r.interacting;
         r.desired = desired;
         r.revision += 1;
         r.retained_id = None;
+        r.held = None;
+        // Drag frames already filled the canvas; release goes straight to settled.
+        r.quick_step = released_drag.then(|| r.identity());
         drop(r);
         if let Some(ui) = self.owner.borrow().upgrade() {
+            if source_changed {
+                crate::brightness::clear(&ui);
+                crate::tone_graph::clear(&ui);
+                crate::scopes::clear(&ui);
+            }
             if release_original {
                 ui.show_original(false);
             }
@@ -310,18 +443,20 @@ impl Editor {
     pub(crate) fn render_next(self: &Rc<Self>) {
         let state = self.history.borrow().state.clone();
         let mut r = self.runtime.borrow_mut();
+        let identity = r.identity();
         if !r.ready
             || r.closing
             || r.rendering
             || r.block_helper_render
-            || r.requested_revision == r.revision
+            || r.held.is_some()
+            || crate::brightness::running(self)
+            || (r.requested_revision == r.revision && r.quick_step != Some(identity))
         {
             return;
         }
         let (Some(client), Some((source, _))) = (r.client.clone(), r.source.clone()) else {
             return;
         };
-        let (revision, generation) = (r.revision, r.source_generation);
         let desired = r.desired.clone();
         let cache_defaults = r.defaults.clone();
         let cache_state = state.clone();
@@ -330,24 +465,54 @@ impl Editor {
         let buffer = client
             .scratch
             .directory
-            .join(format!("preview-{revision}.rgba"));
-        let interactive = r
-            .interacting
-            .then(|| self.canvas.interactive_scale().min(1.) as f32);
-        let mut command = json!({"command":"render","input":source,"source_generation":generation,
+            .join(format!("preview-{}.rgba", identity.revision));
+        let mut command = json!({"command":"render","input":source,"source_generation":identity.generation,
             "film":desired["film"],"paper":desired["paper"],"params":desired["params"],
             "limit_preview":desired["limit_preview"],"preview_path":buffer});
-        if let Some(scale) = interactive {
-            command["interactive_scale"] = json!(scale);
-        }
         if !desired["params"]["io"]["photo_long_side_px"].is_null() {
             command["crop"] = parameters::crop(&state);
         }
+        let key = reuse_key(command.clone());
+        let pixels = r
+            .developed
+            .as_ref()
+            .map(|f| {
+                f.result["photo_width"].as_f64().unwrap_or(f.width as f64)
+                    * f.result["photo_height"].as_f64().unwrap_or(f.height as f64)
+            })
+            .unwrap_or(0.);
+        let scale = self.canvas.interactive_scale() as f32;
+        #[cfg(test)]
+        let scale = r.test_scale.unwrap_or(scale);
+        let step = render_step(
+            r.interacting,
+            scale,
+            pixels,
+            r.developed.is_some() && r.live_frame && !r.cached_restoring,
+            r.quick_step == Some(identity),
+            r.helper_output
+                .as_ref()
+                .is_some_and(|(epoch, old)| *epoch == client.connection_epoch() && *old == key),
+        );
+        if let Some(scale) = step.scale() {
+            command["interactive_scale"] = json!(scale);
+        }
+        #[cfg(test)]
+        if step.quick() && std::mem::take(&mut r.fail_quick) {
+            command["film"] = json!("__test_unknown_film__");
+        }
+        #[cfg(test)]
+        if step == RenderStep::Settled && std::mem::take(&mut r.fail_settled) {
+            command["film"] = json!("__test_unknown_film__");
+        }
         r.rendering = true;
-        r.requested_revision = revision;
+        r.requested_revision = identity.revision;
+        // Every render replaces the helper's kept output, including failures.
+        r.helper_output = None;
+        #[cfg(test)]
+        r.render_log.push((identity, step));
         drop(r);
         self.sync_history();
-        // A new photograph replaces the stock thumbnails with placeholders now.
         crate::stock_browser::pump(self);
         let ui = self.clone();
         glib::timeout_add_local_once(
@@ -358,20 +523,18 @@ impl Editor {
                 move || {
                     let r = ui.runtime.borrow();
                     if r.rendering
-                        && r.requested_revision == revision
+                        && r.identity() == identity
                         && !r.interacting
                         && !r.cached_restoring
+                        && !r.showing_original
                     {
-                        ui.status.set_text(if r.developed.is_some() {
+                        let label = if r.developed.is_some() {
                             "Updating…"
                         } else {
                             "Developing…"
-                        });
-                        ui.badge.set_label(if r.developed.is_some() {
-                            "Updating…"
-                        } else {
-                            "Developing…"
-                        });
+                        };
+                        ui.status.set_text(label);
+                        ui.badge.set_label(label);
                         ui.badge.set_visible(true);
                     }
                 }
@@ -379,36 +542,116 @@ impl Editor {
         );
         glib::MainContext::default().spawn_local(async move {
             let result = gio::spawn_blocking(move || {
-                let cache_key=if interactive.is_none(){crate::preview_cache::key(&cache_source,&cache_state,&cache_defaults,&cache_paths)}else{None};
-                let rendered = client.request(command,Duration::from_secs(180)).and_then(|(id,result)|Frame::read(&buffer,result).map(|frame|(id,Arc::new(frame),cache_key)));
+                let cache_key = if step == RenderStep::Settled {
+                    crate::preview_cache::key(&cache_source, &cache_state, &cache_defaults, &cache_paths)
+                } else { None };
+                let rendered = client.request(command, Duration::from_secs(180))
+                    .and_then(|(id, result)| Frame::read(&buffer, result).map(|frame| (id, Arc::new(frame), cache_key, client.connection_epoch())));
                 let _ = std::fs::remove_file(&buffer);
                 rendered
             }).await;
+            let hold_for_match = crate::brightness::needs_solution(&ui);
             let mut r = ui.runtime.borrow_mut();
             r.rendering = false;
             if r.closing { return; }
-            let current = generation == r.source_generation && (revision == r.revision || r.interacting);
+            let same_source = identity.generation == r.source_generation;
+            let current = identity == r.identity();
+            let showable = same_source && (current || r.interacting || step.quick());
+            if current {
+                // A failed quick step advances too; a failed settled step stops.
+                r.quick_step = step.quick().then_some(identity);
+            }
             match result {
-                Ok(Ok((id,frame,cache_key))) if current => {
-                    r.set_developed(frame.clone(), interactive.is_some());
-                    ui.input_summary.set_text(&input_summary(&frame.result["input_colour"]));
-                    ui.lens_supported.set(frame.result["lens_correction_supported"] == true);
-                    if interactive.is_none() && revision == r.revision { r.retained_id = Some(id); r.current_revision = Some(revision); r.cached_restoring=false;ui.perf.mark("saveable_render_ready_ms");if let Some(key)=cache_key {ui.cache.save(key,frame.clone());} }
-                    if interactive.is_some() { r.interactive_frames += 1; ui.perf.detail("interactive_frames_presented", r.interactive_frames); }
-                    let show = !r.showing_original;
-                    drop(r);
-                    if show { ui.present_engine_frame(&frame,true); }
-                    ui.update_engine_histogram();
+                Ok(Ok((id, frame, cache_key, epoch))) => {
+                    if same_source && step == RenderStep::Settled {
+                        r.helper_output = Some((epoch, key));
+                    }
+                    if showable {
+                        let completed = CompletedFrame { identity, step, id, frame, cache_key };
+                        if current && !matches!(step, RenderStep::Drag(_)) && !r.interacting
+                            && !ui.canvas.cropping() && hold_for_match {
+                            r.held = Some(completed);
+                            drop(r);
+                        } else {
+                            drop(r);
+                            ui.publish_frame(completed);
+                        }
+                    } else { drop(r); }
                 }
-                Ok(Ok(_)) => { drop(r); }
-                Ok(Err(error)) if current => { r.retained_id = None; drop(r); ui.engine_error(&error); }
-                Err(_) if current => { r.retained_id = None; drop(r); ui.engine_error("The image worker stopped unexpectedly. Open the photograph again to retry."); }
+                Ok(Err(error)) if current && !step.quick() => {
+                    r.retained_id = None;
+                    drop(r);
+                    ui.engine_error(&error);
+                }
+                Err(_) if current && !step.quick() => {
+                    r.retained_id = None;
+                    drop(r);
+                    ui.engine_error("The image worker stopped unexpectedly. Open the photograph again to retry.");
+                }
                 _ => { drop(r); }
             }
             ui.sync_history();
+            // Match using the held/quick decode before requesting a large frame.
+            crate::brightness::pump(&ui);
             ui.render_next();
+            crate::tone_graph::pump(&ui);
             crate::stock_browser::pump(&ui);
         });
+    }
+    pub(crate) fn release_held_frame(self: &Rc<Self>) {
+        let mut r = self.runtime.borrow_mut();
+        let Some(held) = r.held.take() else {
+            return;
+        };
+        let current = held.identity == r.identity() && !r.closing;
+        drop(r);
+        if current {
+            self.publish_frame(held);
+            self.sync_history();
+        }
+    }
+    fn publish_frame(self: &Rc<Self>, completed: CompletedFrame) {
+        let CompletedFrame {
+            identity,
+            step,
+            id,
+            frame,
+            cache_key,
+        } = completed;
+        let mut r = self.runtime.borrow_mut();
+        if r.closing || identity.generation != r.source_generation {
+            return;
+        }
+        let settled = step == RenderStep::Settled;
+        r.set_developed(frame.clone(), !settled);
+        r.live_frame = true;
+        r.showing_interactive = !settled;
+        r.quick_frame = step.quick().then_some(identity);
+        self.input_summary
+            .set_text(&input_summary(&frame.result["input_colour"]));
+        self.lens_supported
+            .set(frame.result["lens_correction_supported"] == true);
+        if settled && identity == r.identity() {
+            r.retained_id = Some(id);
+            r.current_revision = Some(identity.revision);
+            r.cached_restoring = false;
+            self.perf.mark("saveable_render_ready_ms");
+            if let Some(key) = cache_key {
+                self.cache.save(key, frame.clone());
+            }
+        }
+        if !settled {
+            r.interactive_frames += 1;
+            self.perf
+                .detail("interactive_frames_presented", r.interactive_frames);
+        }
+        let show = !r.showing_original;
+        drop(r);
+        if show {
+            self.present_engine_frame(&frame, true);
+        }
+        crate::tone_graph::rendered(self, &frame.result);
+        self.update_engine_histogram();
     }
     fn present_engine_frame(self: &Rc<Self>, frame: &Frame, developed: bool) {
         let texture = crate::canvas::texture(
@@ -417,7 +660,9 @@ impl Editor {
             gdk::MemoryFormat::R8g8b8a8,
             &glib::Bytes::from_owned(frame.pixels.clone()),
             frame.width as usize * 4,
-            &crate::canvas::display_color_state(frame.result["display_color_space"].as_str().unwrap_or("")),
+            &crate::canvas::display_color_state(
+                frame.result["display_color_space"].as_str().unwrap_or(""),
+            ),
         );
         let dimension = |key: &str, fallback: i32| {
             frame.result[key]
@@ -463,10 +708,17 @@ impl Editor {
                 .as_str()
                 .unwrap_or("unknown backend");
             let milliseconds = frame.result["elapsed_ms"].as_f64().unwrap_or(0.);
-            self.status.set_text(&format!(
-                "Developed in {:.2} s · {backend}",
-                milliseconds / 1000.
-            ));
+            let preview = self.runtime.borrow().showing_interactive;
+            self.status.set_text(&if preview {
+                format!(
+                    "Preview · {} × {} · developed in {:.2} s · {backend}",
+                    frame.width,
+                    frame.height,
+                    milliseconds / 1000.
+                )
+            } else {
+                format!("Developed in {:.2} s · {backend}", milliseconds / 1000.)
+            });
             self.perf.detail("engine_backend", backend);
             self.perf.mark("developed_texture_ready_ms");
             if let Some(clock) = self.window.frame_clock() {
@@ -574,30 +826,7 @@ impl Editor {
         });
     }
     pub fn update_engine_histogram(self: &Rc<Self>) {
-        let state = self.history.borrow().state.clone();
-        let mut r = self.runtime.borrow_mut();
-        let Some(frame) = (if r.showing_original {
-            r.original.clone()
-        } else {
-            r.developed.clone()
-        }) else {
-            return;
-        };
-        r.hist_generation += 1;
-        let generation = r.hist_generation;
-        drop(r);
-        let ui = self.clone();
-        glib::MainContext::default().spawn_local(async move {
-            let bins = gio::spawn_blocking(move || histogram(&frame, &state)).await;
-            if ui.runtime.borrow().hist_generation == generation
-                && let Ok(bins) = bins
-            {
-                ui.hist.replace(Some(bins));
-                if let Some(hist) = ui.histogram.borrow().as_ref() {
-                    hist.queue_draw();
-                }
-            }
-        });
+        crate::scopes::update(self);
     }
 }
 /// How the helper read the photograph's colours, for the inspector: its
@@ -615,31 +844,6 @@ pub(crate) fn input_summary(colour: &Value) -> String {
     lines.join("\n")
 }
 
-fn histogram(frame: &Frame, state: &crate::model::State) -> [Vec<u32>; 3] {
-    let mut bins = [vec![0; 256], vec![0; 256], vec![0; 256]];
-    let [x, y, w, h] = state.crop.unwrap_or([0., 0., 1., 1.]);
-    let width = frame.width as f64;
-    let height = frame.height as f64;
-    let step = ((width * height * w * h / 1_000_000.).sqrt().ceil() as usize).max(1);
-    let (sin, cos) = (-state.straighten.to_radians()).sin_cos();
-    for py in ((y * height).max(0.) as usize..((y + h) * height).min(height) as usize).step_by(step)
-    {
-        for px in
-            ((x * width).max(0.) as usize..((x + w) * width).min(width) as usize).step_by(step)
-        {
-            let (dx, dy) = (px as f64 - width / 2., py as f64 - height / 2.);
-            let (sx, sy) = (
-                (width / 2. + dx * cos - dy * sin).round() as i32,
-                (height / 2. + dx * sin + dy * cos).round() as i32,
-            );
-            if sx < 0 || sy < 0 || sx >= frame.width || sy >= frame.height {
-                continue;
-            }
-            let p = (sy as usize * frame.width as usize + sx as usize) * 4;
-            for c in 0..3 {
-                bins[c][frame.pixels[p + c] as usize] += 1;
-            }
-        }
-    }
-    bins
-}
+#[cfg(test)]
+#[path = "render_tests.rs"]
+mod tests;

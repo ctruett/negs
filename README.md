@@ -13,11 +13,11 @@ Negs is built on two open-source projects: Andrea Volpato's [spektrafilm](https:
 
 **[▶ Try it in your browser](https://getnegs.com/try/)** · nothing to install · your photos stay on your device
 
-**[Download for Mac](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-macos-universal.dmg)** · macOS 14 or later · Apple silicon and Intel · [install steps](#macos)
+**[Download for Mac](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-macos-universal.dmg)** · macOS 14 or later · Apple silicon and Intel · [install steps](#macos)
 
-**[Download for Windows](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-windows-x64-Setup.exe)** · Windows x64 · [portable version](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-windows-x64-portable.zip) · [install steps](#windows)
+**[Download for Windows](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-windows-x64-Setup.exe)** · Windows x64 · [portable version](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-windows-x64-portable.zip) · [install steps](#windows)
 
-**Linux** · x86_64 · [Flatpak](https://github.com/noahhaasis/negs/releases/download/v0.12.0/negs-0.12.0-linux-x86_64.flatpak) · [AppImage](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-x86_64.AppImage) · [Arch and Omarchy](#arch-and-omarchy) · [install steps](#linux)
+**Linux** · x86_64 · [Flatpak](https://github.com/noahhaasis/negs/releases/download/v0.14.0/negs-0.14.0-linux-x86_64.flatpak) · [AppImage](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-x86_64.AppImage) · [Arch and Omarchy](#arch-and-omarchy) · [install steps](#linux)
 
 [getnegs.com](https://getnegs.com)
 
@@ -27,7 +27,7 @@ Negs is built on two open-source projects: Andrea Volpato's [spektrafilm](https:
 
 ## A darkroom in a window
 
-![The Negs window: a photo of the Colosseum in a 35mm Kodak Ektar 100 frame, with film, camera and print controls on the right](docs/readme/app-window.webp)
+![The Negs window: a photo of the Dolomites at dusk in a 35mm Fujifilm Superia 200 frame, with film, paper and exposure controls on the right](docs/readme/app-window.webp)
 
 In your browser, or as a native app on Mac, Windows and Linux. Pick a film, pick a paper, drag a slider, and watch the picture change as you move.
 
@@ -41,7 +41,10 @@ In your browser, or as a native app on Mac, Windows and Linux. Pick a film, pick
 - Export the current film and paper colors as a 33³ sRGB `.cube` LUT from File → Export LUT… on every platform. No photograph is needed; spatial effects and Post edits are excluded.
 - Live preview while you drag a slider, and what you see in the preview is what you export
 
-https://github.com/user-attachments/assets/b1b50860-9160-4a6c-b939-42ceaa9e82cd
+
+
+https://github.com/user-attachments/assets/6c7997a9-04b6-45d2-9ff9-3b0b937627c9
+
 
 ## Chemistry, not a filter
 
@@ -94,13 +97,14 @@ Method, versions and reproduction: [benchmarks](docs/benchmarks.md).
 
 | | |
 |---|---|
-| **Colour negative** | Portra 160, Portra 400, Portra 800 (+1, +2), Ektar 100, Gold 200, Ultramax 400, Fujicolor C200, Pro 400H, Superia X-TRA 400 |
-| **Slide** | Ektachrome 100, Kodachrome 64, Velvia 100, Provia 100F |
-| **Motion picture** | Vision3 50D, Vision3 250D, Vision3 200T, Vision3 500T, Verita 200D |
-| **Black & white** | Tri-X 400 *(experimental)*, Double-X 5222 *(experimental)* |
+| **Colour negative** | Portra 160, Portra 400, Portra 800 (+1, +2), Ektar 100, Gold 200, Ultramax 400, Fujicolor C200, Pro 400H, Pro 160NS, Superia 200 *(approximate)*, Superia X-TRA 400, Superia Reala 100, Kodacolor 100, Aerocolor IV 2460, CineStill 800T, CineStill 400D *(approximate)*, Lomography Color 100 *(approximate)*, Harman Phoenix 200 *(approximate)*, LomoChrome Metropolis *(approximate)*, LomoChrome Turquoise *(approximate)* |
+| **Slide** | Ektachrome 100, Kodachrome 25, Kodachrome 64, Kodachrome 200, Velvia 50, Velvia 100, Provia 100F, Astia 100F, Agfachrome 50, Agfachrome 100, Agfachrome 200 |
+| **Motion picture** | Vision3 50D, Vision3 250D, Vision3 200T, Vision3 500T, Verita 200D, Eterna 500, Eterna Vivid 500, F-64D, Reala 500D |
+| **Infrared** | Aerochrome III 1443 *(approximate)*, Infrared Color *(creative)* |
+| **Black & white** | Tri-X 400 *(experimental)*, Double-X 5222 *(experimental)*, HP5 Plus, FP4 Plus, Delta 3200, T-MAX 100, Acros 100 II |
 | **Papers & print film** | Portra Endura, Endura Premier, Supra Endura, Ultra Endura, Ektacolor Edge, Crystal Archive II, Ilford Multigrade RC, Vision 2383, Vision 2393 |
 
-Kodak, Fujifilm and Ilford stock names are trademarks of their owners. Negs is not affiliated with them.
+Kodak, Fujifilm, Ilford, Agfa, Harman, Lomography and CineStill stock names are trademarks of their owners. Negs is not affiliated with them.
 
 ## Install
 
@@ -127,10 +131,12 @@ Negs updates itself: use **Negs → Check for Updates…**, or turn automatic ch
 
 Native Windows app with the same film engine as the Mac app: GPU previews, crop and straighten tools, borders, and Fast or Reference exports.
 
-1. **Download** [`Negs-0.12.0-windows-x64-Setup.exe`](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-windows-x64-Setup.exe) and run it. It installs for your Windows account and adds Negs to **Open with**, without changing your default photo app.
+![The Negs Windows app: a photo of Rome at dusk on Kodak Portra 800, with the film strip below and film and paper controls on the right](docs/readme/windows-app.webp)
+
+1. **Download** [`Negs-0.14.0-windows-x64-Setup.exe`](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-windows-x64-Setup.exe) and run it. It installs for your Windows account and adds Negs to **Open with**, without changing your default photo app.
 2. **If Windows SmartScreen warns you**, click **More info → Run anyway**. Negs isn't code-signed, which needs a paid certificate.
 
-Prefer no installer? Extract [`Negs-0.12.0-windows-x64-portable.zip`](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-windows-x64-portable.zip) and run `Negs.exe`. Keep the included helper executables and `data` folder beside it.
+Prefer no installer? Extract [`Negs-0.14.0-windows-x64-portable.zip`](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-windows-x64-portable.zip) and run `Negs.exe`. Keep the included helper executables and `data` folder beside it.
 
 Windows doesn't update itself yet: download the newer installer from the [releases page](https://github.com/noahhaasis/negs/releases) and run it over the old one. The editing panel and film strip start enabled, and F7/F6 toggle them during use.
 
@@ -138,12 +144,14 @@ Windows packages can be built from source with [`windows/package.ps1`](windows/p
 
 ### Linux
 
+![The Negs Linux app: a photo of Rome at dusk on Kodak Ektar 100, with the film strip below and film and paper controls on the right](docs/readme/linux-app.webp)
+
 Native GTK4 app on the same film engine, for x86_64. There are three ways to install it; each needs a Vulkan driver for GPU acceleration (the engine falls back to the CPU without one).
 
-**Flatpak**, for any distribution with [Flatpak](https://flatpak.org/setup/). Download [`negs-0.12.0-linux-x86_64.flatpak`](https://github.com/noahhaasis/negs/releases/download/v0.12.0/negs-0.12.0-linux-x86_64.flatpak) and install it:
+**Flatpak**, for any distribution with [Flatpak](https://flatpak.org/setup/). Download [`negs-0.14.0-linux-x86_64.flatpak`](https://github.com/noahhaasis/negs/releases/download/v0.14.0/negs-0.14.0-linux-x86_64.flatpak) and install it:
 
 ```sh
-flatpak install --user negs-0.12.0-linux-x86_64.flatpak
+flatpak install --user negs-0.14.0-linux-x86_64.flatpak
 ```
 
 Flatpak fetches the GNOME runtime from Flathub if you don't have it. Negs runs sandboxed: it sees the photos and folders you open, and nothing else. Use **Open Folder…** to see a whole folder in the film strip. To update, install the newer bundle the same way.
@@ -151,11 +159,13 @@ Flatpak fetches the GNOME runtime from Flathub if you don't have it. Negs runs s
 **AppImage**, a single file that runs on Ubuntu 24.04 or newer, current Fedora, Arch and similar distributions, without installing anything:
 
 ```sh
-chmod +x Negs-0.12.0-x86_64.AppImage
-./Negs-0.12.0-x86_64.AppImage
+chmod +x Negs-0.14.0-x86_64.AppImage
+./Negs-0.14.0-x86_64.AppImage
 ```
 
-Download [`Negs-0.12.0-x86_64.AppImage`](https://github.com/noahhaasis/negs/releases/download/v0.12.0/Negs-0.12.0-x86_64.AppImage). If your system has no FUSE, run it with `--appimage-extract-and-run`. To update, download the newer AppImage. Settings and presets are kept in `~/.config/negs` either way.
+Download [`Negs-0.14.0-x86_64.AppImage`](https://github.com/noahhaasis/negs/releases/download/v0.14.0/Negs-0.14.0-x86_64.AppImage). If your system has no FUSE, run it with `--appimage-extract-and-run`. To update, download the newer AppImage. Settings and presets are kept in `~/.config/negs` either way.
+
+The AppImage prefers X11/XWayland when it's available, which avoids a GTK crash reported on some Wayland desktops. To use native Wayland anyway, run it with `GDK_BACKEND=wayland`.
 
 The Flatpak keeps its settings and presets separately, in `~/.var/app/io.github.noahhaasis.negs`. Export presets from one version and import them in the other to move them. How both are built and tested: [Linux Flatpak and AppImage](docs/linux-distribution.md).
 
@@ -222,7 +232,9 @@ The film model at the heart of Negs comes from two open-source projects. Negs bu
 - **[spektrafilm](https://github.com/andreavolpato/spektrafilm)** by Andrea Volpato: the spectral simulation of film and print. The physics and the stock data come from here.
 - **[spektrafilm-rs](https://github.com/turbasvin/spektrafilm-rs)** by turbasvin: the Rust port of spektrafilm that Negs started from.
 
-The default spectral-upsampling table is by [Johannes Hanatos](https://github.com/hanatos), author of [vkdt](https://github.com/hanatos/vkdt). The optional Arctic 2026 table is by Andrea Volpato, from spektrafilm, and the Mallett 2019 table is spektrafilm's tabulation of the spectral primary decomposition by Ian Mallett and Cem Yuksel (2019). The profiles and tables from spektrafilm are under CC BY-SA 4.0 ([license](data/SPEKTRAFILM_LICENSE.txt), [changes](data/CHANGELOG.txt)). Parts of the maths are ported from numpy, scipy, scikit-image and colour-science. RAW files Apple can't read are decoded with [rawler](https://github.com/dnglab/dnglab); the Sony, Fujifilm, OM/Olympus and Panasonic lens corrections on Windows and Linux are ported from [darktable](https://www.darktable.org)'s embedded-metadata lens correction; and updates are delivered with [Sparkle](https://sparkle-project.org).
+The default spectral-upsampling table is by [Johannes Hanatos](https://github.com/hanatos), author of [vkdt](https://github.com/hanatos/vkdt). The optional Arctic 2026 table is by Andrea Volpato, from spektrafilm, and the Mallett 2019 table is spektrafilm's tabulation of the spectral primary decomposition by Ian Mallett and Cem Yuksel (2019). The profiles and tables from spektrafilm are under CC BY-SA 4.0 ([license](data/SPEKTRAFILM_LICENSE.txt), [changes](data/CHANGELOG.txt)). 29 additional film profiles (24 colour, 5 black-and-white) are adapted from [Fotufilm](https://fotufilm.com) by MUAStudio Inc., also under CC BY-SA 4.0 ([license](data/FOTUFILM_LICENSE.txt), [changes](data/CHANGELOG.txt)). Parts of the maths are ported from numpy, scipy, scikit-image and colour-science. RAW files Apple can't read are decoded with [rawler](https://github.com/dnglab/dnglab); the Sony, Fujifilm, OM/Olympus and Panasonic lens corrections on Windows and Linux are ported from [darktable](https://www.darktable.org)'s embedded-metadata lens correction; and updates are delivered with [Sparkle](https://sparkle-project.org).
+
+The Prep tab, camera brightness matching, the RGB waveform and the Apple RAW 9 → 8 fallback come from [yosoyelchris](https://github.com/yosoyelchris)'s fork of Negs ([details](docs/prep.md)).
 
 ## License
 
@@ -233,6 +245,7 @@ That means you can use Negs for anything, including commercial work. The photos 
 - Copyright © Andrea Volpato (spektrafilm)
 - Copyright © turbasvin (spektrafilm-rs)
 - Copyright © 2026 Noah Haasis (Negs: the apps and the changes to the engine)
+- Copyright © 2026 yosoyelchris (the Prep controls, camera brightness matching and scopes)
 
 Third-party components keep their own licenses. Sparkle, the update framework bundled in the Mac app, is under the MIT license.
 

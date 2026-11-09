@@ -106,6 +106,27 @@ pub fn group_order(group: &str) -> usize {
         _ => 4,
     }
 }
+
+/// Film search follows the native catalog groups and matches every word,
+/// ignoring case and accents. IDs are searchable as ordinary spaced names.
+pub fn matches(stock: &Stock, query: &str) -> bool {
+    fn fold(text: &str) -> String {
+        use gtk::glib::Unichar;
+        gtk::glib::normalize(gtk::glib::casefold(text), gtk::glib::NormalizeMode::All)
+            .chars()
+            .filter(|c| !c.is_mark())
+            .collect()
+    }
+    let text = fold(&format!(
+        "{} {} {}",
+        stock.name,
+        stock.id.replace('_', " "),
+        stock.group
+    ));
+    fold(query)
+        .split_whitespace()
+        .all(|word| text.contains(word))
+}
 pub fn selected(state: &crate::model::State, paper: bool) -> &'static Stock {
     let key = if paper { "Paper" } else { "Film" };
     let stocks = stocks(paper);
@@ -133,8 +154,9 @@ pub fn selected(state: &crate::model::State, paper: bool) -> &'static Stock {
 }
 /// Choosing a film or paper in the inspector: the stock's own development
 /// time, and for a film its grain, DIR and halation presets (as upstream
-/// re-applies them on a stock change), its scan mode and target paper.
-pub fn choose(state: &mut crate::model::State, stock: &Stock) {
+/// re-applies them on a stock change), its scan mode and target paper —
+/// unless `keep_paper` (the Keep paper when changing film setting).
+pub fn choose(state: &mut crate::model::State, stock: &Stock, keep_paper: bool) {
     let paper = stock.paper;
     state.choices.insert(
         if paper { "Paper ID" } else { "Film ID" }.into(),
@@ -153,7 +175,7 @@ pub fn choose(state: &mut crate::model::State, stock: &Stock) {
         state
             .choices
             .insert("Scan film directly".into(), stock.positive.to_string());
-        if !stock.target.is_empty() {
+        if !keep_paper && !stock.target.is_empty() {
             state
                 .choices
                 .insert("Paper ID".into(), stock.target.clone());
@@ -165,6 +187,25 @@ pub fn choose(state: &mut crate::model::State, stock: &Stock) {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn film_search_matches_all_words_in_names_ids_and_groups() {
+        let films = super::stocks(false);
+        let ids = |query: &str| {
+            films
+                .iter()
+                .filter(|s| super::matches(s, query))
+                .map(|s| s.id.as_str())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(ids(""), ids("  \t "));
+        assert_eq!(ids("GOLD 200"), vec!["kodak_gold_200"]);
+        assert_eq!(ids("KÓDAK góld"), vec!["kodak_gold_200"]);
+        assert!(ids("gold 400").is_empty());
+        assert!(ids("black 400").contains(&"kodak_trix400_d76_8min"));
+        assert!(ids("slide velvia").iter().all(|id| id.contains("velvia")));
+        assert_eq!(ids("kodak gold"), ids("GOLD KODAK"));
+        assert!(ids("gold\nnegative").contains(&"kodak_gold_200"));
+    }
+    #[test]
     fn live_profiles_accept_no_target_paper() {
         let stock:super::Stock=serde_json::from_value(serde_json::json!({"id":"slide","name":"Slide","paper":false,"positive":true,"bw":false,"target_print":null,"development_times":[]})).unwrap();
         assert!(stock.target.is_empty());
@@ -173,7 +214,8 @@ mod tests {
     fn complete_catalog_and_pairing_metadata() {
         let films = super::stocks(false);
         let papers = super::stocks(true);
-        assert_eq!(films.len(), 23);
+        // 23, plus the 24 colour and 5 B&W films ported from Fotufilm.
+        assert_eq!(films.len(), 52);
         assert_eq!(papers.len(), 10);
         assert!(
             films
@@ -182,6 +224,26 @@ mod tests {
         );
         for film in films {
             assert!(film.target.is_empty() || papers.iter().any(|s| s.id == film.target));
+        }
+    }
+    #[test]
+    fn keep_paper_leaves_the_paper_alone() {
+        let film = super::stocks(false)
+            .into_iter()
+            .find(|s| !s.target.is_empty())
+            .unwrap();
+        let other = super::stocks(true)
+            .into_iter()
+            .find(|s| s.id != film.target)
+            .unwrap();
+        for keep in [false, true] {
+            let mut state = crate::model::State::default();
+            state.choices.insert("Paper ID".into(), other.id.clone());
+            state.choices.insert("Print development".into(), "2".into());
+            super::choose(&mut state, film, keep);
+            let paper = if keep { &other.id } else { &film.target };
+            assert_eq!(state.choices.get("Paper ID"), Some(paper));
+            assert_eq!(state.choices.contains_key("Print development"), keep);
         }
     }
 }
