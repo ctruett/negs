@@ -49,7 +49,7 @@ fn bw_stocks_match_python_with_and_without_luts() {
             params.io.output_cctf_encoding = false;
             params.io.input_gamut_compress.algorithm = "off".into();
             params.io.output_gamut_compress.algorithm = "off".into();
-            params.io.scan_film = case.scan_film;
+            params.settings.upstream_film_scan = case.scan_film;
             params.settings.use_enlarger_lut = lut;
             params.settings.use_scanner_lut = lut;
             let film = profile::load_profile_by_name(&data_dir, &case.film).unwrap();

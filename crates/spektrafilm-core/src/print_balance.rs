@@ -22,7 +22,7 @@ use std::path::Path;
 use spektrafilm_math::image::ImageBuf;
 use spektrafilm_math::precision::from_f64;
 
-use crate::params::RuntimeParams;
+use crate::params::{OutputRoute, RuntimeParams};
 use crate::pipeline::Pipeline;
 use crate::profile::Profile;
 
@@ -39,7 +39,7 @@ pub fn solve_neutral_filter_shifts(
     midgray: f64,
 ) -> Result<(f64, f64), String> {
     let mut p = params.clone();
-    p.io.scan_film = false;
+    p.io.output_route = OutputRoute::PaperPrint;
     p.settings.use_enlarger_lut = false;
     p.settings.use_scanner_lut = false;
     p.io.output_cctf_encoding = false;

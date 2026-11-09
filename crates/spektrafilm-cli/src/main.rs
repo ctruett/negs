@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use spektrafilm_core::params::RuntimeParams;
+use spektrafilm_core::params::{OutputRoute, RuntimeParams};
 use spektrafilm_core::pipeline::Pipeline;
 use spektrafilm_core::profile;
 use spektrafilm_io::resize::Fit;
@@ -348,7 +348,7 @@ fn cmd_process(
     } else {
         RuntimeParams::default()
     };
-    params.io.scan_film = scan_film;
+    params.io.output_route = if scan_film { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
     if let Some(interpretation) = input_interpretation {
         params.io.input_interpretation = interpretation;
     }
@@ -605,7 +605,7 @@ fn cmd_export_lut(
         None => RuntimeParams::default(),
     };
     let film = profile::load_profile_by_name(data_dir, film_name)?;
-    let paper = if params.io.scan_film {
+    let paper = if params.scans_film() {
         film_name
     } else {
         paper_name.or(film.info.target_print.as_deref())

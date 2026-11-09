@@ -8,7 +8,7 @@ use spektrafilm_math::image::ImageBuf;
 use spektrafilm_math::precision::from_f64;
 use spektrafilm_math::tetra3d::tetrahedral_interp;
 
-use crate::params::RuntimeParams;
+use crate::params::{OutputRoute, RuntimeParams};
 use crate::profile::Profile;
 use crate::stages::scanning::{build_lut_grid, scanner_lut_bounds};
 
@@ -120,9 +120,9 @@ impl DensityLut {
         let base = crate::bases::film_base_density(film, params);
         let bare = scanner_density([0.0; 3], &channel_density, &base, sens);
 
-        // The film is the scanned subject, whatever `io.scan_film` says.
+        // The film is the scanned subject, whatever the route says.
         let mut film_params = params.clone();
-        film_params.io.scan_film = true;
+        film_params.io.output_route = OutputRoute::LabScan;
         let (data_min, data_max) = scanner_lut_bounds(film, &film_params);
         let steps = params.settings.lut_resolution as usize;
         let grid = build_lut_grid(steps, data_min, data_max);

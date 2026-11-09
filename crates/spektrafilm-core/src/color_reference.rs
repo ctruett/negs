@@ -108,9 +108,9 @@ impl ColorReference {
         if !white_corr && !black_corr {
             return Self::identity();
         }
-        if params.io.scan_film && film.is_positive() {
+        if params.scans_film() && film.is_positive() {
             Self::compute_slide(film, params, white_corr, black_corr)
-        } else if !params.io.scan_film && print.is_negative() {
+        } else if !params.scans_film() && print.is_negative() {
             Self::compute_print(
                 film,
                 print,
@@ -525,7 +525,7 @@ mod parity_tests {
         let print = crate::profile::load_profile_by_name(&dir, "kodak_portra_endura").unwrap();
 
         let mut params = crate::params::RuntimeParams::default();
-        params.io.scan_film = false;
+        params.io.output_route = crate::params::OutputRoute::PaperPrint;
         params.scanner.white_correction = true;
         params.scanner.black_correction = true;
         params.camera.auto_exposure = false;

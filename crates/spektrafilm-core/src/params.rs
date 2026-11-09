@@ -170,6 +170,29 @@ pub struct ScannerParams {
     pub black_level: f32,
     #[serde(default = "default_unsharp")]
     pub unsharp_mask: [f32; 2],
+    /// Which lab's scanner a Lab-scan render imitates.
+    #[serde(default)]
+    pub model: ScannerModel,
+    /// The operator's keys, in steps of [`crate::lab_scan::KEY_STEP_LOG10`]
+    /// from -20 to +20. A positive density key makes the scan darker; a
+    /// positive cyan, magenta or yellow key adds that colour.
+    #[serde(default)]
+    pub density_key: f32,
+    #[serde(default)]
+    pub cyan_key: f32,
+    #[serde(default)]
+    pub magenta_key: f32,
+    #[serde(default)]
+    pub yellow_key: f32,
+}
+
+/// The lab scanner a Lab-scan render imitates.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScannerModel {
+    #[default]
+    Frontier,
+    Noritsu,
 }
 
 impl Default for ScannerParams {
@@ -181,6 +204,11 @@ impl Default for ScannerParams {
             white_level: 0.98,
             black_level: 0.01,
             unsharp_mask: [0.7, 0.7],
+            model: ScannerModel::Frontier,
+            density_key: 0.0,
+            cyan_key: 0.0,
+            magenta_key: 0.0,
+            yellow_key: 0.0,
         }
     }
 }
@@ -685,8 +713,11 @@ pub struct IoParams {
     /// uses `upscale_factor`. See `spektrafilm_io::image_size`.
     #[serde(default)]
     pub photo_long_side_px: Option<u32>,
+    /// What the render ends on: a lab scanner's read of the developed film,
+    /// or the film printed on paper. Params from before this field carried
+    /// `scan_film`; see [`infer_input_interpretation`].
     #[serde(default)]
-    pub scan_film: bool,
+    pub output_route: OutputRoute,
     #[serde(default)]
     pub output_gamut_compress: OutputGamutCompressParams,
     #[serde(default)]
@@ -714,12 +745,23 @@ impl Default for IoParams {
             crop_size: [0.1, 0.1],
             upscale_factor: 1.0,
             photo_long_side_px: None,
-            scan_film: false,
+            output_route: OutputRoute::PaperPrint,
             output_gamut_compress: OutputGamutCompressParams::default(),
             input_gamut_compress: InputGamutCompressParams::default(),
             rotate_cw: 0,
         }
     }
+}
+
+/// What the render ends on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputRoute {
+    /// The developed film, read the way a lab scanner reads it.
+    LabScan,
+    /// The film printed on paper, then scanned.
+    #[default]
+    PaperPrint,
 }
 
 impl IoParams {
@@ -743,6 +785,10 @@ impl IoParams {
 /// automatically.
 pub fn infer_input_interpretation(params: &mut serde_json::Value) {
     let Some(io) = params.get_mut("io").and_then(|io| io.as_object_mut()) else { return };
+    // `scan_film` is the route from before `output_route`.
+    if !io.contains_key("output_route") && io.get("scan_film").and_then(|v| v.as_bool()) == Some(true) {
+        io.insert("output_route".into(), "lab_scan".into());
+    }
     if !io.contains_key("input_interpretation")
         && (io.contains_key("input_color_space") || io.contains_key("input_cctf_decoding"))
     {
@@ -881,6 +927,10 @@ pub struct SettingsParams {
     /// [`SpectralBoundary`].
     #[serde(default)]
     pub spectral_boundary: SpectralBoundary,
+    /// Paper-print route off, upstream's direct film scan: for the parity
+    /// tests, which compare against it. Not user-facing.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub upstream_film_scan: bool,
 }
 
 /// The engine's input is linear and unclamped, so it can hold colours beyond
@@ -936,7 +986,18 @@ impl Default for SettingsParams {
             use_cat16: true,
             output_adaptation: OutputAdaptation::ViaD65,
             spectral_boundary: SpectralBoundary::Guard,
+            upstream_film_scan: false,
         }
+    }
+}
+
+impl RuntimeParams {
+    /// Whether the engine scans the film itself (rather than a print of it):
+    /// the Lab-scan route, or upstream's direct film scan, which the parity
+    /// tests use (`settings.upstream_film_scan`). Every engine read of the
+    /// route goes through here.
+    pub fn scans_film(&self) -> bool {
+        self.io.output_route == OutputRoute::LabScan || self.settings.upstream_film_scan
     }
 }
 
@@ -1165,5 +1226,56 @@ mod input_interpretation_tests {
         io.apply_input_colour(&loaded.colour);
         assert_eq!((io.input_color_space.as_str(), io.input_cctf_decoding), ("ACES2065-1", true));
         std::fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[cfg(test)]
+mod route_and_scanner_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn parse(mut value: serde_json::Value) -> RuntimeParams {
+        infer_input_interpretation(&mut value);
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn output_route_inferred_from_scan_film() {
+        assert_eq!(parse(json!({"io": {"scan_film": true}})).io.output_route, OutputRoute::LabScan);
+        assert_eq!(parse(json!({})).io.output_route, OutputRoute::PaperPrint);
+        assert_eq!(parse(json!({"io": {"scan_film": false}})).io.output_route, OutputRoute::PaperPrint);
+        // A stated route wins over the legacy field.
+        let stated = parse(json!({"io": {"scan_film": true, "output_route": "paper_print"}}));
+        assert_eq!(stated.io.output_route, OutputRoute::PaperPrint);
+        let mut p = RuntimeParams::default();
+        p.io.output_route = OutputRoute::LabScan;
+        let written = serde_json::to_value(&p).unwrap();
+        assert_eq!(written["io"]["output_route"], "lab_scan");
+        assert!(written["io"].get("scan_film").is_none());
+    }
+
+    #[test]
+    fn scans_film_follows_route() {
+        let mut p = RuntimeParams::default();
+        assert!(!p.scans_film());
+        p.io.output_route = OutputRoute::LabScan;
+        assert!(p.scans_film());
+        p.io.output_route = OutputRoute::PaperPrint;
+        p.settings.upstream_film_scan = true;
+        assert!(p.scans_film());
+    }
+
+    #[test]
+    fn old_params_read_as_frontier_with_no_keys() {
+        let s = parse(json!({})).scanner;
+        assert_eq!(s.model, ScannerModel::Frontier);
+        assert_eq!((s.density_key, s.cyan_key, s.magenta_key, s.yellow_key), (0.0, 0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn noritsu_round_trips() {
+        let p = parse(json!({"scanner": {"model": "noritsu"}}));
+        assert_eq!(p.scanner.model, ScannerModel::Noritsu);
+        assert_eq!(serde_json::to_value(&p).unwrap()["scanner"]["model"], "noritsu");
     }
 }

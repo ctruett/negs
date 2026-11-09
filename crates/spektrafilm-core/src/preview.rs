@@ -14,7 +14,7 @@ pub fn cpu_diffusion_fft_buffer_bytes(params: &RuntimeParams, width: u32, height
     let pitch = crate::stages::filming::pixel_size_um(params.camera.film_format_mm, width, height);
     [
         Some(&params.camera.diffusion_filter),
-        (!params.io.scan_film).then_some(&params.enlarger.diffusion_filter),
+        (!params.scans_film()).then_some(&params.enlarger.diffusion_filter),
     ]
     .into_iter()
     .flatten()
@@ -49,7 +49,7 @@ mod diffusion_memory_tests {
         let mut params = RuntimeParams::default();
         params.enlarger.diffusion_filter.active = true;
         assert!(cpu_diffusion_fft_buffer_bytes(&params, 6240, 4160) > 0);
-        params.io.scan_film = true;
+        params.io.output_route = crate::params::OutputRoute::LabScan;
         assert_eq!(cpu_diffusion_fft_buffer_bytes(&params, 6240, 4160), 0);
     }
 }
@@ -68,7 +68,7 @@ pub fn preview_pipeline_cache_key(
         "print": print_name,
         "film_dev": params.film_render.development_time,
         "print_dev": params.print_render.development_time,
-        "scan_film": params.io.scan_film,
+        "scan_film": params.scans_film(),
         "input_color_space": params.io.input_color_space,
         "input_cctf_decoding": params.io.input_cctf_decoding,
         "input_gamut": params.io.input_gamut_compress,

@@ -795,7 +795,7 @@ fn metered_key(film: &str, params: &RuntimeParams) -> String {
 fn calibrate(film: &str, paper: &str, params: &RuntimeParams) -> Result<Pipeline, String> {
     let data = Path::new(DATA_DIR);
     let film_profile = profile::load_profile_by_name(data, film).map_err(|e| e.to_string())?;
-    let print = if params.io.scan_film { film } else { paper };
+    let print = if params.scans_film() { film } else { paper };
     let print_profile = profile::load_profile_by_name(data, print).map_err(|e| e.to_string())?;
     Pipeline::new_with_spectral(film_profile, print_profile, params.clone(), data)
 }

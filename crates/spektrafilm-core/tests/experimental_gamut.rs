@@ -45,6 +45,7 @@ fn experimental_bw_gamut_pipeline_matches_python_with_and_without_luts() {
     for case in fixture.pipeline_cases {
         for lut in [false, true] {
             let mut params = case.params.clone();
+            params.settings.upstream_film_scan = case.scan_film;
             params.settings.use_enlarger_lut = lut;
             params.settings.use_scanner_lut = lut;
             let film = profile::load_profile_by_name(&data_dir, &case.film).unwrap();

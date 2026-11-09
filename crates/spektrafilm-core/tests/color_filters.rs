@@ -51,7 +51,7 @@ fn film_density(film: &str, color_filter: &str) -> Vec<f64> {
     let mut params = RuntimeParams::default();
     params.camera.auto_exposure = false;
     params.camera.color_filter = color_filter.into();
-    params.io.scan_film = true;
+    params.settings.upstream_film_scan = true;
     params.film_render.grain.active = false;
     params.film_render.halation.active = false;
     params.film_render.dir_couplers.active = false;

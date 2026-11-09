@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use eframe::egui;
-use spektrafilm_core::params::RuntimeParams;
+use spektrafilm_core::params::{OutputRoute, RuntimeParams};
 use spektrafilm_core::pipeline::Pipeline;
 #[cfg(test)]
 use spektrafilm_core::preview::PREVIEW_PIXEL_LIMIT;
@@ -413,7 +413,7 @@ impl App {
             .filter(|t| papers.iter().any(|p| &p.stock == t))
             .unwrap_or_else(|| pick_default_stock(&papers, "fujifilm_crystal_archive_typeii"));
         let mut params = RuntimeParams::default();
-        params.io.scan_film = film_profile.as_ref().is_some_and(|f| f.is_positive());
+        params.io.output_route = if film_profile.as_ref().is_some_and(|f| f.is_positive()) { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
         params.film_render.development_time =
             film_profile.as_ref().and_then(|f| f.data.default_development_time);
         let film_dev_times = film_profile
@@ -532,8 +532,8 @@ impl App {
         if let Some(colour) = &self.loaded_colour {
             params.io.apply_input_colour(colour);
         }
-        params.io.scan_film = profile::load_profile_by_name(&self.data_dir, &self.film_name)
-            .is_ok_and(|film| film.is_positive());
+        params.io.output_route = if profile::load_profile_by_name(&self.data_dir, &self.film_name)
+            .is_ok_and(|film| film.is_positive()) { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
         self.params = params;
         self.limit_preview_12mp = false;
         self.pan = egui::Vec2::ZERO;
@@ -563,7 +563,7 @@ impl App {
 
         let film = profile::load_profile_by_name(&self.data_dir, film_name)
             .map_err(|e| format!("film profile '{film_name}': {e}"))?;
-        let effective_print_name = if params.io.scan_film {
+        let effective_print_name = if params.scans_film() {
             film_name
         } else {
             print_name
@@ -659,7 +659,7 @@ impl App {
                     let t = Instant::now();
                     let output = match scaled_image {
                         Some(image) => pipeline.process(image, backend.as_ref()),
-                        None if pipeline.params.io.scan_film && pipeline.film.is_positive() => {
+                        None if pipeline.params.scans_film() && pipeline.film.is_positive() => {
                             pipeline.process((*image).clone(), backend.as_ref())
                         }
                         None => pipeline
@@ -1253,7 +1253,7 @@ impl App {
                         // paired `target_print`. Auto-follow the film type
                         // so switching stocks doesn't leave a wrong (or, for
                         // a paperless slide, a failed) render.
-                        self.params.io.scan_film = film.is_positive();
+                        self.params.io.output_route = if film.is_positive() { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
                         self.film_dev_times = film.data.development_time.clone();
                         // Name a non-middle default so the picker shows it.
                         self.params.film_render.development_time =
@@ -1287,7 +1287,7 @@ impl App {
                 // Slide films are scanned directly, so the print paper is
                 // unused — disable the picker and say why rather than
                 // letting it silently affect nothing.
-                if self.params.io.scan_film {
+                if self.params.scans_film() {
                     ui.label(
                         egui::RichText::new("Direct film scan — printing is skipped.")
                             .italics()
@@ -1295,7 +1295,7 @@ impl App {
                     );
                 }
                 let paper_changed = ui
-                    .add_enabled_ui(!self.params.io.scan_film, |ui| {
+                    .add_enabled_ui(!self.params.scans_film(), |ui| {
                         profile_combo(
                             ui,
                             "paper",
@@ -1310,7 +1310,7 @@ impl App {
                     self.params.print_render.development_time = None;
                     self.mark_dirty();
                 }
-                if !self.params.io.scan_film
+                if !self.params.scans_film()
                     && self.print_dev_times.len() > 1
                     && dev_time_combo(
                         ui,
@@ -1751,7 +1751,7 @@ impl App {
             .show(ui, |ui| {
                 let io = &mut self.params.io;
                 let mut changed = false;
-                let mut scan_film = io.scan_film;
+                let mut scan_film = io.output_route == OutputRoute::LabScan;
                 changed |= ui
                     .checkbox(&mut scan_film, "Scan film (skip printing)")
                     .on_hover_text(
@@ -1761,7 +1761,7 @@ impl App {
                     )
                     .changed();
                 if changed {
-                    io.scan_film = scan_film;
+                    io.output_route = if scan_film { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
                 }
                 changed |= ui
                     .add(
@@ -2412,7 +2412,7 @@ fn run_export(
         .arg(data_dir)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
-    if params.io.scan_film {
+    if params.scans_film() {
         cmd.arg("--scan-film");
     }
     append_raw_wb_args(&mut cmd, input, params.io.raw_white_balance);
@@ -2762,14 +2762,14 @@ mod reset_tests {
         app.params.settings.use_cat16 = false;
         app.params.settings.serial_grain = true;
         app.params.io.output_cctf_encoding = false;
-        app.params.io.scan_film = false;
+        app.params.io.output_route = OutputRoute::PaperPrint;
         app.params.io.rotate_cw = 2;
 
         app.reset_settings();
 
         let mut expected = RuntimeParams::default();
         expected.io.input_color_space = "sRGB".into();
-        expected.io.scan_film = true;
+        expected.io.output_route = OutputRoute::LabScan;
         assert_eq!(
             serde_json::to_value(&app.params).unwrap(),
             serde_json::to_value(expected).unwrap()
@@ -2791,7 +2791,7 @@ mod reset_tests {
         app.reset_settings();
 
         assert_eq!(app.params.io.raw_white_balance, Default::default());
-        assert!(!app.params.io.scan_film);
+        assert!(!app.params.scans_film());
         assert!(app.raw_wb_pending());
         assert_eq!(app.input_revision, 1);
         assert!(app.output_image.is_none());

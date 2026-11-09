@@ -903,7 +903,7 @@ impl Pipeline {
         tracing::info!("pipeline: filming complete");
         dump_if_env("SPEKTRAFILM_DUMP_FILM_DENSITY", &filmed);
 
-        let result = if self.params.io.scan_film {
+        let result = if self.params.scans_film() {
             let t = Instant::now();
             let result = stages::scanning::process(
                 filmed,
@@ -975,7 +975,7 @@ impl Pipeline {
             0.0,
         );
         let filmed = stages::filming::develop(log_film.clone(), &self.film, &self.params, backend);
-        if self.params.io.scan_film {
+        if self.params.scans_film() {
             let scan = stages::scanning::process(filmed, &self.film, &self.params, backend, &color_ref, &self.output_gamut);
             return (log_film, None, scan);
         }
@@ -1326,7 +1326,7 @@ impl Pipeline {
         // viewing illuminant and dye-density wavelength count come from the
         // film, not the print (mirrors the CPU scanning stage, which is
         // handed `self.film` as its profile when scan_film).
-        let scan_profile = if self.params.io.scan_film {
+        let scan_profile = if self.params.scans_film() {
             &self.film
         } else {
             &self.print
@@ -1336,7 +1336,7 @@ impl Pipeline {
         let viewing_illu =
             select_illuminant_f64(&scan_profile.info.viewing_illuminant)
                 .into_owned();
-        let n_wl = if self.params.io.scan_film {
+        let n_wl = if self.params.scans_film() {
             film_channel_density.len()
         } else {
             print_channel_density.len()
@@ -1468,7 +1468,7 @@ impl Pipeline {
         // final RGB buffer. Mirrors the CPU lognormal + blur + add. The CPU
         // scanning stage reads `film_render.glare` on the scan_film path and
         // `print_render.glare` on the print path — follow the same choice.
-        let glare_params = if self.params.io.scan_film {
+        let glare_params = if self.params.scans_film() {
             &self.params.film_render.glare
         } else {
             &self.params.print_render.glare
@@ -1557,7 +1557,7 @@ impl Pipeline {
         };
 
         let enlarger_diffusion =
-            if !self.params.io.scan_film && self.params.enlarger.diffusion_filter.active {
+            if !self.params.scans_film() && self.params.enlarger.diffusion_filter.active {
                 spektrafilm_model::diffusion::diffusion_gpu_plan(
                     &self.params.enlarger.diffusion_filter.to_model(),
                     pix_um as f64,
@@ -1588,7 +1588,7 @@ impl Pipeline {
             scan_normalization: scan_norm,
             scan_xyz_to_rgb: &scan_xyz_to_rgb,
             bw_xyz_remap: color_ref.xyz_remap(),
-            scan_film: self.params.io.scan_film,
+            scan_film: self.params.scans_film(),
             halation,
             dir_couplers,
             grain,

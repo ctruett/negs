@@ -89,7 +89,7 @@ pub fn cube(
         *value = spektrafilm_math::precision::srgb_decode(*value);
     }
     let params = per_pixel_params(params);
-    let scan_film = params.io.scan_film;
+    let scan_film = params.scans_film();
     let print = if scan_film { film } else { paper };
     let pipeline = Pipeline::new_with_spectral(
         profile::load_profile_by_name(data, film).map_err(|e| e.to_string())?,

@@ -18,7 +18,7 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value};
 
-use crate::params::RuntimeParams;
+use crate::params::{OutputRoute, RuntimeParams, ScannerParams};
 use crate::profile::{self, Profile};
 
 const DEFAULT_GUI_STATE: &str = include_str!("../../../data/presets/spektrafilm-gui-default-28bf883.json");
@@ -147,15 +147,41 @@ pub fn import(text: &str, data_dir: &Path) -> Result<Preset, String> {
                 .ok_or_else(|| "Invalid midtone detail: it must be a number from -100 to 100.".to_string())
         })
         .transpose()?;
+    let scanner = file.get("negs_scanner");
     let state = gui_state(&file)?;
     let (film, paper) = (stock(&state, "simulation.film_stock")?, stock(&state, "simulation.print_paper")?);
     let film_stock = load_stock(data_dir, &film, false)?;
     let paper_stock = load_stock(data_dir, &paper, true)?;
     let mut params = translate(&state)?;
     check(&state, &params)?;
+    if let Some(scanner) = scanner {
+        params.scanner = read_scanner(scanner, &params.scanner)?;
+    }
     params.film_render.development_time = listed_time(&film_stock, params.film_render.development_time);
     params.print_render.development_time = listed_time(&paper_stock, params.print_render.development_time);
     Ok(Preset { film, paper, params, finish, midtone_detail })
+}
+
+/// The `negs_scanner` section's keys.
+const SCANNER_KEYS: [&str; 5] = ["model", "density_key", "cyan_key", "magenta_key", "yellow_key"];
+
+/// `scanner` with the section's model and keys set. A key outside its range
+/// or of the wrong kind refuses the file, with the reason.
+fn read_scanner(section: &Value, scanner: &ScannerParams) -> Result<ScannerParams, String> {
+    let mut value = serde_json::to_value(scanner).expect("ScannerParams serializes");
+    let section = section.as_object().ok_or("Invalid scanner settings: expected an object.")?;
+    for key in SCANNER_KEYS {
+        if let Some(v) = section.get(key) {
+            value[key] = v.clone();
+        }
+    }
+    let read: ScannerParams = serde_json::from_value(value).map_err(|e| format!("Invalid scanner settings: {e}"))?;
+    for key in [read.density_key, read.cyan_key, read.magenta_key, read.yellow_key] {
+        if !(-20.0..=20.0).contains(&key) {
+            return Err("Invalid scanner settings: a key must be from -20 to +20.".into());
+        }
+    }
+    Ok(read)
 }
 
 /// A development time as the stock's family lists it: the entry the engine
@@ -250,7 +276,7 @@ pub fn export_with_finish(film_id: &str, paper_id: &str, params: &RuntimeParams,
     for (path, value) in [
         ("simulation.film_stock", Value::from(film_id)),
         ("simulation.print_paper", Value::from(paper_id)),
-        ("simulation.route", Value::from(if params.io.scan_film { SCAN_ROUTE } else { PRINT_ROUTE })),
+        ("simulation.route", Value::from(if params.io.output_route == OutputRoute::LabScan { SCAN_ROUTE } else { PRINT_ROUTE })),
         ("simulation.output_color_space", Value::from("sRGB")),
         ("input_gamut_compress.active", Value::from(input_gamut)),
         // Python's only input algorithm; `active` turns it off.
@@ -270,6 +296,19 @@ pub fn export_with_finish(film_id: &str, paper_id: &str, params: &RuntimeParams,
             .as_object_mut()
             .expect("the preset state is an object")
             .insert("negs_finish".into(), finish);
+    }
+    if params.io.output_route == OutputRoute::LabScan {
+        // The lab scanner's model and the operator's keys: Negs's own, and
+        // only on the Lab-scan route, where they apply.
+        let scanner = serde_json::to_value(&params.scanner).expect("ScannerParams serializes");
+        let mut keys = Map::new();
+        for key in SCANNER_KEYS {
+            keys.insert(key.into(), scanner.get(key).cloned().expect("ScannerParams has its keys"));
+        }
+        state
+            .as_object_mut()
+            .expect("the preset state is an object")
+            .insert("negs_scanner".into(), Value::Object(keys));
     }
     let detail = serde_json::to_string(&params.prep.midtone_detail).expect("numbers serialize");
     state
@@ -506,7 +545,8 @@ fn translate(state: &Value) -> Result<RuntimeParams, String> {
         Some(SCAN_ROUTE) => true,
         _ => return Err("Negs renders a preset printed or as a film scan; this one uses another route.".into()),
     };
-    set(&mut params, "io.scan_film", scan_film.into())?;
+    let route = if scan_film { "lab_scan" } else { "paper_print" };
+    set(&mut params, "io.output_route", route.into())?;
     serde_json::from_value(params).map_err(|e| format!("The preset's settings don't fit Negs ({e})."))
 }
 
@@ -662,7 +702,12 @@ mod tests {
 
     /// Negs values a preset sets to Negs's default: Python's GUI has no such
     /// setting and renders with the same default.
-    const NEGS_DEFAULTS: [&str; 8] = [
+    const NEGS_DEFAULTS: [&str; 13] = [
+        "scanner.model",
+        "scanner.density_key",
+        "scanner.cyan_key",
+        "scanner.magenta_key",
+        "scanner.yellow_key",
         "film_render.grain.monochrome",
         "film_render.glare",
         "enlarger.normalize_print_exposure",
@@ -678,7 +723,7 @@ mod tests {
         let mut gui = Vec::new();
         leaves(default_state(), String::new(), &mut gui);
         let mut mapped: Vec<String> = gui.iter().filter_map(|(path, _)| negs_path(path)).collect();
-        mapped.extend(["io.scan_film".into(), "io.input_gamut_compress.algorithm".into()]);
+        mapped.extend(["io.output_route".into(), "io.input_gamut_compress.algorithm".into()]);
         let defaults = serde_json::to_value(RuntimeParams::default()).unwrap();
         for path in &mapped {
             assert!(get(&defaults, path).is_some(), "{path} has no Negs field");
@@ -704,7 +749,7 @@ mod tests {
         assert_eq!(p.film_render.development_time, None);
         assert_eq!(p.film_render.dir_couplers.langmuir_donor_k_rgb, [1.0; 3]);
         assert_eq!(p.io.input_gamut_compress.algorithm, "xy");
-        assert!(!p.io.scan_film);
+        assert!(!p.scans_film());
     }
 
     #[test]
@@ -717,7 +762,7 @@ mod tests {
         let preset = import(text, &data_dir()).unwrap();
         assert_eq!((preset.film.as_str(), preset.paper.as_str()), ("kodak_portra_400", "kodak_supra_endura"));
         let p = &preset.params;
-        assert!(p.io.scan_film);
+        assert!(p.scans_film());
         assert_eq!(p.film_render.grain.rms_granularity, Some([5.0; 3]));
         assert_eq!(p.film_render.grain.blur, 0.5);
         assert_eq!(p.film_render.halation.halation_amount, 1.0);
@@ -786,7 +831,7 @@ mod tests {
         assert_eq!(preset.film, "kodak_ektar_100");
         assert_eq!(preset.params.settings.rgb_to_raw_method, "mallett2019");
         assert_eq!(preset.params.enlarger.print_exposure, 1.5);
-        assert!(preset.params.io.scan_film);
+        assert!(preset.params.scans_film());
         assert_eq!(preset.params.io.raw_white_balance.mode, spektrafilm_io::RawWhiteBalanceMode::AsShot);
     }
 
@@ -938,12 +983,44 @@ mod tests {
     }
 
     #[test]
+    fn preset_exports_scanner_keys() {
+        use crate::params::ScannerModel;
+        let data = data_dir();
+        let mut saved = RuntimeParams::default();
+        saved.io.output_route = OutputRoute::LabScan;
+        saved.scanner.model = ScannerModel::Noritsu;
+        saved.scanner.density_key = 3.0;
+        saved.scanner.cyan_key = -2.0;
+        saved.scanner.magenta_key = 4.0;
+        saved.scanner.yellow_key = -5.0;
+        let text = export("kodak_portra_400", "kodak_supra_endura", &saved, &data).unwrap();
+        assert!(text.contains("negs_scanner"), "{text}");
+        let preset = import(&text, &data).unwrap();
+        let s = &preset.params.scanner;
+        assert_eq!(s.model, ScannerModel::Noritsu);
+        assert_eq!((s.density_key, s.cyan_key, s.magenta_key, s.yellow_key), (3.0, -2.0, 4.0, -5.0));
+        let applied = apply_with_finish(&preset, &RuntimeParams::default(), false);
+        assert_eq!(applied.scanner.model, ScannerModel::Noritsu);
+        assert_eq!(applied.scanner.yellow_key, -5.0);
+        let out_of_range = text.replace("\"density_key\": 3.0", "\"density_key\": 30.0");
+        assert!(import(&out_of_range, &data).unwrap_err().contains("-20 to +20"));
+    }
+
+    #[test]
+    fn paper_preset_has_no_scanner() {
+        let mut saved = RuntimeParams::default();
+        saved.scanner.density_key = 3.0;
+        let text = export("kodak_portra_400", "kodak_supra_endura", &saved, &data_dir()).unwrap();
+        assert!(!text.contains("negs_scanner"), "{text}");
+    }
+
+    #[test]
     fn export_resolves_stock_values_and_reads_back() {
         let data = data_dir();
         let mut params = RuntimeParams::default();
         params.camera.exposure_compensation_ev = 0.7;
         params.io.input_gamut_compress.algorithm = "off".into();
-        params.io.scan_film = true;
+        params.io.output_route = OutputRoute::LabScan;
         params.film_render.dir_couplers.langmuir_receiver_k_rgb = [f64::INFINITY, 2.0, f64::INFINITY];
         params.film_render.halation.halation_strength = Some([0.1, 0.02, 0.0]);
         let text = export("kodak_portra_400", "kodak_portra_endura", &params, &data).unwrap();
@@ -954,7 +1031,7 @@ mod tests {
         let p = &preset.params;
         assert_eq!(p.camera.exposure_compensation_ev, 0.7);
         assert_eq!(p.io.input_gamut_compress.algorithm, "off");
-        assert!(p.io.scan_film);
+        assert!(p.scans_film());
         assert_eq!(p.film_render.dir_couplers.langmuir_receiver_k_rgb, [f64::INFINITY, 2.0, f64::INFINITY]);
         assert_eq!(p.film_render.halation.halation_strength, Some([0.1, 0.02, 0.0]));
         // Unset values come back as Portra 400's presets.

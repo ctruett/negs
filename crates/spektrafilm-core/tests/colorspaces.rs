@@ -255,6 +255,7 @@ fn pipelines_across_colour_spaces_match_python() {
         // (vlog-acescg, dwg-adobe). Negs' defaults go via D65 and guard the
         // boundary.
         let mut params = case.params.clone();
+        params.settings.upstream_film_scan = case.scan_film;
         params.settings.output_adaptation = spektrafilm_core::params::OutputAdaptation::Direct;
         params.settings.spectral_boundary = spektrafilm_core::params::SpectralBoundary::Upstream;
         // Python has upstream's class couplers for Portra 400, not Negs's fitted preset.

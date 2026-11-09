@@ -976,7 +976,7 @@ impl Session {
                 let backend = self
                     .backend
                     .get_or_insert_with(spektrafilm_gpu::select_backend);
-                let (output, used_backend) = if pipeline.params.io.scan_film && pipeline.film.is_positive() {
+                let (output, used_backend) = if pipeline.params.scans_film() && pipeline.film.is_positive() {
                     pipeline.process_with_backend(working.clone(), backend.as_ref())
                 } else {
                     pipeline
@@ -1088,7 +1088,7 @@ fn write_display(
 /// A calibrated pipeline for `film` printed on `paper` (or scanned).
 fn build_pipeline(data: &Path, film: &str, paper: &str, params: &RuntimeParams) -> Result<Pipeline> {
     let film_profile = profile::load_profile_by_name(data, film)?;
-    let print_profile = profile::load_profile_by_name(data, if params.io.scan_film { film } else { paper })?;
+    let print_profile = profile::load_profile_by_name(data, if params.scans_film() { film } else { paper })?;
     Pipeline::new_with_spectral(film_profile, print_profile, params.clone(), data).map_err(anyhow::Error::msg)
 }
 
@@ -1224,7 +1224,7 @@ mod tests {
         } }, &data).unwrap();
         assert_eq!(imported["film"], "kodak_portra_400");
         assert_eq!(imported["params"]["io"]["photo_long_side_px"], 2400);
-        assert_eq!(imported["params"]["io"]["scan_film"], true);
+        assert_eq!(imported["params"]["io"]["output_route"], "lab_scan");
         assert_eq!(imported["params"]["camera"]["exposure_compensation_ev"], 0.0);
         assert_eq!(imported["params"]["film_render"]["dir_couplers"]["langmuir_donor_k_rgb"][0], Value::Null);
         let params: RuntimeParams = serde_json::from_value(imported["params"].clone()).unwrap();

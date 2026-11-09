@@ -37,7 +37,7 @@ fn exported_cube_matches_spectral_render_of_independent_pixels() {
         params.enlarger.y_filter_shift = 8.0;
         params.enlarger.m_filter_shift = -5.0;
         params.enlarger.print_exposure = 1.2;
-        params.io.scan_film = scan;
+        params.settings.upstream_film_scan = scan;
         // These must not resize, contaminate, or finish the LUT's grid.
         params.io.upscale_factor = 0.25;
         params.camera.diffusion_filter.active = true;

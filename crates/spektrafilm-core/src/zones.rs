@@ -315,7 +315,7 @@ impl Pointwise {
     /// metering: left to itself it would meter the reading, and expose it as
     /// middle grey.
     fn new(data: &Path, film: &str, paper: &str, params: &RuntimeParams, autoexposure_ev: Option<f64>) -> Result<Self, String> {
-        let scan = params.io.scan_film;
+        let scan = params.scans_film();
         let film_profile = profile::load_profile_by_name(data, film).map_err(|e| e.to_string())?;
         let print_profile =
             profile::load_profile_by_name(data, if scan { film } else { paper }).map_err(|e| e.to_string())?;

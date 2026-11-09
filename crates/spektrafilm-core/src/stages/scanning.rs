@@ -53,7 +53,7 @@ pub(crate) fn scanner_lut_bounds(profile: &Profile, params: &RuntimeParams) -> (
             }
         }
     }
-    let (data_min, data_max) = if params.io.scan_film {
+    let (data_min, data_max) = if params.scans_film() {
         // On the scan_film path `profile` is the film.
         let gmin = crate::grain::density_min(profile, params);
         ([-gmin[0], -gmin[1], -gmin[2]], dmax_curves)
@@ -222,7 +222,7 @@ pub fn scan(
         })
         .collect();
     // `profile` is the film when scanning the film, else the print.
-    let base_density = if params.io.scan_film {
+    let base_density = if params.scans_film() {
         crate::bases::film_base_density(profile, params)
     } else {
         crate::bases::print_base_density(profile, params)
@@ -303,7 +303,7 @@ pub fn scan(
     // glare in RGB space by pre-multiplying the illuminant XYZ through the same matrix.
     //   Python: rgb = M @ (xyz + g*illu) = M@xyz + g*(M@illu)
     //   Rust:   rgb = M @ xyz; then rgb += g * (M@illu)
-    let glare = if params.io.scan_film {
+    let glare = if params.scans_film() {
         &params.film_render.glare
     } else {
         &params.print_render.glare

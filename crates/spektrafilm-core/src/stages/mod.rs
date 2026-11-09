@@ -5,7 +5,7 @@ pub mod scanning;
 
 #[cfg(test)]
 mod integration_tests {
-    use crate::params::RuntimeParams;
+    use crate::params::{OutputRoute, RuntimeParams};
     use crate::pipeline::Pipeline;
     use crate::profile;
     use spektrafilm_math::image::ImageBuf;
@@ -196,7 +196,7 @@ mod integration_tests {
         let print = film.clone();
 
         let mut params = RuntimeParams::default();
-        params.io.scan_film = true;
+        params.io.output_route = OutputRoute::LabScan;
         params.film_render.grain.active = false;
         params.film_render.halation.active = false;
         params.film_render.dir_couplers.active = false;
@@ -331,7 +331,7 @@ mod integration_tests {
         let print = film.clone();
 
         let mut params = RuntimeParams::default();
-        params.io.scan_film = true;
+        params.io.output_route = OutputRoute::LabScan;
         params.camera.auto_exposure = false;
 
         let backend = spektrafilm_gpu::cpu_backend::CpuBackend;
@@ -392,7 +392,7 @@ mod integration_tests {
 
 #[cfg(test)]
 mod debug_tests {
-    use crate::params::RuntimeParams;
+    use crate::params::{OutputRoute, RuntimeParams};
     use crate::profile;
     use crate::stages;
     use spektrafilm_math::image::ImageBuf;

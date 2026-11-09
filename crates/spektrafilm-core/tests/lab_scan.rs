@@ -73,3 +73,36 @@ fn apply_matches_net_per_pixel() {
         }
     }
 }
+
+/// A 16x16 gradient with some colour, rendered on the Paper-print route.
+fn paper_print_render() -> Vec<u8> {
+    use spektrafilm_core::pipeline::Pipeline;
+    use spektrafilm_gpu::cpu_backend::CpuBackend;
+    use spektrafilm_math::{image::ImageBuf, precision::from_f64};
+    let data = data_dir();
+    let mut params = RuntimeParams::default();
+    params.film_render.grain.active = false;
+    params.film_render.halation.active = false;
+    let film = profile::load_profile_by_name(&data, "kodak_portra_400").unwrap();
+    let print = profile::load_profile_by_name(&data, "kodak_portra_endura").unwrap();
+    let pipeline = Pipeline::new_with_spectral(film, print, params, &data).unwrap();
+    let pixels = (0..16 * 16 * 3)
+        .map(|i| {
+            let (px, c) = (i / 3, i % 3);
+            let (x, y) = ((px % 16) as f64 / 15.0, (px / 16) as f64 / 15.0);
+            from_f64(0.02 + 0.9 * [x, y, (x + y) / 2.0][c])
+        })
+        .collect();
+    let out = pipeline.process(ImageBuf::from_data(16, 16, pixels), &CpuBackend);
+    out.data.iter().flat_map(|&v| (v as f32).to_le_bytes()).collect()
+}
+
+#[test]
+fn paper_print_unchanged() {
+    let got = paper_print_render();
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/paper_print_golden.bin");
+    if std::env::var("WRITE_GOLDEN").is_ok() {
+        std::fs::write(&path, &got).unwrap();
+    }
+    assert_eq!(got, std::fs::read(&path).unwrap(), "Paper-print render changed");
+}
