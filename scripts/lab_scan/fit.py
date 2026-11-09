@@ -119,6 +119,7 @@ class Look:
         self.curve = np.asarray(curve, float)    # 3 x 9
         self.matrix = np.asarray(matrix, float)  # 3 x 3
         self.cast = np.asarray(cast, float)
+        self.default_offset = np.zeros(3)
 
     @classmethod
     def identity(cls):
@@ -136,7 +137,7 @@ class Look:
         f = lambda v: "[" + ", ".join(repr(float(a)) for a in v) + "]"
         lines = [comment, f"curve_knots = {f(KNOTS)}", "curve = ["]
         lines += [f"    {f(row)}," for row in self.curve]
-        lines += ["]", f"matrix = [{', '.join(f(r) for r in self.matrix)}]", "default_offset = [0.0, 0.0, 0.0]"]
+        lines += ["]", f"matrix = [{', '.join(f(r) for r in self.matrix)}]", f"default_offset = {f(self.default_offset)}"]
         if np.any(self.cast):
             lines.append(f"cast = {f(self.cast)}")
         return "\n".join(lines) + "\n"
@@ -254,7 +255,21 @@ def fit(scanner: str, film_type: str) -> Look:
     theta0 = np.zeros(n_params(film_type))
     sol = least_squares(residuals, theta0, args=(data, film_type), method="trf", x_scale="jac", max_nfev=400)
     print(f"  cost {sol.cost:.4f}, {sol.nfev} evaluations", flush=True)
-    return look_from(sol.x, film_type)
+    look = look_from(sol.x, film_type)
+    look.default_offset = default_offset(scanner, data)
+    return look
+
+
+def default_offset(scanner: str, data) -> np.ndarray:
+    """The trained mean of the training frames' metered balance: what a frame
+    too thin to meter (a lens cap, a blown slide) takes instead, so it scans
+    as such a frame does rather than as an 18% grey. For B&W, one value."""
+    offsets = np.array([
+        _cached("balance", row, lambda row=row: render.balance(charts.FILMS[row.film], scanner, row.ev)[None].repeat(140, 0),
+                render.CLI.stat().st_mtime)[0]
+        for row, _, _, _ in data
+    ])
+    return offsets.mean(0)
 
 
 def write(scanner: str, film_type: str, look: Look) -> None:

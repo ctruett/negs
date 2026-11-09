@@ -448,3 +448,19 @@ fn developed_frame_is_reused_for_the_scanner_only() {
     drop(pipeline);
     assert_eq!(slot.reuses(), 1);
 }
+
+/// A frame with too little on it to meter (a lens cap on a negative, a blown
+/// slide) takes the look's trained offset: it scans dark, or light, as
+/// such a frame does at the lab, not as an 18% grey.
+#[test]
+fn thin_frames_scan_as_what_they_are() {
+    for model in [ScannerModel::Frontier, ScannerModel::Noritsu] {
+        let mut params = lab_params(model);
+        params.camera.auto_exposure = false;
+        params.io.output_cctf_encoding = false;
+        let capped = px(&render("kodak_portra_400", params.clone(), uniform([0.0; 3])), 1, 1);
+        assert!(capped.iter().all(|&v| v < 0.06), "{model:?} lens cap: {capped:?}");
+        let blown = px(&render("fujifilm_provia_100f", params, uniform([40.0; 3])), 1, 1);
+        assert!(blown.iter().all(|&v| v > 0.5), "{model:?} blown slide: {blown:?}");
+    }
+}

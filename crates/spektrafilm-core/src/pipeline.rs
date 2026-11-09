@@ -412,7 +412,10 @@ impl Pipeline {
         let filmed = stages::filming::develop(log_raw, &self.film, &meter_params, &CPU);
         let net = crate::lab_scan::density::DensityLut::new(&self.film, params, &scanner.sensitivity).apply(&filmed);
         let default_offset = scanner.look(params.scanner.model).default_offset;
-        meter(&net, FilmType::of(&self.film), default_offset)
+        let balance = meter(&net, FilmType::of(&self.film), default_offset);
+        // The fitting tool (scripts/lab_scan) reads this to train the looks' default offsets.
+        tracing::info!(offset = ?balance.offset, "lab balance");
+        balance
     }
 
     /// The balance of a uniform 18% grey frame, without auto exposure: for

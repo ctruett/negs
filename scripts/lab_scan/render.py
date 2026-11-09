@@ -10,6 +10,7 @@ look under test reaches it as `settings.lab_look_override`.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 from functools import lru_cache
@@ -133,9 +134,24 @@ def signal(film: str, scanner: str, ev: float) -> np.ndarray:
                    "output_gamut_compress": {"algorithm": "off"}},
             "settings": {"lab_look_override": str(identity_look(tmp / "identity.toml"))},
         }))
-        _run(film, scanner, src, out, params, ["--raw-out", str(raw)])
+        log = _run(film, scanner, src, out, params, ["--raw-out", str(raw)])
         lin = np.fromfile(raw, dtype=np.float64).reshape(img.shape[0], img.shape[1], 3)
     return np.log10(np.clip(charts.sample(lin, centres(), frac=0.3), 1e-9, None)) - REF
+
+
+def balance(film: str, scanner: str, ev: float) -> np.ndarray:
+    """The lab balance the CLI meters on the chart at `ev`, log10 per channel."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        src, out, params = tmp / "chart.tif", tmp / "out.tif", tmp / "params.json"
+        tifffile.imwrite(src, chart_image(ev))
+        params.write_text(json.dumps({"camera": {"auto_exposure": False},
+                                      "film_render": {"grain": {"active": False}, "halation": {"active": False}}}))
+        log = _run(film, scanner, src, out, params)
+    found = re.findall(r"lab balance[^\n]*offset=\[([^\]]+)\]", re.sub(r"\x1b\[[0-9;]*m", "", log))
+    if not found:
+        raise RuntimeError("the CLI logged no lab balance")
+    return np.array([float(v) for v in found[-1].split(",")])
 
 
 def _run(film, scanner, src, out, params, extra=()):
@@ -147,3 +163,4 @@ def _run(film, scanner, src, out, params, extra=()):
     )
     if r.returncode:
         raise RuntimeError(r.stderr[-500:])
+    return r.stdout + r.stderr
