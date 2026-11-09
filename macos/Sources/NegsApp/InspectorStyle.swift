@@ -132,15 +132,11 @@ struct FoldChevron: View {
 }
 
 /// A titled run of rows, with a line under it. `action` sits opposite the title.
-/// In the all-controls column, a double-click on the title folds it.
 struct InkSection<Content: View, Action: View>: View {
     let title: String?
     var footer: String?
     let action: Action
     let content: Content
-    @Environment(\.inspectorShowsEverything) private var everything
-    @AppStorage(AllFolds.key) private var foldStorage = ""
-    private var folded: Bool { everything && title.map { AllFolds(storage: $foldStorage).contains("section:" + $0) } == true }
 
     init(_ title: String? = nil, footer: String? = nil, @ViewBuilder action: () -> Action = { EmptyView() }, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -158,16 +154,11 @@ struct InkSection<Content: View, Action: View>: View {
                         .accessibilityAddTraits(.isHeader)
                     Spacer(minLength: 8)
                     action
-                    if folded { FoldChevron() }
                 }
                 .frame(height: 22)
-                .contentShape(Rectangle())
-                .onTapGesture(count: 2) { if everything { AllFolds(storage: $foldStorage).toggle("section:" + title) } }
             }
-            if !folded {
-                content
-                if let footer { InkNote(footer) }
-            }
+            content
+            if let footer { InkNote(footer) }
         }
         .padding(.horizontal, InkLayout.gutter)
         .padding(.vertical, 8)
