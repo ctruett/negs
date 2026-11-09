@@ -785,9 +785,12 @@ impl IoParams {
 /// automatically.
 pub fn infer_input_interpretation(params: &mut serde_json::Value) {
     let Some(io) = params.get_mut("io").and_then(|io| io.as_object_mut()) else { return };
-    // `scan_film` is the route from before `output_route`.
-    if !io.contains_key("output_route") && io.get("scan_film").and_then(|v| v.as_bool()) == Some(true) {
-        io.insert("output_route".into(), "lab_scan".into());
+    // `scan_film` is the route from before `output_route`. New clients never
+    // write it, so its presence marks a legacy client and it decides, over
+    // an `output_route` the client only echoed from the defaults.
+    if let Some(scan) = io.remove("scan_film") {
+        let route = if scan.as_bool() == Some(true) { "lab_scan" } else { "paper_print" };
+        io.insert("output_route".into(), route.into());
     }
     if !io.contains_key("input_interpretation")
         && (io.contains_key("input_color_space") || io.contains_key("input_cctf_decoding"))
@@ -1244,9 +1247,13 @@ mod route_and_scanner_tests {
         assert_eq!(parse(json!({"io": {"scan_film": true}})).io.output_route, OutputRoute::LabScan);
         assert_eq!(parse(json!({})).io.output_route, OutputRoute::PaperPrint);
         assert_eq!(parse(json!({"io": {"scan_film": false}})).io.output_route, OutputRoute::PaperPrint);
-        // A stated route wins over the legacy field.
-        let stated = parse(json!({"io": {"scan_film": true, "output_route": "paper_print"}}));
-        assert_eq!(stated.io.output_route, OutputRoute::PaperPrint);
+        // The legacy field marks a legacy client, so it decides over a
+        // defaulted route sent alongside it.
+        let legacy = parse(json!({"io": {"scan_film": true, "output_route": "paper_print"}}));
+        assert_eq!(legacy.io.output_route, OutputRoute::LabScan);
+        let legacy_off = parse(json!({"io": {"scan_film": false, "output_route": "lab_scan"}}));
+        assert_eq!(legacy_off.io.output_route, OutputRoute::PaperPrint);
+        assert_eq!(parse(json!({"io": {"output_route": "lab_scan"}})).io.output_route, OutputRoute::LabScan);
         let mut p = RuntimeParams::default();
         p.io.output_route = OutputRoute::LabScan;
         let written = serde_json::to_value(&p).unwrap();
