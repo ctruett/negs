@@ -1642,6 +1642,9 @@ import UniformTypeIdentifiers
     /// uncropped photograph, against the zones.
     func pickZone(from a: CGPoint, to b: CGPoint) {
         guard source != nil, engine != nil, hasCatalog, !cropping else { return }
+        // A dragged area stays selected, outlined, with the histogram on it.
+        let area = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+        if pickedByDrag(area) { selectRegion(area) }
         zoneReading = ZoneReading(from: a, to: b)
         readZoneArea()
     }
@@ -1663,6 +1666,13 @@ import UniformTypeIdentifiers
     /// Where the histogram's zone bands are, in the window from its top left:
     /// a click anywhere else ends a zone reading.
     @ObservationIgnored var zoneBandsFrame: CGRect = .zero
+
+    /// Whether an area was dragged rather than clicked: a click reads a patch
+    /// of a few preview pixels, and leaves the selection as it is.
+    private func pickedByDrag(_ area: CGRect) -> Bool {
+        let pixels = (imageSize.width > 0 && imageSize.height > 0) ? CGSize(width: area.width * imageSize.width, height: area.height * imageSize.height) : .zero
+        return pixels.width > 8 || pixels.height > 8
+    }
 
     func clearZoneReading() {
         zoneReadingTask?.cancel()

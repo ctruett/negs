@@ -68,6 +68,8 @@ final class CanvasOverlayView: NSView {
         marquee.path = rect.map { CGPath(rect: $0, transform: nil) }
     }
     var marqueeShown: Bool { marquee.path != nil }
+    /// The selection's outline in this view, for tests; nil when none shows.
+    var selectionBounds: CGRect? { selection.path?.boundingBoxOfPath }
 
     func showFileName(_ name: String?) {
         guard name != fileName else { return }

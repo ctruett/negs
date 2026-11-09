@@ -184,6 +184,17 @@ extension CanvasGestureTests {
         XCTAssertEqual(regions.last, .some(nil), "A click goes back to the whole photograph")
     }
 
+    /// A selected region stays outlined on the photograph.
+    func testASelectedRegionIsOutlined() throws {
+        let (scroll, view) = makeCanvas()
+        view.region = CGRect(x: 0.2, y: 0.2, width: 0.4, height: 0.5)
+        scroll.overlay.redraw()
+        let box = try XCTUnwrap(scroll.overlay.selectionBounds)
+        let a = overlayPoint(CGPoint(x: 0.2, y: 0.2), scroll, view), b = overlayPoint(CGPoint(x: 0.6, y: 0.7), scroll, view)
+        XCTAssertEqual(box.width, abs(b.x - a.x), accuracy: 1)
+        XCTAssertEqual(box.height, abs(b.y - a.y), accuracy: 1)
+    }
+
     /// A click on the canvas around the photograph clears the selection too.
     func testAClickBesideThePhotographClearsTheSelection() throws {
         _ = NSApplication.shared
