@@ -103,6 +103,9 @@ impl Look {
     fn curve_at(&self, c: usize, x: f64) -> f64 {
         let (k, v, m) = (&self.knots, &self.curve[c], &self.tangents[c]);
         let last = k.len() - 1;
+        if x.is_nan() {
+            return x;
+        }
         if x <= k[0] {
             return v[0] + m[0] * (x - k[0]);
         }
@@ -179,6 +182,7 @@ mod tests {
         let look = Look::load(&data(), ScannerModel::Frontier, FilmType::ColourNegative).unwrap();
         let ys: Vec<f64> = (-40..=40).map(|i| look.apply([i as f64 * 0.1; 3])[1]).collect();
         assert!(ys.windows(2).all(|w| w[1] > w[0]));
+        assert!(look.apply([f64::NAN, 0.0, 0.0])[0].is_nan(), "a NaN passes through, without a panic");
     }
 
     #[test]
