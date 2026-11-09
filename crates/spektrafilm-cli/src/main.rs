@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use spektrafilm_core::params::{OutputRoute, RuntimeParams};
+use spektrafilm_core::params::{OutputRoute, RuntimeParams, ScannerModel};
 use spektrafilm_core::pipeline::Pipeline;
 use spektrafilm_core::profile;
 use spektrafilm_io::resize::Fit;
@@ -67,9 +67,12 @@ enum Commands {
         /// If omitted and --scan-film is not set, uses the film's target_print.
         #[arg(long)]
         paper: Option<String>,
-        /// Scan film directly (skip printing stage).
+        /// Scan film directly (skip printing stage), on the lab scanner.
         #[arg(long)]
         scan_film: bool,
+        /// The lab scanner for --scan-film (overrides scanner.model in --params).
+        #[arg(long, requires = "scan_film", value_parser = SCANNERS)]
+        scanner: Option<String>,
         /// Print per-stage timing information.
         #[arg(long)]
         timings: bool,
@@ -153,6 +156,9 @@ enum Commands {
         /// Path to JSON params file for the film/paper look (Post edits excluded).
         #[arg(long)]
         params: Option<PathBuf>,
+        /// The lab scanner, for a Lab-scan route in --params (overrides scanner.model).
+        #[arg(long, value_parser = SCANNERS)]
+        scanner: Option<String>,
         /// Output .cube file path.
         #[arg(short, long)]
         output: PathBuf,
@@ -186,6 +192,7 @@ fn main() -> Result<()> {
             film,
             paper,
             scan_film,
+            scanner,
             timings,
             params: params_file,
             raw_wb,
@@ -234,6 +241,7 @@ fn main() -> Result<()> {
                 &film,
                 paper.as_deref(),
                 scan_film,
+                scanner.as_deref(),
                 timings,
                 params_file.as_deref(),
                 raw_wb.as_deref(),
@@ -257,14 +265,27 @@ fn main() -> Result<()> {
             paper,
             size,
             params,
+            scanner,
             output,
             data_dir,
         } => {
-            cmd_export_lut(&film, paper.as_deref(), size, params.as_deref(), &output, &data_dir)?;
+            cmd_export_lut(&film, paper.as_deref(), size, params.as_deref(), scanner.as_deref(), &output, &data_dir)?;
         }
     }
 
     Ok(())
+}
+
+/// `--scanner`'s choices.
+const SCANNERS: [&str; 2] = ["frontier", "noritsu"];
+
+/// A `--scanner` name.
+fn scanner_model(name: &str) -> Result<ScannerModel> {
+    match name {
+        "frontier" => Ok(ScannerModel::Frontier),
+        "noritsu" => Ok(ScannerModel::Noritsu),
+        _ => bail!("unknown scanner: {name}"),
+    }
 }
 
 /// A params file. One from before `io.input_interpretation` keeps the
@@ -307,6 +328,7 @@ fn cmd_process(
     film_name: &str,
     paper_name: Option<&str>,
     scan_film: bool,
+    scanner: Option<&str>,
     show_timings: bool,
     params_file: Option<&Path>,
     raw_wb: Option<&str>,
@@ -349,6 +371,9 @@ fn cmd_process(
         RuntimeParams::default()
     };
     params.io.output_route = if scan_film { OutputRoute::LabScan } else { OutputRoute::PaperPrint };
+    if let Some(name) = scanner {
+        params.scanner.model = scanner_model(name)?;
+    }
     if let Some(interpretation) = input_interpretation {
         params.io.input_interpretation = interpretation;
     }
@@ -396,11 +421,10 @@ fn cmd_process(
         t.elapsed().as_millis()
     );
 
-    // Auto exposure meters the full source, before any resize, as the native
-    // preview does, so an export has the preview's exposure.
-    let metering = params
-        .camera
-        .auto_exposure
+    // Auto exposure and the lab scanner's balance meter the full source,
+    // before any resize, as the native preview does, so an export has the
+    // preview's exposure and balance.
+    let metering = (params.camera.auto_exposure || params.lab_scan())
         .then(|| spektrafilm_core::stages::filming::metering_preview(&image));
 
     // Image Size: resize the source before the film, so grain and halation
@@ -596,14 +620,17 @@ fn cmd_export_lut(
     paper_name: Option<&str>,
     size: u32,
     params_file: Option<&Path>,
+    scanner: Option<&str>,
     output: &Path,
     data_dir: &Path,
 ) -> Result<()> {
-    let params: RuntimeParams = match params_file {
-        Some(path) => serde_json::from_str(&std::fs::read_to_string(path)
-            .with_context(|| format!("reading params: {}", path.display()))?)?,
+    let mut params = match params_file {
+        Some(path) => read_params(path)?,
         None => RuntimeParams::default(),
     };
+    if let Some(name) = scanner {
+        params.scanner.model = scanner_model(name)?;
+    }
     let film = profile::load_profile_by_name(data_dir, film_name)?;
     let paper = if params.scans_film() {
         film_name
@@ -684,5 +711,28 @@ mod raw_wb_tests {
         assert!(Cli::try_parse_from(base.into_iter().chain(["--raw-tint", "0.8"])).is_err());
         assert!(apply_raw_wb_overrides(&mut wb, Some("daylight"), Some(3200.0), None).is_err());
         assert!(apply_raw_wb_overrides(&mut wb, Some("custom"), Some(0.0), None).is_err());
+    }
+}
+
+#[cfg(test)]
+mod export_lut_tests {
+    use super::*;
+
+    /// A legacy `io.scan_film` params file exports a lab-scan LUT, on the
+    /// scanner `--scanner` names.
+    #[test]
+    fn legacy_scan_film_params_export_a_lab_scan_lut_on_the_named_scanner() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let dir = std::env::temp_dir().join(format!("negs-cli-lut-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let params = dir.join("params.json");
+        std::fs::write(&params, r#"{"io": {"scan_film": true}}"#).unwrap();
+        for (scanner, title) in [(None, "kodak_portra_400_frontier"), (Some("noritsu"), "kodak_portra_400_noritsu")] {
+            let cube = dir.join("look.cube");
+            cmd_export_lut("kodak_portra_400", None, 2, Some(&params), scanner, &cube, &data).unwrap();
+            let text = std::fs::read_to_string(&cube).unwrap();
+            assert!(text.contains(&format!("TITLE \"Negs {title}\"")), "{text}");
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

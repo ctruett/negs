@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use spektrafilm_core::{
     image_size,
+    lab_scan::balance::Balance,
     params::RuntimeParams,
     pipeline::Pipeline,
     post::{PostParams, PostProcess},
@@ -290,6 +291,35 @@ struct Session {
     /// The metering frame's film exposure in stops for the tone graph's
     /// histogram, keyed by the source and the render pipeline.
     film_stops: Option<(String, Vec<[f32; 3]>)>,
+    /// The photograph's lab-scanner balance, metered on `metering` as auto
+    /// exposure is, keyed by what it reads ([`lab_balance_key`]).
+    lab_balance: Option<(String, Balance)>,
+}
+
+/// What a photograph's lab-scanner balance depends on: the source and every
+/// param but the Post adjustments, the size and the operator's keys, which
+/// come after it. A key or a resize doesn't meter the photograph again.
+fn lab_balance_key(input: &Path, source_generation: u64, film: &str, params: &RuntimeParams) -> String {
+    let mut params = params.clone();
+    params.post = Default::default();
+    params.settings.serial_grain = false;
+    image_size::clear(&mut params);
+    let scanner = &mut params.scanner;
+    (scanner.density_key, scanner.cyan_key, scanner.magenta_key, scanner.yellow_key) = (0.0, 0.0, 0.0, 0.0);
+    json!({"input": input, "source_generation": source_generation, "film": film, "params": params}).to_string()
+}
+
+/// The balance under `key`, metered with `pipeline` on `metering` if `cache`
+/// holds another's.
+fn cached_lab_balance(cache: &mut Option<(String, Balance)>, key: String, pipeline: &Pipeline, metering: &ImageBuf) -> Balance {
+    match cache {
+        Some((cached, balance)) if *cached == key => *balance,
+        _ => {
+            let balance = pipeline.lab_balance(metering);
+            *cache = Some((key, balance));
+            balance
+        }
+    }
 }
 
 /// The source decoded with another RAW white balance, reduced to the largest
@@ -415,6 +445,7 @@ impl Session {
             self.thumbnail_source = None;
             self.thumbnail_wb_sources = Vec::new();
             self.film_stops = None;
+            self.lab_balance = None;
             let loaded = spektrafilm_io::load_image_colour_limited(
                 input,
                 spektrafilm_io::Formats::Any,
@@ -528,7 +559,7 @@ impl Session {
         } else {
             let Source { image: source, colour, .. } = self.source.as_ref().unwrap();
             params.io.apply_input_colour(colour);
-            if params.camera.auto_exposure && self.metering.is_none() {
+            if (params.camera.auto_exposure || params.lab_scan()) && self.metering.is_none() {
                 self.metering = Some(spektrafilm_core::stages::filming::metering_preview(source));
             }
             let working = working_source(source, &mut self.thumbnail_source, dimensions, downsample_area).clone();
@@ -569,6 +600,29 @@ impl Session {
         }
         let calibrated = self.pipelines.peek(&preview_pipeline_cache_key(film, paper, params))?;
         Some(calibrated.clone().with_params(params.clone()).frame_autoexposure_ev(self.metering.as_ref()?))
+    }
+
+    /// The photograph's lab-scanner balance, as the last render metered it
+    /// (or metered now with its pipeline), on the Lab-scan route. `params`
+    /// as the app sends them: the source's colour applies, as for a render.
+    fn lab_balance(&mut self, film: &str, paper: &str, params: &RuntimeParams) -> Option<Balance> {
+        if !params.lab_scan() {
+            return None;
+        }
+        let source = self.source.as_ref()?;
+        let mut params = params.clone();
+        params.io.apply_input_colour(&source.colour);
+        let params = &params;
+        let key = lab_balance_key(&source.path, self.source_generation, film, params);
+        if let Some((cached, balance)) = &self.lab_balance
+            && *cached == key
+        {
+            return Some(*balance);
+        }
+        let calibrated = self.pipelines.peek(&preview_pipeline_cache_key(film, paper, params))?;
+        let pipeline = calibrated.clone().with_params(params.clone());
+        let metering = self.metering.get_or_insert_with(|| spektrafilm_core::stages::filming::metering_preview(&source.image));
+        Some(cached_lab_balance(&mut self.lab_balance, key, &pipeline, metering))
     }
 
     fn handle(&mut self, request: Request, data: &Path) -> Result<Value> {
@@ -626,13 +680,14 @@ impl Session {
             Command::ZoneReadout { film, paper, params, x0, y0, x1, y1, targets } => {
                 let started = Instant::now();
                 let autoexposure_ev = self.autoexposure_ev(&film, &paper, &params);
+                let lab_balance = self.lab_balance(&film, &paper, &params);
                 let source = self.source.as_ref().context("No photograph to read")?;
                 let image = match &self.scaled {
                     Some((_, scaled)) if !params.prep.is_identity() => scaled,
                     _ => &source.image,
                 };
                 let reading = spektrafilm_core::zones::readout(
-                    data, &film, &paper, &params, autoexposure_ev, image, [(x0, y0), (x1, y1)], &targets,
+                    data, &film, &paper, &params, autoexposure_ev, lab_balance, image, [(x0, y0), (x1, y1)], &targets,
                 )
                 .map_err(anyhow::Error::msg)?;
                 Ok(json!({"printed": reading.printed, "shifts": reading.shifts,
@@ -886,7 +941,7 @@ impl Session {
                 // RAW and decoded files are the engine's linear sRGB; manual
                 // pass-through keeps the params' input fields, as 0.8 did.
                 params.io.apply_input_colour(input_colour);
-                if params.camera.auto_exposure && self.metering.is_none() {
+                if (params.camera.auto_exposure || params.lab_scan()) && self.metering.is_none() {
                     self.metering = Some(spektrafilm_core::stages::filming::metering_preview(source));
                 }
                 let (source_width, source_height) = (source.width, source.height);
@@ -961,6 +1016,16 @@ impl Session {
                     let counts = spektrafilm_core::tone_curve::film_histogram(&self.film_stops.as_ref().unwrap().1, ev, 128);
                     json!({"stops": spektrafilm_core::tone_curve::STOPS, "ev": ev, "counts": counts})
                 };
+                // The lab scanner's auto correction, metered once per photograph
+                // with auto exposure, on the same frame.
+                if params.lab_scan() {
+                    let metering = self
+                        .metering
+                        .get_or_insert_with(|| spektrafilm_core::stages::filming::metering_preview(source));
+                    let key = lab_balance_key(&input, source_generation, &film, &params);
+                    let balance = cached_lab_balance(&mut self.lab_balance, key, &pipeline, metering);
+                    pipeline = pipeline.with_lab_balance(balance);
+                }
                 let working = if dimensions == photo_dimensions {
                     pipeline = pipeline.with_prepared_frame(self.prepared_photo.clone());
                     working_source(
@@ -1454,6 +1519,53 @@ mod tests {
             paper: "kodak_portra_endura".into(), params: Box::new(params), limit_preview: false,
             preview_path: preview.into(), interactive_scale, crop,
         }
+    }
+
+    /// A lab scan meters its balance once per photograph: the operator's
+    /// keys re-render without metering again, and the scanner reuses the
+    /// calibrated pipeline. The zone readout reads with that balance.
+    #[test]
+    fn lab_scan_meters_its_balance_once_per_photograph() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let dir = std::env::temp_dir().join(format!("negs-lab-balance-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (input, preview) = (dir.join("input.png"), dir.join("preview.rgba"));
+        let pixels = (0..48 * 32 * 3).map(|i| ((i * 37) % 255) as spektrafilm_math::Scalar / 255.0).collect();
+        spektrafilm_io::save_image(&ImageBuf::from_data(48, 32, pixels), &input, None).unwrap();
+        let lab = |edit: &dyn Fn(&mut RuntimeParams)| {
+            let Command::Render { mut params, .. } = render(&input, &preview, None, None, None) else { unreachable!() };
+            params.io.output_route = spektrafilm_core::params::OutputRoute::LabScan;
+            edit(&mut params);
+            (*params).clone()
+        };
+        let command = |params: &RuntimeParams| Command::Render {
+            input: input.clone(), source_generation: 1, film: "kodak_portra_400".into(),
+            paper: "kodak_portra_endura".into(), params: Box::new(params.clone()), limit_preview: false,
+            preview_path: preview.clone(), interactive_scale: None, crop: None,
+        };
+        let mut session = Session::default();
+        session.handle(Request { id: 1, command: command(&lab(&|_| {})) }, &data).unwrap();
+        let plain = session.output.as_ref().unwrap().image.data.clone();
+        let metered = session.lab_balance.clone().expect("metered");
+
+        let keyed = lab(&|p| p.scanner.density_key = 3.0);
+        session.handle(Request { id: 2, command: command(&keyed) }, &data).unwrap();
+        assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the key re-renders");
+        assert_eq!(session.lab_balance.as_ref(), Some(&metered), "without metering again");
+
+        let noritsu = lab(&|p| p.scanner.model = spektrafilm_core::params::ScannerModel::Noritsu);
+        let response = session.handle(Request { id: 3, command: command(&noritsu) }, &data).unwrap();
+        assert_eq!(response["cached_pipeline"], true, "the scanner needs no new pipeline");
+        assert_ne!(session.lab_balance.as_ref().map(|b| &b.0), Some(&metered.0));
+
+        let balance = session.lab_balance.as_ref().unwrap().1;
+        assert_eq!(session.lab_balance("kodak_portra_400", "kodak_portra_endura", &noritsu), Some(balance));
+        let reading = session.handle(Request { id: 4, command: Command::ZoneReadout {
+            film: "kodak_portra_400".into(), paper: "kodak_portra_endura".into(), params: Box::new(noritsu.clone()),
+            x0: 0.2, y0: 0.2, x1: 0.4, y1: 0.4, targets: vec![],
+        } }, &data).unwrap();
+        assert!(reading["printed"].as_f64().is_some_and(f64::is_finite));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// The app renders a film change at canvas size first (ticket 28): the
