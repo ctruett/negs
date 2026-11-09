@@ -17,7 +17,7 @@ def test_port_matches_the_engine(film_type, film):
     rng = np.random.default_rng(1)
     look = fit.look_from(rng.normal(0, 0.3, fit.n_params(film_type)), film_type)
     x = render.signal(film, "Frontier", 0.0)
-    predicted = 10 ** look.apply(x)
+    predicted = fit.shoulder(10 ** look.apply(x))
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "look.toml"
         path.write_text("".join(f"[{t}]\n" + look.toml("") + "\n" for t in ("colour_negative", "slide", "bw")))

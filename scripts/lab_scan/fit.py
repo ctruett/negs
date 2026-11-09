@@ -40,6 +40,15 @@ SRGB_TO_XYZ = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0
 XYZ_TO_SRGB = np.linalg.inv(SRGB_TO_XYZ)
 REC2020_TO_SRGB = XYZ_TO_SRGB @ render.REC2020_TO_XYZ
 
+# The engine's highlight shoulder (lab_scan::shoulder), per channel.
+SHOULDER_KNEE, SHOULDER_CEILING = 0.75, 0.985
+
+
+def shoulder(v: np.ndarray) -> np.ndarray:
+    room = SHOULDER_CEILING - SHOULDER_KNEE
+    t = np.maximum(v - SHOULDER_KNEE, 0.0) / room
+    return np.where(v > SHOULDER_KNEE, SHOULDER_KNEE + room * (1 - 1 / (1 + t)), v)
+
 
 def oklab(srgb_linear: np.ndarray) -> np.ndarray:
     return np.cbrt(np.clip(srgb_linear, 1e-9, None) @ M1.T) @ M2.T
@@ -132,7 +141,7 @@ class Look:
         return y @ self.matrix.T + self.cast
 
     def srgb(self, x: np.ndarray) -> np.ndarray:
-        return (10 ** self.apply(x)) @ REC2020_TO_SRGB.T
+        return shoulder((10 ** self.apply(x)) @ REC2020_TO_SRGB.T)
 
     def toml(self, comment: str) -> str:
         f = lambda v: "[" + ", ".join(repr(float(a)) for a in v) + "]"
@@ -167,7 +176,7 @@ def look_from(theta: np.ndarray, film_type: str) -> Look:
     signal before the curves. Slides and B&W were near the lab's contrast
     already, and with no tone term their gain and curves trade off freely."""
     if film_type == "colour_negative":
-        curves = [curve_from(theta[8 * c:8 * c + 8]) for c in range(3)]
+        curves = [curve_from(steps) for steps in curve_steps(theta, film_type)]
         look = Look(curves, matrix_from(theta[24:30]))
     elif film_type == "slide":
         look = Look([curve_from(theta[:8])] * 3, matrix_from(theta[8:14]))
@@ -265,8 +274,22 @@ HUE = {"colour_negative": 3.0, "slide": 0.0, "bw": 0.0}
 TONE = {"colour_negative": 1.5, "slide": 0.0, "bw": 0.0}
 
 
+# Colour negatives' steps from here up are shared by the three channels: the
+# chart data ends near 1.2 (Frontier) and 1.0 (Noritsu) on the curve's input,
+# and channels fitted apart past it ran away from each other, so a highlight
+# the contrast key pushes up there turned cyan. Shared, they rise together
+# and keep the colour of the data's edge into the shoulder.
+TIED_FROM = 6
+
+
 def curve_steps(theta, film_type):
-    return [theta[8 * c:8 * c + 8] for c in range(3)] if film_type == "colour_negative" else [theta[:8]]
+    if film_type != "colour_negative":
+        return [theta[:8]]
+    steps = [theta[8 * c:8 * c + 8].copy() for c in range(3)]
+    tail = np.mean([s[TIED_FROM:] for s in steps], 0)
+    for s in steps:
+        s[TIED_FROM:] = tail
+    return steps
 
 
 def fit(scanner: str, film_type: str) -> Look:

@@ -29,6 +29,22 @@ pub const KEY_STEP_LOG10: f64 = 0.025;
 /// 2.6×). At 4% a click made a change of about 1/255, too little to see.
 pub const CONTRAST_STEP: f64 = 1.10;
 
+/// The scan's highlight shoulder, per channel in the linear output space:
+/// straight up to the knee, then a smooth roll-off (same slope at the knee)
+/// toward a ceiling just under white, so a channel the look drives far past
+/// 1 compresses instead of clipping, and no channel reaches full white.
+pub const SHOULDER_KNEE: f64 = 0.75;
+pub const SHOULDER_CEILING: f64 = 0.985;
+
+pub fn shoulder(v: f64) -> f64 {
+    if !(v > SHOULDER_KNEE) {
+        return v;
+    }
+    let room = SHOULDER_CEILING - SHOULDER_KNEE;
+    let t = (v - SHOULDER_KNEE) / room;
+    SHOULDER_KNEE + room * (1.0 - 1.0 / (1.0 + t))
+}
+
 /// The contrast key's gain on the balanced signal.
 pub fn contrast_gain(params: &RuntimeParams) -> f64 {
     CONTRAST_STEP.powf(f64::from(params.scanner.contrast_key))
@@ -77,7 +93,8 @@ pub fn key_offsets(params: &RuntimeParams) -> [f64; 3] {
 /// net Status M density, signed so it rises with the scene's light, minus
 /// the frame's balance, steepened by the contrast key, plus the operator's
 /// keys, through the look, then `10^x` as linear Rec. 2020, converted to the
-/// output space unclipped. The CPU scan and the GPU's LUT both use it.
+/// output space unclipped, then through the highlight [`shoulder`]. The CPU
+/// scan and the GPU's LUT both use it.
 pub struct ScanPixel<'a> {
     lut: DensityLut,
     look: &'a Look,
@@ -109,7 +126,7 @@ impl<'a> ScanPixel<'a> {
     pub fn scan(&self, cmy: [f64; 3]) -> [f64; 3] {
         let lin = self.log_scan(cmy).map(|v| 10f64.powf(v));
         let m = self.to_output();
-        [0, 1, 2].map(|r| m[r][0] * lin[0] + m[r][1] * lin[1] + m[r][2] * lin[2])
+        [0, 1, 2].map(|r| shoulder(m[r][0] * lin[0] + m[r][1] * lin[1] + m[r][2] * lin[2]))
     }
 
     /// The look's output, log10 linear Rec. 2020: smooth in the density, so
@@ -220,4 +237,22 @@ pub fn process(
         crate::stages::scanning::encode_output(&mut rgb, &params.io.output_color_space);
     }
     rgb
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_shoulder_rolls_highlights_off_smoothly_below_white() {
+        assert_eq!(shoulder(0.5), 0.5, "below the knee is untouched");
+        assert_eq!(shoulder(SHOULDER_KNEE), SHOULDER_KNEE);
+        let h = 1e-6;
+        let slope = (shoulder(SHOULDER_KNEE + h) - SHOULDER_KNEE) / h;
+        assert!((slope - 1.0).abs() < 1e-4, "same slope at the knee: {slope}");
+        let ys: Vec<f64> = (0..=200).map(|i| shoulder(SHOULDER_KNEE + i as f64 * 0.5)).collect();
+        assert!(ys.windows(2).all(|w| w[1] > w[0]), "it keeps rising");
+        assert!(shoulder(1e6) < SHOULDER_CEILING && shoulder(f64::INFINITY) <= SHOULDER_CEILING);
+        assert!(shoulder(f64::NAN).is_nan());
+    }
 }

@@ -8,6 +8,7 @@
 //      CPU), straight on with the end slope beyond the knots.
 //   4. The look's matrix and cast, 10^x, then linear Rec. 2020 to the output
 //      space, unclipped.
+//   5. The highlight shoulder per channel (lab_scan::shoulder).
 // Gamut compression, the scanner's blur and sharpening and the encoding
 // follow as for any scan.
 
@@ -108,6 +109,19 @@ fn curve_at(c: u32, x: f32) -> f32 {
         + (t3 - t2) * h * curve[m0 + i + 1u];
 }
 
+// lab_scan::shoulder: straight to the knee, then a roll-off toward the ceiling.
+const SHOULDER_KNEE: f32 = 0.75;
+const SHOULDER_CEILING: f32 = 0.985;
+
+fn shoulder(v: f32) -> f32 {
+    if !(v > SHOULDER_KNEE) {
+        return v;
+    }
+    let room = SHOULDER_CEILING - SHOULDER_KNEE;
+    let t = (v - SHOULDER_KNEE) / room;
+    return SHOULDER_KNEE + room * (1.0 - 1.0 / (1.0 + t));
+}
+
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
     @builtin(global_invocation_id) gid: vec3<u32>,
@@ -143,7 +157,7 @@ fn main(
     let y = vec3<f32>(curve_at(0u, x.x), curve_at(1u, x.y), curve_at(2u, x.z));
     let log_rgb = params.matrix * y + params.tint.xyz;
     let rgb = params.to_output * pow(vec3<f32>(10.0), log_rgb);
-    output_rgb[base] = rgb.x;
-    output_rgb[base + 1u] = rgb.y;
-    output_rgb[base + 2u] = rgb.z;
+    output_rgb[base] = shoulder(rgb.x);
+    output_rgb[base + 1u] = shoulder(rgb.y);
+    output_rgb[base + 2u] = shoulder(rgb.z);
 }

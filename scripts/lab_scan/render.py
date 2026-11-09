@@ -103,13 +103,17 @@ def direct(film: str, scanner: str, ev: float, space: str = "sRGB") -> np.ndarra
 
 
 REF = np.log10(0.18)  # the look's reference grey, log10
+# How far below the reference the identity look reads the signal back, in
+# log10: low enough that the scan's highlight shoulder never touches it.
+READBACK_DROP = 2.0
 
 
 def identity_look(path: Path) -> Path:
     """A look file that passes the signal through: slope 1 through the
-    reference grey, identity matrix, no cast, for every type."""
+    reference grey less READBACK_DROP, identity matrix, no cast, for every
+    type."""
     knots = [-2.0, -1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0]
-    curve = [k + REF for k in knots]
+    curve = [k + REF - READBACK_DROP for k in knots]
     table = (
         f"curve_knots = {knots}\ncurve = [{curve}, {curve}, {curve}]\n"
         "matrix = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]\n"
@@ -145,7 +149,7 @@ def signal(film: str, scanner: str, ev: float, extra: dict | None = None) -> np.
         }, extra)))
         _run(film, scanner, src, out, params, ["--raw-out", str(raw)])
         lin = np.fromfile(raw, dtype=np.float64).reshape(img.shape[0], img.shape[1], 3)
-    return np.log10(np.clip(charts.sample(lin, centres(), frac=0.3), 1e-9, None)) - REF
+    return np.log10(np.clip(charts.sample(lin, centres(), frac=0.3), 1e-12, None)) - REF + READBACK_DROP
 
 
 def balance(film: str, scanner: str, ev: float) -> np.ndarray:
