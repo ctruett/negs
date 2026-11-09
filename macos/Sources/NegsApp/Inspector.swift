@@ -64,6 +64,9 @@ enum InspectorTab: String, CaseIterable, Identifiable {
 
     var title: String { rawValue.capitalized }
 
+    /// What a right-click hides it by (see [`HiddenParts`]).
+    var hideKey: String { "stage:" + title }
+
     /// Printing is skipped while the film is scanned directly, since there is
     /// no print to make. Such a tab stays visible, dimmed and struck through.
     func isSkipped(scanning: Bool) -> Bool { self == .print && scanning }
@@ -784,12 +787,15 @@ private extension View {
 /// Print strikes through while the film is scanned directly.
 struct InspectorTabBar: View {
     let model: EditorModel
+    @AppStorage(HiddenParts.key) private var hidden = ""
+    @AppStorage(HiddenParts.revealKey) private var revealed = false
 
     var body: some View {
         let scanning = model.value("io.scan_film").bool
+        let parts = HiddenParts(storage: $hidden, revealed: revealed)
         HStack(spacing: 0) {
-            ForEach(InspectorTab.allCases) { tab in
-                let selected = model.inspectorTab == tab
+            ForEach(parts.visibleTabs) { tab in
+                let selected = parts.visibleTab(model.inspectorTab) == tab
                 let skipped = tab.isSkipped(scanning: scanning)
                 let edited = model.editCount(on: tab) > 0
                 Button {
@@ -812,6 +818,7 @@ struct InspectorTabBar: View {
                 .help(skipped ? "Print is skipped while Scan film directly is on." : tab.title)
                 .accessibilityLabel(tab.title)
                 .accessibilityValue([skipped ? "Skipped" : selected ? "Selected" : "", edited ? "Has edits" : ""].filter { !$0.isEmpty }.joined(separator: ", "))
+                .hideable(tab.hideKey)
             }
         }
         .padding(.horizontal, 8)
@@ -849,10 +856,14 @@ struct AdjustmentInspector: View {
     @AppStorage("expandedMoreControls") private var expandedMore = ""
     @AppStorage(AllFolds.key) private var allFoldsStorage = ""
     private var allFolds: AllFolds { AllFolds(storage: $allFoldsStorage) }
+    @AppStorage(HiddenParts.key) private var hiddenStorage = ""
+    @AppStorage(HiddenParts.revealKey) private var revealHidden = false
+    private var hiddenParts: HiddenParts { HiddenParts(storage: $hiddenStorage, revealed: revealHidden) }
 
     /// The selected tab lives on the model, so changing photos or switching
     /// to Presets keeps it for this session without carrying it into the next.
-    private var tab: InspectorTab { model.inspectorTab }
+    /// A hidden one gives way to the first stage shown.
+    private var tab: InspectorTab { hiddenParts.visibleTab(model.inspectorTab) }
     /// The grid's panel is always the everyday controls.
     private var simple: Bool { model.inspectorMode == .simple || model.gridVisible }
     private var everything: Bool { model.inspectorMode == .all && !model.gridVisible }
@@ -884,10 +895,11 @@ struct AdjustmentInspector: View {
                     if simple {
                         simplePage
                     } else if everything {
-                        ForEach(InspectorTab.allCases) { stage in
-                            let key = "stage:" + stage.title
+                        ForEach(hiddenParts.visibleTabs) { stage in
+                            let key = stage.hideKey
                             StageHeading(title: stage.title, edited: model.editCount(on: stage) > 0, folded: allFolds.contains(key))
                                 .onTapGesture(count: 2) { allFolds.toggle(key) }
+                                .hideable(key)
                             if !allFolds.contains(key) { page(stage) }
                         }
                     } else {

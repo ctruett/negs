@@ -41,6 +41,20 @@ final class InspectorTabsTests: XCTestCase {
         XCTAssertFalse(parts.any)
     }
 
+    /// A stage can be hidden like a section; the tab shown moves off a hidden
+    /// one, and with every stage hidden, the first stays.
+    func testAHiddenStageGivesUpItsTab() {
+        var stored = ""
+        let parts = HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: false)
+        XCTAssertEqual(parts.visibleTab(.scan), .scan)
+        parts.toggle(InspectorTab.scan.hideKey)
+        XCTAssertEqual(parts.visibleTab(.scan), .camera)
+        XCTAssertEqual(parts.visibleTabs, [.camera, .film, .print, .export])
+        for tab in InspectorTab.allCases where tab != .scan { parts.toggle(tab.hideKey) }
+        XCTAssertEqual(parts.visibleTab(.film), .camera, "Never no tab at all")
+        XCTAssertEqual(HiddenParts(storage: Binding(get: { stored }, set: { stored = $0 }), revealed: true).visibleTab(.scan), .scan)
+    }
+
     func testPrintIsSkippedOnlyWhileScanningFilmDirectly() {
         XCTAssertTrue(InspectorTab.print.isSkipped(scanning: true))
         for tab in InspectorTab.allCases where tab != .print {

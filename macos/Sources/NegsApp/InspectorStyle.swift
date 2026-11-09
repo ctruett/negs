@@ -62,27 +62,43 @@ struct HiddenParts {
     func toggle(_ key: String) {
         storage.wrappedValue = (isHidden(key) ? keys.filter { $0 != key } : keys + [key]).joined(separator: "\n")
     }
+
+    /// The stages shown, in order; the first stays even if all are hidden.
+    var visibleTabs: [InspectorTab] {
+        let shown = InspectorTab.allCases.filter { shows($0.hideKey) }
+        return shown.isEmpty ? [InspectorTab.allCases[0]] : shown
+    }
+
+    /// `tab`, or the first stage shown if it's hidden.
+    func visibleTab(_ tab: InspectorTab) -> InspectorTab {
+        visibleTabs.contains(tab) ? tab : visibleTabs[0]
+    }
 }
 
 /// A sidebar part that a right-click can hide, or with the eye open, show again.
 struct Hideable: ViewModifier {
-    let key: String
+    /// Nil leaves the part as it is: an untitled section has nothing to name it by.
+    let key: String?
     @AppStorage(HiddenParts.key) private var storage = ""
     @AppStorage(HiddenParts.revealKey) private var revealed = false
 
     func body(content: Content) -> some View {
         let parts = HiddenParts(storage: $storage, revealed: revealed)
-        if parts.shows(key) {
-            content.contextMenu {
-                Button(parts.isHidden(key) ? "Show Section" : "Hide Section") { parts.toggle(key) }
+        if let key {
+            if parts.shows(key) {
+                content.contextMenu {
+                    Button(parts.isHidden(key) ? "Show Section" : "Hide Section") { parts.toggle(key) }
+                }
             }
+        } else {
+            content
         }
     }
 }
 
 extension View {
     /// See [`Hideable`]: `key` names the part, as "section:Tone".
-    func hideable(_ key: String) -> some View { modifier(Hideable(key: key)) }
+    func hideable(_ key: String?) -> some View { modifier(Hideable(key: key)) }
 }
 
 /// The eye above the histogram: open shows every part, hidden ones included.
@@ -156,7 +172,7 @@ struct InkSection<Content: View, Action: View>: View {
         .padding(.horizontal, InkLayout.gutter)
         .padding(.vertical, 8)
         .overlay(alignment: .bottom) { Ink.line.frame(height: 1) }
-        .hideable("section:" + (title ?? ""))
+        .hideable(title.map { "section:" + $0 })
     }
 }
 
