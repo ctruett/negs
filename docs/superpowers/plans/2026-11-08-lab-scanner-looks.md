@@ -152,7 +152,7 @@ How metering works:
 - Create: `data/scanners/frontier.toml` and `data/scanners/noritsu.toml`
 - Modify: `crates/spektrafilm-core/src/pipeline.rs`:
   - the route around lines 906 and 978 (`process_taps`)
-  - skip `try_gpu_resident` when `io.scan_film`
+  - skip `try_gpu_resident` when `io.scans_film()`
 - Modify: `crates/spektrafilm-core/src/zones.rs` (`Pointwise::new` takes `Option<Balance>`)
 - Modify: `crates/spektrafilm-core/src/lut_export.rs`. It meters a uniform 18% grey frame, and names the LUT `<film>_<scanner>`.
 - Modify: `crates/spektrafilm-core/src/color_reference.rs`. No B&W/slide luminance remap on the lab-scan route; the filming exposure correction stays.
