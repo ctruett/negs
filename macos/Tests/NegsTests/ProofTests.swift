@@ -42,6 +42,26 @@ import XCTest
         XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001, "the export's size again")
     }
 
+    /// A double-click goes between the 85% fit and 1:1 (the export's size)
+    /// about the clicked point, and tells the model which it shows.
+    func testDoubleClickTogglesBetweenTheFitAnd1To1() {
+        let scroll = canvas(viewport: 400, photo: CGSize(width: 800, height: 600))
+        scroll.proofPixels = CGSize(width: 1600, height: 1200)
+        var reported: [Bool] = []
+        scroll.onFitShownChanged = { reported.append($0) }
+        scroll.fitShown = true
+        scroll.zoomSteps = 2
+        scroll.toggleZoom(about: CGPoint(x: 600, y: 450))
+        XCTAssertFalse(scroll.fitShown)
+        XCTAssertEqual(scroll.zoomSteps, 0)
+        XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001)
+        XCTAssertGreaterThan(scroll.contentView.bounds.midX, 400, "about the clicked point, right of the middle")
+        scroll.toggleZoom(about: CGPoint(x: 100, y: 100))
+        XCTAssertTrue(scroll.fitShown)
+        XCTAssertEqual(scroll.magnification, 0.5 * 0.85, accuracy: 0.001)
+        XCTAssertEqual(reported, [false, true])
+    }
+
     func testZoomStaysWithinItsLimits() {
         let scroll = canvas()
         scroll.proofPixels = CGSize(width: 1600, height: 1200)
@@ -109,11 +129,13 @@ import XCTest
         XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001)
     }
 
-    func testADoubleClickDoesntZoomAProof() {
+    /// At 1:1, a double-click fits the photograph.
+    func testADoubleClickAt1To1Fits() {
         let scroll = canvas()
         scroll.proofPixels = CGSize(width: 1600, height: 1200)
         scroll.toggleZoom(about: .zero)
-        XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001)
+        XCTAssertTrue(scroll.fitShown)
+        XCTAssertEqual(scroll.magnification, 0.5 * 0.85, accuracy: 0.001)
     }
 
     /// A border adds to the canvas, not to the photograph's size.

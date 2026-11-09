@@ -1136,13 +1136,12 @@ struct AdjustmentInspector: View {
 
     @ViewBuilder private var scanTab: some View {
         if model.labScan {
-            InkSection("Lab Scanner", footer: "The lab balances every frame for density and colour, as Frontier and Noritsu operators’ machines do. The keys correct on top, in clicks of about 1/12 stop: Density darkens, and Cyan, Magenta and Yellow add that colour.") {
+            InkSection("Lab Scanner", footer: "The scanner balances every frame for density and colour itself. The keys correct on top, as a lab operator’s do, a click at a time: each colour key turns the photograph its colour, and +D darkens it. Contrast steepens the tones about the frame’s grey.") {
                 scannerPicker
-                ForEach(ScannerKeys.keys, id: \.path) { key in
-                    KeyStepperRow(title: key.title, value: model.value(key.path).double,
-                                  step: { model.stepKey(key.path, by: $0) },
-                                  reset: { model.set(key.path, .number(0)) })
-                }
+                LabKeypad(model: model)
+                KeyStepperRow(title: "Contrast", value: model.value(ScannerKeys.contrastPath).double,
+                              step: { model.stepKey(ScannerKeys.contrastPath, by: $0) },
+                              reset: { model.set(ScannerKeys.contrastPath, .number(0)) })
             }
         }
         InkSection("Tone", footer: "These shape the tones the film produced. To recover a clipped highlight, use Exposure in Camera.") {

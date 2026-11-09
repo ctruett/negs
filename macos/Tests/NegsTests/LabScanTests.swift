@@ -97,6 +97,23 @@ final class LabScanTests: XCTestCase {
         XCTAssertEqual(model.value("scanner.cyan_key"), .number(20))
     }
 
+    /// The Frontier's keypad: N puts the density back, COLOR KEY CANCEL the
+    /// colour keys, and neither touches the other or the contrast.
+    func testNormalAndColourKeyCancel() {
+        let model = EditorModel()
+        model.stepKey("scanner.density_key", by: 3)
+        model.stepKey("scanner.cyan_key", by: 2)
+        model.stepKey("scanner.yellow_key", by: -1)
+        model.stepKey(ScannerKeys.contrastPath, by: 4)
+        model.cancelColourKeys()
+        XCTAssertEqual(model.value("scanner.cyan_key"), .number(0))
+        XCTAssertEqual(model.value("scanner.yellow_key"), .number(0))
+        XCTAssertEqual(model.value("scanner.density_key"), .number(3))
+        model.normalDensity()
+        XCTAssertEqual(model.value("scanner.density_key"), .number(0))
+        XCTAssertEqual(model.value(ScannerKeys.contrastPath), .number(4))
+    }
+
     func testKeysClampToTwentySteps() {
         XCTAssertEqual(ScannerKeys.clamped(25), 20)
         XCTAssertEqual(ScannerKeys.clamped(-21.4), -20)

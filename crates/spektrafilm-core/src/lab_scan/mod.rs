@@ -24,6 +24,15 @@ use look::Look;
 /// 1/12 stop.
 pub const KEY_STEP_LOG10: f64 = 0.025;
 
+/// One click of the operator's contrast key: the balanced signal's slope
+/// about the metered grey grows 4% (±20 clicks: about 0.46× to 2.2×).
+pub const CONTRAST_STEP: f64 = 1.04;
+
+/// The contrast key's gain on the balanced signal.
+pub fn contrast_gain(params: &RuntimeParams) -> f64 {
+    CONTRAST_STEP.powf(f64::from(params.scanner.contrast_key))
+}
+
 /// The scanner's data for one film: its sensor, and both scanners' looks for
 /// the film's type. Loaded once per pipeline.
 pub struct Scanner {
@@ -81,7 +90,7 @@ pub fn process(
     let look = scanner.look(params.scanner.model);
     let lut = DensityLut::new(film, params, &scanner.sensitivity);
     let keys = key_offsets(params);
-    let shift = [0, 1, 2].map(|c| keys[c] - balance.offset[c]);
+    let gain = contrast_gain(params);
     // Linear Rec. 2020 to the output space, as `stages::scanning::convert_output`
     // converts (ICC, Bradford between whites), but unclipped, so the gamut
     // compression below still sees the colours outside the output space.
@@ -92,7 +101,8 @@ pub fn process(
     let mut rgb = filmed;
     rgb.data.par_chunks_exact_mut(3).for_each(|px| {
         let net = lut.net([px[0] as f64, px[1] as f64, px[2] as f64]);
-        let x = [0, 1, 2].map(|c| sign * net[c] + shift[c]);
+        // Balanced about the metered grey, steepened by the contrast key, keyed.
+        let x = [0, 1, 2].map(|c| (sign * net[c] - balance.offset[c]) * gain + keys[c]);
         let lin = look.apply(x).map(|v| 10f64.powf(v));
         let mut out = match &to_output {
             Some(m) => [0, 1, 2].map(|r| m[r][0] * lin[0] + m[r][1] * lin[1] + m[r][2] * lin[2]),

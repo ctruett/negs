@@ -184,6 +184,11 @@ pub struct ScannerParams {
     pub magenta_key: f32,
     #[serde(default)]
     pub yellow_key: f32,
+    /// The operator's contrast (gradation) key, in clicks from -20 to +20:
+    /// each steepens the scan about the frame's metered grey by
+    /// `lab_scan::CONTRAST_STEP`.
+    #[serde(default)]
+    pub contrast_key: f32,
 }
 
 /// The lab scanner a Lab-scan render imitates.
@@ -219,6 +224,7 @@ impl Default for ScannerParams {
             cyan_key: 0.0,
             magenta_key: 0.0,
             yellow_key: 0.0,
+            contrast_key: 0.0,
         }
     }
 }

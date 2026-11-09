@@ -449,6 +449,15 @@ import UniformTypeIdentifiers
         set(path, .number(ScannerKeys.clamped(value(path).double + clicks)))
     }
 
+    /// The keypad's N: the density key back to normal.
+    func normalDensity() { set(ScannerKeys.densityPath, .number(0)) }
+    /// The keypad's COLOR KEY CANCEL: the cyan, magenta and yellow keys back to 0, in one step.
+    func cancelColourKeys() {
+        var next = state
+        for path in ScannerKeys.colourPaths { next.params[path] = .number(0) }
+        apply(next, action: "Cancel Color Keys")
+    }
+
     /// Lab scan or Paper print. A positive film is always scanned.
     func chooseOutput(_ route: OutputRoute) {
         guard route == .labScan || !filmIsPositive else { return }

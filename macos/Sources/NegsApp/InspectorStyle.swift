@@ -329,8 +329,9 @@ struct KeyStepperRow: View {
         Button(label) {
             if NSEvent.modifierFlags.contains(.option) { reset() } else { step(clicks) }
         }
-        .buttonStyle(InkButtonStyle())
-        .help("\(clicks > 0 ? "More" : "Less") \(title.lowercased()), a click of about 1/12 stop. ⌥-click to reset.")
+        .buttonStyle(Keycap())
+        .frame(width: 34)
+        .help("\(clicks > 0 ? "More" : "Less") \(title.lowercased()), a click. ⌥-click to reset.")
         .accessibilityLabel("\(clicks > 0 ? "More" : "Less") \(title)")
     }
 }

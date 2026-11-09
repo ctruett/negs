@@ -313,7 +313,7 @@ fn lab_balance_key(input: &Path, source_generation: u64, film: &str, params: &Ru
     params.settings.serial_grain = false;
     image_size::clear(&mut params);
     let scanner = &mut params.scanner;
-    (scanner.density_key, scanner.cyan_key, scanner.magenta_key, scanner.yellow_key) = (0.0, 0.0, 0.0, 0.0);
+    (scanner.density_key, scanner.cyan_key, scanner.magenta_key, scanner.yellow_key, scanner.contrast_key) = (0.0, 0.0, 0.0, 0.0, 0.0);
     json!({"input": input, "source_generation": source_generation, "film": film, "params": params}).to_string()
 }
 

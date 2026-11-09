@@ -163,7 +163,7 @@ pub fn import(text: &str, data_dir: &Path) -> Result<Preset, String> {
 }
 
 /// The `negs_scanner` section's keys.
-const SCANNER_KEYS: [&str; 5] = ["model", "density_key", "cyan_key", "magenta_key", "yellow_key"];
+const SCANNER_KEYS: [&str; 6] = ["model", "density_key", "cyan_key", "magenta_key", "yellow_key", "contrast_key"];
 
 /// `scanner` with the section's model and keys set. A key outside its range
 /// or of the wrong kind refuses the file, with the reason.
@@ -176,7 +176,7 @@ fn read_scanner(section: &Value, scanner: &ScannerParams) -> Result<ScannerParam
         }
     }
     let read: ScannerParams = serde_json::from_value(value).map_err(|e| format!("Invalid scanner settings: {e}"))?;
-    for key in [read.density_key, read.cyan_key, read.magenta_key, read.yellow_key] {
+    for key in [read.density_key, read.cyan_key, read.magenta_key, read.yellow_key, read.contrast_key] {
         if !(-20.0..=20.0).contains(&key) {
             return Err("Invalid scanner settings: a key must be from -20 to +20.".into());
         }
@@ -702,12 +702,13 @@ mod tests {
 
     /// Negs values a preset sets to Negs's default: Python's GUI has no such
     /// setting and renders with the same default.
-    const NEGS_DEFAULTS: [&str; 13] = [
+    const NEGS_DEFAULTS: [&str; 14] = [
         "scanner.model",
         "scanner.density_key",
         "scanner.cyan_key",
         "scanner.magenta_key",
         "scanner.yellow_key",
+        "scanner.contrast_key",
         "film_render.grain.monochrome",
         "film_render.glare",
         "enlarger.normalize_print_exposure",

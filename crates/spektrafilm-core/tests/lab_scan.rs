@@ -464,3 +464,25 @@ fn thin_frames_scan_as_what_they_are() {
         assert!(blown.iter().all(|&v| v > 0.5), "{model:?} blown slide: {blown:?}");
     }
 }
+
+/// The operator's contrast key steepens the scan about the metered grey: a
+/// grey card stays where it is, and the patches either side move apart.
+#[test]
+fn contrast_key_steepens_about_the_grey() {
+    let scan = |contrast: f32, image: ImageBuf| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        params.io.output_cctf_encoding = false;
+        params.scanner.contrast_key = contrast;
+        render("kodak_portra_400", params, image)
+    };
+    let grey = |c| px(&scan(c, uniform([0.18; 3])), 1, 1);
+    for (a, b) in grey(0.0).iter().zip(grey(6.0)) {
+        assert!((a - b).abs() < 1e-4, "the grey card stays: {a} vs {b}");
+    }
+    let spread = |c| {
+        let out = scan(c, two_patches([0.05; 3], [0.5; 3]));
+        px(&out, 12, 8)[1] / px(&out, 3, 8)[1]
+    };
+    assert!(spread(6.0) > spread(0.0) * 1.2, "{} vs {}", spread(6.0), spread(0.0));
+    assert!(spread(-6.0) < spread(0.0) / 1.2);
+}

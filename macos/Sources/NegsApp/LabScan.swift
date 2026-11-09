@@ -27,6 +27,10 @@ enum ScannerKeys {
         ("scanner.density_key", "Density"), ("scanner.cyan_key", "Cyan"),
         ("scanner.magenta_key", "Magenta"), ("scanner.yellow_key", "Yellow"),
     ]
+    static let densityPath = "scanner.density_key"
+    static let colourPaths = ["scanner.cyan_key", "scanner.magenta_key", "scanner.yellow_key"]
+    /// The contrast (gradation) key: set up in the scanner's software, not on its keypad.
+    static let contrastPath = "scanner.contrast_key"
     static let range: ClosedRange<Double> = -20...20
 
     static func title(_ model: String) -> String { model == "noritsu" ? "Noritsu" : "Frontier" }

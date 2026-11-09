@@ -40,6 +40,8 @@ struct PreviewCanvas: NSViewRepresentable {
     var onEscapeKey: (() -> Void)? = nil
     /// Called when the user changes between fit and a zoomed view.
     var onFitChanged: ((Bool) -> Void)? = nil
+    /// A double-click went to or from the 85% fit.
+    var onFitShownChanged: ((Bool) -> Void)? = nil
 
     func makeNSView(context: Context) -> ImageScrollView {
         let scroll = ImageScrollView()
@@ -52,12 +54,14 @@ struct PreviewCanvas: NSViewRepresentable {
         scroll.setAccessibilityLabel("Photograph preview")
         scroll.setAccessibilityHelp("Pinch to zoom, drag to select an area for the histogram, drag with the middle button to pan, Control-click or Control-drag to read a tone against the zones, Command-click or Command-drag to set the white balance, double-click to fit or show actual size.")
         scroll.onFitChanged = onFitChanged
+        scroll.onFitShownChanged = onFitShownChanged
         return scroll
     }
 
     func updateNSView(_ scroll: ImageScrollView, context: Context) {
         scale?.view = scroll
         scroll.onFitChanged = onFitChanged
+        scroll.onFitShownChanged = onFitShownChanged
         let photo = scroll.documentView as! PhotographView
         photo.onEscapeKey = onEscapeKey
         photo.onPickWhiteBalance = onPickWhiteBalance
@@ -194,9 +198,13 @@ final class ImageScrollView: NSScrollView {
     /// ⌘0: the whole photograph at `fitShare` of the window, followed as the
     /// window changes, in place of the export's size.
     var fitShown = false {
-        didSet { if fitShown != oldValue { applyZoom() } }
+        didSet { if fitShown != oldValue, !zoomingAboutAPoint { applyZoom() } }
     }
+    /// A double-click is placing the zoom itself.
+    private var zoomingAboutAPoint = false
     static let fitShare: CGFloat = 0.85
+    /// A double-click changed `fitShown`.
+    var onFitShownChanged: ((Bool) -> Void)?
     /// A fitted photograph leaves room for its details above it, and is centred.
     var exif: PhotoExif? {
         didSet {
@@ -307,7 +315,23 @@ final class ImageScrollView: NSScrollView {
     /// Double-click: fit the whole photograph, or show it at 1:1 about the
     /// clicked point, which then stays under the pointer.
     func toggleZoom(about point: CGPoint) {
-        guard !isProof else { return }
+        if isProof {
+            // Between the 85% fit and 1:1, the export's size, about the click.
+            if fitShown {
+                // The clicked point stays under the pointer as the view leaves the fit.
+                zoomingAboutAPoint = true
+                defer { zoomingAboutAPoint = false }
+                zoomSteps = 0
+                if let documentView, let wanted = proofMagnification(document: documentView.frame.size) {
+                    setMagnification(min(max(wanted, minMagnification), maxMagnification), centeredAt: point)
+                }
+                fitShown = false
+            } else {
+                fitShown = true
+            }
+            onFitShownChanged?(fitShown)
+            return
+        }
         if fitting {
             setFitting(false)
             let oneToOne = 1 / (window?.backingScaleFactor ?? 2)

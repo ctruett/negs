@@ -325,7 +325,8 @@ struct CanvasArea: View {
                       onSelectRegion: { model.selectRegion($0) },
                       region: model.histogramRegion,
                       onEscapeKey: { model.clearZoneReading(); model.selectRegion(nil) },
-                      onFitChanged: { model.fitImage = $0 })
+                      onFitChanged: { model.fitImage = $0 },
+                      onFitShownChanged: { $0 ? model.zoomToFit() : model.zoomActualSize() })
     }
 }
 
