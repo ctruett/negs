@@ -321,7 +321,9 @@ struct CanvasArea: View {
                       fileName: model.imageOnly ? nil : model.source?.lastPathComponent,
                       onPickWhiteBalance: { a, b in model.pickWhiteBalance(from: a, to: b) },
                       onPickZone: { a, b in model.pickZone(from: a, to: b) },
-                      onEscapeKey: { model.clearZoneReading() },
+                      onSelectRegion: { model.selectRegion($0) },
+                      region: model.histogramRegion,
+                      onEscapeKey: { model.clearZoneReading(); model.selectRegion(nil) },
                       onFitChanged: { model.fitImage = $0 })
     }
 }

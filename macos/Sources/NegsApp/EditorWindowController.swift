@@ -29,6 +29,7 @@ import SwiftUI
     private var appearing: NSObjectProtocol?
     private var resigning: NSObjectProtocol?
     private var keyMonitor: Any?
+    private var clickMonitor: Any?
     private var fullScreenObservers: [NSObjectProtocol] = []
     /// The key held to show the original, so its release is found even if
     /// a modifier (⌥⇧ on some layouts) was let go first.
@@ -103,6 +104,10 @@ import SwiftUI
         }
         appearing = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.windowChangedOcclusion() }
+        }
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            MainActor.assumeIsolated { self?.endZoneReading(clickedBy: event) }
+            return event
         }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             MainActor.assumeIsolated {
@@ -187,6 +192,21 @@ import SwiftUI
         else { return false }
         if !event.isARepeat { model.toggleImageOnly() }
         return true
+    }
+
+    /// A click anywhere but the histogram's zone bands ends a zone reading.
+    /// A ⌃-click on the photograph starts a new one straight after.
+    private func endZoneReading(clickedBy event: NSEvent) {
+        guard model.zoneReading != nil, let window, let content = window.contentView else { return }
+        let point = event.window === window ? event.locationInWindow : nil
+        if let point, Self.inZoneBands(point, contentHeight: content.bounds.height, bands: model.zoneBandsFrame) { return }
+        model.clearZoneReading()
+    }
+
+    /// Whether a window point, from the bottom left, is on the zone bands,
+    /// whose frame is from the top left.
+    static func inZoneBands(_ point: CGPoint, contentHeight: CGFloat, bands: CGRect) -> Bool {
+        bands.contains(CGPoint(x: point.x, y: contentHeight - point.y))
     }
 
     /// Whether a key press is a Tab that should do nothing: Tab moves the

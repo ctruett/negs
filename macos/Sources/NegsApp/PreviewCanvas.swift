@@ -29,6 +29,11 @@ struct PreviewCanvas: NSViewRepresentable {
     /// ⌃-click or ⌃-drag: the area to read against the zones, as two corners
     /// in fractions of the uncropped photograph from its top left.
     var onPickZone: ((CGPoint, CGPoint) -> Void)? = nil
+    /// A plain drag: the region the histogram counts, in fractions of the
+    /// uncropped photograph from its top left; nil for a plain click.
+    var onSelectRegion: ((CGRect?) -> Void)? = nil
+    /// The region selected now, drawn on the photograph.
+    var region: CGRect? = nil
     /// Esc on the photograph: drop the zone reading.
     var onEscapeKey: (() -> Void)? = nil
     /// Called when the user changes between fit and a zoomed view.
@@ -43,7 +48,7 @@ struct PreviewCanvas: NSViewRepresentable {
         scroll.allowsMagnification = true; scroll.minMagnification = 0.005; scroll.maxMagnification = 16
         scroll.documentView = PhotographView()
         scroll.setAccessibilityLabel("Photograph preview")
-        scroll.setAccessibilityHelp("Pinch to zoom, drag to pan, Control-click or Control-drag to read a tone against the zones, Command-click or Command-drag to set the white balance, double-click to fit or show actual size.")
+        scroll.setAccessibilityHelp("Pinch to zoom, drag to select an area for the histogram, drag with the middle button to pan, Control-click or Control-drag to read a tone against the zones, Command-click or Command-drag to set the white balance, double-click to fit or show actual size.")
         scroll.onFitChanged = onFitChanged
         return scroll
     }
@@ -55,6 +60,8 @@ struct PreviewCanvas: NSViewRepresentable {
         photo.onEscapeKey = onEscapeKey
         photo.onPickWhiteBalance = onPickWhiteBalance
         photo.onPickZone = onPickZone
+        photo.onSelectRegion = onSelectRegion
+        if photo.region != region { photo.region = region; scroll.overlay.redraw() }
         scroll.proofPixels = proofPixels
         scroll.zoomSteps = zoomSteps
         scroll.exif = exif
@@ -352,6 +359,9 @@ final class PhotographView: NSView {
     private var filmStrip: FilmStrip?
     var onPickWhiteBalance: ((CGPoint, CGPoint) -> Void)?
     var onPickZone: ((CGPoint, CGPoint) -> Void)?
+    var onSelectRegion: ((CGRect?) -> Void)?
+    /// The selected region, which the overlay outlines.
+    var region: CGRect?
     var onEscapeKey: (() -> Void)?
     /// The drag in progress.
     private enum Drag {
@@ -360,6 +370,8 @@ final class PhotographView: NSView {
         /// ⌘ or ⌃ held: a box from `start`, drawn on the overlay as it's dragged.
         /// A click without a drag reads the few pixels around it.
         case pick(Pick, start: CGPoint)
+        /// A plain press: a box from `start` selecting what the histogram counts.
+        case select(start: CGPoint)
     }
     private enum Pick { case whiteBalance, zone(large: Bool) }
     private var drag: Drag?
@@ -451,16 +463,56 @@ final class PhotographView: NSView {
             pushCursor(.crosshair)
         case .zoomToggle:
             (enclosingScrollView as? ImageScrollView)?.toggleZoom(about: point)
+        case .select:
+            drag = .select(start: point)
+            pushCursor(.crosshair)
         case .pan:
-            let canScroll = (enclosingScrollView as? ImageScrollView)?.canScroll ?? false
-            drag = .press(start: point, moved: false, canScroll: canScroll)
-            if canScroll { pushCursor(.closedHand) }
+            startPan(at: point)
         }
+    }
+
+    private func startPan(at point: CGPoint) {
+        let canScroll = (enclosingScrollView as? ImageScrollView)?.canScroll ?? false
+        drag = .press(start: point, moved: false, canScroll: canScroll)
+        if canScroll { pushCursor(.closedHand) }
+    }
+
+    /// The middle button pans, as in RPP.
+    override func otherMouseDown(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return super.otherMouseDown(with: event) }
+        startPan(at: convert(event.locationInWindow, from: nil))
+    }
+    override func otherMouseDragged(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return super.otherMouseDragged(with: event) }
+        mouseDragged(with: event)
+    }
+    override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2 else { return super.otherMouseUp(with: event) }
+        drag = nil
+        popCursor()
+    }
+
+    /// The box between two view points, as a region of the uncropped photograph.
+    private func region(from a: CGPoint, to b: CGPoint) -> CGRect? {
+        guard let p = unitPoint(clampedFrom: a), let q = unitPoint(clampedFrom: b) else { return nil }
+        let r = CGRect(x: min(p.x, q.x), y: min(p.y, q.y), width: abs(p.x - q.x), height: abs(p.y - q.y))
+        return r.width > 0 && r.height > 0 ? r : nil
+    }
+
+    /// Where a point of the uncropped photograph, in fractions from its top
+    /// left, sits in this view.
+    func viewPoint(unit: CGPoint) -> CGPoint? {
+        guard let root = layer, size.width > 0 else { return nil }
+        let inClip = clip.convert(CGPoint(x: unit.x * size.width, y: (1 - unit.y) * size.height), from: photo)
+        return root.convert(inClip, from: clip)
     }
 
     override func mouseDragged(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         switch drag {
+        case .select(let start):
+            guard hypot(point.x - start.x, point.y - start.y) > 3, let selected = region(from: start, to: point) else { return }
+            onSelectRegion?(selected)
         case .pick(_, let start):
             guard hypot(point.x - start.x, point.y - start.y) > 3, let overlay else { return }
             let (a, b) = (overlay.convert(start, from: self), overlay.convert(point, from: self))
@@ -482,6 +534,10 @@ final class PhotographView: NSView {
 
     override func mouseUp(with event: NSEvent) {
         switch drag {
+        case .select(let start):
+            let end = convert(event.locationInWindow, from: nil)
+            // A click without a drag goes back to the whole photograph.
+            onSelectRegion?(hypot(end.x - start.x, end.y - start.y) > 3 ? region(from: start, to: end) : nil)
         case .pick(let pick, let start):
             overlay?.showMarquee(nil)
             let end = convert(event.locationInWindow, from: nil)

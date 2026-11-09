@@ -15,10 +15,15 @@ struct Histogram: Equatable, Sendable {
     /// Counts the crop of a BGRA preview. A large crop is sampled on an even
     /// grid of at most `maxSamples` pixels, which keeps the shape and takes a
     /// few milliseconds at any preview size.
-    static func of(_ surface: IOSurface, crop: CropSettings, maxSamples: Int = 1 << 20) -> Histogram {
+    /// With a `region`, a box of the uncropped photograph in fractions from
+    /// its top left, only that box is counted, as RPP's selection does.
+    static func of(_ surface: IOSurface, crop: CropSettings, region: CGRect? = nil, maxSamples: Int = 1 << 20) -> Histogram {
         var histogram = Histogram()
         let size = CGSize(width: surface.width, height: surface.height)
-        let area = crop.pixels(in: size)
+        let area = region.map {
+            CGRect(x: $0.minX * size.width, y: $0.minY * size.height, width: $0.width * size.width, height: $0.height * size.height)
+                .integral.intersection(CGRect(origin: .zero, size: size))
+        } ?? crop.pixels(in: size)
         guard area.width >= 1, area.height >= 1 else { return histogram }
         let stride = max(1, Int((area.width * area.height / Double(maxSamples)).squareRoot().rounded(.up)))
         surface.lock(options: .readOnly, seed: nil)
@@ -27,7 +32,9 @@ struct Histogram: Equatable, Sendable {
         let (width, height, rowBytes) = (surface.width, surface.height, surface.bytesPerRow)
         // A straightened crop is in the turned frame: turn each sample back
         // to the photograph, as `CropGeometry.turn(_:by: -angle, about:)`.
-        let (sin, cos) = (Foundation.sin(-crop.angle * .pi / 180), Foundation.cos(-crop.angle * .pi / 180))
+        // A region is already in the photograph's own frame.
+        let angle = region == nil ? crop.angle : 0
+        let (sin, cos) = (Foundation.sin(-angle * .pi / 180), Foundation.cos(-angle * .pi / 180))
         let (cx, cy) = (size.width / 2, size.height / 2)
         histogram.red.withUnsafeMutableBufferPointer { red in
             histogram.green.withUnsafeMutableBufferPointer { green in
@@ -165,6 +172,11 @@ struct ZoneHistogramView: View {
                 }
             }
             .frame(height: Self.chartHeight)
+            .background(GeometryReader { geometry in
+                Color.clear
+                    .onAppear { model.zoneBandsFrame = geometry.frame(in: .global) }
+                    .onChange(of: geometry.frame(in: .global)) { model.zoneBandsFrame = geometry.frame(in: .global) }
+            })
             .background(Ink.well)
             .clipped()
             .accessibilityElement(children: .contain)

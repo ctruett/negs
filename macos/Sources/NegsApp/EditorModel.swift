@@ -1029,7 +1029,7 @@ import UniformTypeIdentifiers
         source = url; image = nil; placeholder = nil; previewCurrent = false; renderFailed = false
         sourceSize = .zero; workingSize = .zero; previewScale = 1
         showingCachedPreview = false
-        zoneReadingTask?.cancel(); zoneReading = nil
+        zoneReadingTask?.cancel(); zoneReading = nil; histogramRegion = nil
         updateHistogram()
         interactionStart = nil; cropSession = nil
         original = nil; originalCache = nil; originalLoad?.cancel(); originalLoad = nil; holdingOriginal = false
@@ -1398,9 +1398,9 @@ import UniformTypeIdentifiers
     private func updateHistogram() {
         histogramRequest += 1
         guard let image else { histogram = nil; return }
-        let request = histogramRequest, crop = crop
+        let request = histogramRequest, crop = crop, region = histogramRegion
         Task.detached(priority: .userInitiated) { [weak self] in
-            let counted = Histogram.of(image, crop: crop)
+            let counted = Histogram.of(image, crop: crop, region: region)
             await self?.showHistogram(counted, request: request)
         }
     }
@@ -1645,6 +1645,24 @@ import UniformTypeIdentifiers
         zoneReading = ZoneReading(from: a, to: b)
         readZoneArea()
     }
+
+    /// A box dragged on the photograph, in fractions of the uncropped
+    /// photograph from its top left: the histogram counts only it, as in RPP.
+    /// Nil is the whole photograph.
+    private(set) var histogramRegion: CGRect?
+
+    /// A plain drag selects a region; a plain click goes back to the whole
+    /// photograph, and ends a zone reading.
+    func selectRegion(_ region: CGRect?) {
+        if region == nil { clearZoneReading() }
+        guard region != histogramRegion else { return }
+        histogramRegion = region
+        updateHistogram()
+    }
+
+    /// Where the histogram's zone bands are, in the window from its top left:
+    /// a click anywhere else ends a zone reading.
+    @ObservationIgnored var zoneBandsFrame: CGRect = .zero
 
     func clearZoneReading() {
         zoneReadingTask?.cancel()

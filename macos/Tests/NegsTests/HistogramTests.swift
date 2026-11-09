@@ -35,6 +35,15 @@ final class HistogramTests: XCTestCase {
         XCTAssertEqual(left.red[0], 40 * 60); XCTAssertEqual(left.red.reduce(0, +), 40 * 60)
     }
 
+    /// A selected region counts only its own pixels, wherever the crop is.
+    func testASelectedRegionCountsOnlyItsPixels() throws {
+        let image = try surface()
+        let right = Histogram.of(image, crop: CropSettings(), region: CGRect(x: 0.7, y: 0.2, width: 0.2, height: 0.5))
+        XCTAssertEqual(right.red.reduce(0, +), 20 * 30)
+        XCTAssertEqual(right.red[255], 20 * 30, "Only white")
+        XCTAssertEqual(right.luminance.firstIndex { $0 > 0 }, 255)
+    }
+
     func testSamplesLargeCropsEvenly() throws {
         let sampled = Histogram.of(try surface(), crop: CropSettings(), maxSamples: 1500)
         let total = Double(sampled.red.reduce(0, +))

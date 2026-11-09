@@ -16,6 +16,8 @@ final class CanvasOverlayView: NSView {
     var detailsLine: String { PhotoExif.detailsLine(exif, fileName: fileName) }
     /// The box being dragged for the white balance or a zone reading.
     private let marquee = CAShapeLayer()
+    /// The region the histogram counts, kept on the photograph.
+    private let selection = CAShapeLayer()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -29,6 +31,11 @@ final class CanvasOverlayView: NSView {
         marquee.lineWidth = 1
         marquee.lineDashPattern = [4, 3]
         layer?.addSublayer(marquee)
+        selection.actions = none
+        selection.fillColor = nil
+        selection.strokeColor = EdgePrint.colour.cgColor
+        selection.lineWidth = 1
+        layer?.addSublayer(selection)
         detailsLayer.actions = none.merging(["string": NSNull(), "contents": NSNull(), "hidden": NSNull()]) { $1 }
         detailsLayer.foregroundColor = EdgePrint.colour.cgColor
         detailsLayer.truncationMode = .middle
@@ -82,7 +89,16 @@ final class CanvasOverlayView: NSView {
               let photo = scroll.documentView as? PhotographView else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         layoutDetails(photo: photo)
+        selection.path = photo.region.flatMap { region -> CGPath? in
+            let corners = [CGPoint(x: region.minX, y: region.minY), CGPoint(x: region.maxX, y: region.minY),
+                           CGPoint(x: region.maxX, y: region.maxY), CGPoint(x: region.minX, y: region.maxY)]
+            let points = corners.compactMap(photo.viewPoint(unit:)).map { convert($0, from: photo) }
+            guard points.count == 4 else { return nil }
+            let path = CGMutablePath(); path.addLines(between: points); path.closeSubpath()
+            return path
+        }
         CATransaction.commit()
     }
 
 }
+

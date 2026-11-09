@@ -84,6 +84,14 @@ final class ZoneSystemTests: XCTestCase {
         XCTAssertEqual(key("5", [.option]), [])
     }
 
+    /// A click on the zone bands keeps a reading; anywhere else ends it.
+    @MainActor func testOnlyTheZoneBandsKeepAReading() {
+        let bands = CGRect(x: 1000, y: 100, width: 300, height: 96)
+        XCTAssertTrue(EditorWindowController.inZoneBands(CGPoint(x: 1100, y: 700 - 150), contentHeight: 700, bands: bands))
+        XCTAssertFalse(EditorWindowController.inZoneBands(CGPoint(x: 1100, y: 700 - 250), contentHeight: 700, bands: bands))
+        XCTAssertFalse(EditorWindowController.inZoneBands(CGPoint(x: 400, y: 700 - 150), contentHeight: 700, bands: bands))
+    }
+
     /// Tab does nothing, except between text fields.
     @MainActor func testTabDoesNothingOutsideTextFields() {
         XCTAssertTrue(EditorWindowController.swallowsTab(keyCode: 48, firstResponder: NSView()))

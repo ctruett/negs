@@ -27,8 +27,11 @@ import XCTest
         XCTAssertEqual(CanvasGesture.start(clickCount: 2), .zoomToggle)
     }
 
-    func testAPlainPressPans() {
-        XCTAssertEqual(CanvasGesture.start(clickCount: 1), .pan)
+    /// As in RPP: a plain drag selects a region, the middle button pans.
+    func testAPlainPressSelectsAndTheMiddleButtonPans() {
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1), .select)
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1, middle: true), .pan)
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1, control: true, middle: true), .pan, "The middle button always pans")
     }
 
     /// ⌃ reads a tone against the zones ahead of a double-click's zoom, and
@@ -163,6 +166,22 @@ extension CanvasGestureTests {
 
     private func mouse(_ type: NSEvent.EventType, at point: CGPoint, flags: NSEvent.ModifierFlags = []) throws -> NSEvent {
         try XCTUnwrap(NSEvent.mouseEvent(with: type, location: point, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
+    }
+
+    /// A plain drag selects the box the histogram counts, live; a click clears it.
+    func testAPlainDragSelectsARegionAndAClickClearsIt() throws {
+        let (_, view) = makeCanvas()
+        var regions: [CGRect?] = []
+        view.onSelectRegion = { regions.append($0) }
+        let a = viewPoint(CGPoint(x: 0.2, y: 0.2), in: view), b = viewPoint(CGPoint(x: 0.6, y: 0.7), in: view)
+        view.mouseDown(with: try mouse(.leftMouseDown, at: a))
+        view.mouseDragged(with: try mouse(.leftMouseDragged, at: b))
+        view.mouseUp(with: try mouse(.leftMouseUp, at: b))
+        let last = try XCTUnwrap(regions.last ?? nil)
+        XCTAssertEqual(last.minX, 0.2, accuracy: 0.01); XCTAssertEqual(last.maxY, 0.7, accuracy: 0.01)
+        view.mouseDown(with: try mouse(.leftMouseDown, at: a))
+        view.mouseUp(with: try mouse(.leftMouseUp, at: a))
+        XCTAssertEqual(regions.last, .some(nil), "A click goes back to the whole photograph")
     }
 
     /// A ⌃-click reads 3 × 3 of the preview's pixels around it, ⌃⌥ 7 × 7, and

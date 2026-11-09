@@ -9,7 +9,7 @@ import XCTest
     func testCommandPicksWhiteBalanceAheadOfOtherGestures() {
         XCTAssertEqual(CanvasGesture.start(clickCount: 1, command: true), .pickWhiteBalance)
         XCTAssertEqual(CanvasGesture.start(clickCount: 2, command: true), .pickWhiteBalance)
-        XCTAssertEqual(CanvasGesture.start(clickCount: 1), .pan)
+        XCTAssertEqual(CanvasGesture.start(clickCount: 1), .select)
     }
 
     private var root: URL {
