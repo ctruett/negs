@@ -5,22 +5,21 @@ use spektrafilm_math::image::ImageBuf;
 
 use crate::profile::Profile;
 
-/// How the film's density reads as light: a negative inverts, a slide does
-/// not, and B&W is balanced for density only.
+/// How a film is balanced and how its density reads as light: a negative
+/// inverts, a positive (slide or B&W reversal) does not, and B&W is balanced
+/// for density only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilmType {
     ColourNegative,
     Slide,
-    BlackAndWhite,
+    BlackAndWhite { positive: bool },
 }
 
 impl FilmType {
-    /// From the profile's `info.type` and channel model. B&W stocks are
-    /// negatives whatever their `type` says (Tri-X is catalogued as a
-    /// reversal film).
+    /// From the profile's `info.type` and channel model.
     pub fn of(film: &Profile) -> FilmType {
         if film.is_bw() {
-            FilmType::BlackAndWhite
+            FilmType::BlackAndWhite { positive: film.is_positive() }
         } else if film.is_positive() {
             FilmType::Slide
         } else {
@@ -47,7 +46,8 @@ const THIN_FRACTION: f64 = 0.01;
 /// `default_offset` is the type's trained mean, used when the frame is too
 /// thin to judge.
 pub fn meter(net: &ImageBuf, film_type: FilmType, default_offset: [f64; 3]) -> Balance {
-    let sign = if film_type == FilmType::Slide { -1.0 } else { 1.0 };
+    let positive = matches!(film_type, FilmType::Slide | FilmType::BlackAndWhite { positive: true });
+    let sign = if positive { -1.0 } else { 1.0 };
     let mut chans: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
     let mut total = 0usize;
     let mut exposed = 0usize;
@@ -73,7 +73,7 @@ pub fn meter(net: &ImageBuf, film_type: FilmType, default_offset: [f64; 3]) -> B
     }
     let mean = (offset[0] + offset[1] + offset[2]) / 3.0;
     match film_type {
-        FilmType::BlackAndWhite => offset = [mean; 3],
+        FilmType::BlackAndWhite { .. } => offset = [mean; 3],
         _ => offset.iter_mut().for_each(|o| {
             *o = mean + (*o - mean).clamp(-MAX_CAST_LOG10, MAX_CAST_LOG10);
         }),

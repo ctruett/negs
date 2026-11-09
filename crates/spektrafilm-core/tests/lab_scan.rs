@@ -126,7 +126,7 @@ fn spread(v: [f64; 3]) -> [f64; 3] {
 #[test]
 fn grey_frame_balances_neutral() {
     let lut = lut_for("kodak_portra_400");
-    let net = lut.apply(&uniform([0.5; 3]));
+    let net = lut.apply(&uniform([0.18; 3]));
     let n = net.get(0, 0).map(|v| v as f64);
     let b = meter(&net, FilmType::ColourNegative, [0.0; 3]);
     let (got, want) = (spread(b.offset), spread(n));
@@ -158,7 +158,7 @@ fn black_frame_falls_back() {
 #[test]
 fn bw_keeps_tint() {
     let lut = lut_for("kodak_trix");
-    let b = meter(&lut.apply(&uniform([0.8, 0.7, 0.9])), FilmType::BlackAndWhite, [0.0; 3]);
+    let b = meter(&lut.apply(&uniform([0.8, 0.7, 0.9])), FilmType::BlackAndWhite { positive: true }, [0.0; 3]);
     assert!(b.offset[0].is_finite());
     assert_eq!(b.offset[0], b.offset[1]);
     assert_eq!(b.offset[1], b.offset[2]);
@@ -172,6 +172,18 @@ fn slide_is_metered_with_inverted_sign() {
     let sl = meter(&net, FilmType::Slide, [0.0; 3]).offset;
     for c in 0..3 {
         assert!((neg[c] + sl[c]).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn bw_reversal_is_metered_with_inverted_sign() {
+    let load = |s: &str| profile::load_profile_by_name(&data_dir(), s).unwrap();
+    let net = lut_for("kodak_doublex").apply(&uniform([0.6; 3]));
+    let neg = meter(&net, FilmType::of(&load("kodak_doublex")), [0.0; 3]).offset;
+    let rev = meter(&net, FilmType::of(&load("kodak_trix")), [0.0; 3]).offset;
+    assert!(neg[0].abs() > 0.01, "{neg:?}");
+    for c in 0..3 {
+        assert!((neg[c] + rev[c]).abs() < 1e-9, "{neg:?} vs {rev:?}");
     }
 }
 
@@ -196,5 +208,4 @@ fn balance_ignores_render_size() {
     let b = make(70.0).lab_balance(&preview);
     assert_eq!(a.offset, b.offset);
     assert!(a.offset.iter().all(|v| v.is_finite()));
-    let _ = make(35.0).with_lab_balance(a);
 }
