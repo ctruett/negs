@@ -16,8 +16,10 @@ final class CanvasOverlayView: NSView {
     var detailsLine: String { PhotoExif.detailsLine(exif, fileName: fileName) }
     /// The box being dragged for the white balance or a zone reading.
     private let marquee = CAShapeLayer()
-    /// The region the histogram counts, kept on the photograph.
+    /// The region the histogram counts, kept on the photograph: amber on a
+    /// dark casing, so it reads on light and dark tones alike.
     private let selection = CAShapeLayer()
+    private let selectionCasing = CAShapeLayer()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -28,14 +30,23 @@ final class CanvasOverlayView: NSView {
         marquee.actions = none
         marquee.fillColor = EdgePrint.colour.withAlphaComponent(0.08).cgColor
         marquee.strokeColor = EdgePrint.colour.cgColor
-        marquee.lineWidth = 1
-        marquee.lineDashPattern = [4, 3]
+        marquee.lineWidth = 2
+        marquee.lineDashPattern = [5, 3]
+        marquee.shadowColor = NSColor.black.cgColor
+        marquee.shadowOpacity = 0.8
+        marquee.shadowRadius = 1.5
+        marquee.shadowOffset = .zero
         layer?.addSublayer(marquee)
-        selection.actions = none
-        selection.fillColor = nil
+        for shape in [selectionCasing, selection] {
+            shape.actions = none
+            shape.fillColor = nil
+            shape.lineJoin = .miter
+            layer?.addSublayer(shape)
+        }
+        selectionCasing.strokeColor = NSColor.black.withAlphaComponent(0.7).cgColor
+        selectionCasing.lineWidth = 4
         selection.strokeColor = EdgePrint.colour.cgColor
-        selection.lineWidth = 1
-        layer?.addSublayer(selection)
+        selection.lineWidth = 2
         detailsLayer.actions = none.merging(["string": NSNull(), "contents": NSNull(), "hidden": NSNull()]) { $1 }
         detailsLayer.foregroundColor = EdgePrint.colour.cgColor
         detailsLayer.truncationMode = .middle
@@ -97,6 +108,7 @@ final class CanvasOverlayView: NSView {
             let path = CGMutablePath(); path.addLines(between: points); path.closeSubpath()
             return path
         }
+        selectionCasing.path = selection.path
         CATransaction.commit()
     }
 
