@@ -444,9 +444,9 @@ import UniformTypeIdentifiers
     /// The render ends on the lab scanner, not on paper.
     var labScan: Bool { OutputRoute.of(state.params) == .labScan }
 
-    /// A lab operator's key: one click up or down, within ±20.
+    /// A lab operator's key: one click up or down, within its range.
     func stepKey(_ path: String, by clicks: Double) {
-        set(path, .number(ScannerKeys.clamped(value(path).double + clicks)))
+        set(path, .number(ScannerKeys.clamped(value(path).double + clicks, to: ScannerKeys.range(of: path))))
     }
 
     /// The keypad's N: the density key back to normal.

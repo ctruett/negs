@@ -25,8 +25,9 @@ use look::Look;
 pub const KEY_STEP_LOG10: f64 = 0.025;
 
 /// One click of the operator's contrast key: the balanced signal's slope
-/// about the metered grey grows 4% (±20 clicks: about 0.46× to 2.2×).
-pub const CONTRAST_STEP: f64 = 1.04;
+/// about the metered grey grows 10% (the app's ±10 clicks: about 0.39× to
+/// 2.6×). At 4% a click made a change of about 1/255, too little to see.
+pub const CONTRAST_STEP: f64 = 1.10;
 
 /// The contrast key's gain on the balanced signal.
 pub fn contrast_gain(params: &RuntimeParams) -> f64 {

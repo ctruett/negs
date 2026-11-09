@@ -32,6 +32,10 @@ enum ScannerKeys {
     /// The contrast (gradation) key: set up in the scanner's software, not on its keypad.
     static let contrastPath = "scanner.contrast_key"
     static let range: ClosedRange<Double> = -20...20
+    /// Contrast's clicks are bigger, 10% of slope each, so it runs ±10.
+    static let contrastRange: ClosedRange<Double> = -10...10
+
+    static func range(of path: String) -> ClosedRange<Double> { path == contrastPath ? contrastRange : range }
 
     static func title(_ model: String) -> String { model == "noritsu" ? "Noritsu" : "Frontier" }
 
@@ -41,7 +45,7 @@ enum ScannerKeys {
     }
 
     /// A key as a whole number of clicks within ±20.
-    static func clamped(_ value: Double) -> Double {
+    static func clamped(_ value: Double, to range: ClosedRange<Double> = range) -> Double {
         min(max(value.rounded(), range.lowerBound), range.upperBound)
     }
 }

@@ -114,6 +114,13 @@ final class LabScanTests: XCTestCase {
         XCTAssertEqual(model.value(ScannerKeys.contrastPath), .number(4))
     }
 
+    /// Contrast runs ±10 clicks, each big enough to see.
+    func testContrastStopsAtTen() {
+        let model = EditorModel()
+        for _ in 0..<15 { model.stepKey(ScannerKeys.contrastPath, by: 1) }
+        XCTAssertEqual(model.value(ScannerKeys.contrastPath), .number(10))
+    }
+
     func testKeysClampToTwentySteps() {
         XCTAssertEqual(ScannerKeys.clamped(25), 20)
         XCTAssertEqual(ScannerKeys.clamped(-21.4), -20)

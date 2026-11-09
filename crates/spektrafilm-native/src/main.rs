@@ -1571,6 +1571,10 @@ mod tests {
         session.handle(Request { id: 2, command: command(&keyed) }, &data).unwrap();
         assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the key re-renders");
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "without metering again");
+        let steeper = lab(&|p| p.scanner.contrast_key = 3.0);
+        session.handle(Request { id: 2, command: command(&steeper) }, &data).unwrap();
+        assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the contrast key re-renders");
+        assert_eq!(session.lab_balance.as_ref(), Some(&metered), "and isn't metered");
         let shifted = lab(&|p| { p.prep.exposure_ev = 1.0; p.camera.exposure_compensation_ev = 0.5 });
         session.handle(Request { id: 2, command: command(&shifted) }, &data).unwrap();
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "an exposure edit isn't metered");
