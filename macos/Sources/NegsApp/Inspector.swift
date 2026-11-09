@@ -1139,7 +1139,9 @@ struct AdjustmentInspector: View {
             InkSection("Lab Scanner", footer: "The lab balances every frame for density and colour, as Frontier and Noritsu operators’ machines do. The keys correct on top, in clicks of about 1/12 stop: Density darkens, and Cyan, Magenta and Yellow add that colour.") {
                 scannerPicker
                 ForEach(ScannerKeys.keys, id: \.path) { key in
-                    control(.slider(key.title, key.path, ScannerKeys.range, 1))
+                    KeyStepperRow(title: key.title, value: model.value(key.path).double,
+                                  step: { model.stepKey(key.path, by: $0) },
+                                  reset: { model.set(key.path, .number(0)) })
                 }
             }
         }

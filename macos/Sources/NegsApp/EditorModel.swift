@@ -444,6 +444,11 @@ import UniformTypeIdentifiers
     /// The render ends on the lab scanner, not on paper.
     var labScan: Bool { OutputRoute.of(state.params) == .labScan }
 
+    /// A lab operator's key: one click up or down, within ±20.
+    func stepKey(_ path: String, by clicks: Double) {
+        set(path, .number(ScannerKeys.clamped(value(path).double + clicks)))
+    }
+
     /// Lab scan or Paper print. A positive film is always scanned.
     func chooseOutput(_ route: OutputRoute) {
         guard route == .labScan || !filmIsPositive else { return }
@@ -892,8 +897,13 @@ import UniformTypeIdentifiers
     /// As far as 16 times either way.
     static let canvasZoomLimit = 8
     var canZoom: Bool { source != nil && !cropping && !gridVisible }
-    func zoomIn() { canvasZoomSteps = min(canvasZoomSteps + 1, Self.canvasZoomLimit) }
-    func zoomOut() { canvasZoomSteps = max(canvasZoomSteps - 1, -Self.canvasZoomLimit) }
+    /// ⌘0: the whole photograph, at 85% of the window, until a zoom.
+    var fitShown = false
+    func zoomToFit() { fitShown = true }
+    /// ⌘1: the export's size, one pixel to a screen pixel.
+    func zoomActualSize() { fitShown = false; canvasZoomSteps = 0 }
+    func zoomIn() { fitShown = false; canvasZoomSteps = min(canvasZoomSteps + 1, Self.canvasZoomLimit) }
+    func zoomOut() { fitShown = false; canvasZoomSteps = max(canvasZoomSteps - 1, -Self.canvasZoomLimit) }
 
     /// The photograph's pixels in an export, which set its size on the canvas, one
     /// to a screen pixel. Nothing else zooms it, and the window stays the user's to

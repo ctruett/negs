@@ -78,6 +78,8 @@ import SwiftUI
         command(view, "Image Only", #selector(toggleImageOnly), "f", [])
         command(view, "Simple Controls", #selector(toggleInspectorMode), String(UnicodeScalar(NSF4FunctionKey)!), [])
         command(view, "All Controls", #selector(toggleAllControls), "", [])
+        command(view, "Zoom to Fit", #selector(zoomToFit), "0")
+        command(view, "Actual Size", #selector(zoomActualSize), "1")
         command(view, "Zoom In", #selector(zoomIn), "=")
         command(view, "Zoom Out", #selector(zoomOut), "-")
         // ⌘+ with Shift held, for keyboards where + needs it. It has no row of its own.
@@ -150,6 +152,8 @@ import SwiftUI
     @objc private func setFolderDefault() { model.setFolderDefault() }
     @objc private func toggleInspectorMode() { model.toggleInspectorMode() }
     @objc private func toggleAllControls() { model.inspectorMode = model.inspectorMode == .all ? .advanced : .all }
+    @objc private func zoomToFit() { model.zoomToFit() }
+    @objc private func zoomActualSize() { model.zoomActualSize() }
     @objc private func zoomIn() { model.zoomIn() }
     @objc private func zoomOut() { model.zoomOut() }
     @objc private func rotate() { model.rotate() }
@@ -190,7 +194,7 @@ import SwiftUI
         case #selector(toggleImageOnly):
             item.state = model.imageOnly ? .on : .off
             return photo && !model.cropping && !model.gridVisible && Self.bareKeysAllowed(firstResponder: NSApp.keyWindow?.firstResponder)
-        case #selector(zoomIn), #selector(zoomOut): return model.canZoom
+        case #selector(zoomIn), #selector(zoomOut), #selector(zoomToFit), #selector(zoomActualSize): return model.canZoom
         case #selector(rotate): return photo
         case #selector(crop):
             item.title = model.cropping ? "Done Cropping" : "Crop"

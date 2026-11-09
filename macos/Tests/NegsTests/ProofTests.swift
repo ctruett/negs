@@ -28,6 +28,20 @@ import XCTest
         XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001)
     }
 
+    /// ⌘0: the whole photograph at 85% of the window, kept so as the window
+    /// changes; ⌘1 goes back to the export's size.
+    func testFitShowsThePhotographAt85PercentOfTheWindow() {
+        let scroll = canvas(viewport: 400, photo: CGSize(width: 800, height: 600))
+        scroll.proofPixels = CGSize(width: 1600, height: 1200)
+        scroll.fitShown = true
+        XCTAssertEqual(scroll.magnification, 0.5 * 0.85, accuracy: 0.001, "the long edge fits 400 points, less 15%")
+        scroll.setFrameSize(NSSize(width: 800, height: 800))
+        scroll.layout()
+        XCTAssertEqual(scroll.magnification, 1.0 * 0.85, accuracy: 0.001, "and follows the window")
+        scroll.fitShown = false
+        XCTAssertEqual(scroll.magnification, 1, accuracy: 0.001, "the export's size again")
+    }
+
     func testZoomStaysWithinItsLimits() {
         let scroll = canvas()
         scroll.proofPixels = CGSize(width: 1600, height: 1200)

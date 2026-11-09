@@ -317,6 +317,7 @@ struct CanvasArea: View {
                       filmStrip: model.filmStrip, zoomCommand: model.zoomCommand, fit: model.fitImage, scale: model.canvasScale,
                       proofPixels: model.exportPixels,
                       zoomSteps: model.canvasZoomSteps,
+                      fitShown: model.fitShown,
                       exif: model.photoExif,
                       fileName: model.imageOnly ? nil : model.source?.lastPathComponent,
                       onPickWhiteBalance: { a, b in model.pickWhiteBalance(from: a, to: b) },
@@ -416,8 +417,8 @@ struct StatusBar: View {
                 ThumbnailSizeSlider(model: model)
             } else if model.source != nil {
                 if model.canZoom {
-                    StatusButton(title: "Fit", on: model.fitImage, help: "Fit the photograph in the window") { model.zoom(fit: true) }
-                    StatusButton(title: "100%", on: !model.fitImage, help: "Show the photograph at its export size") { model.zoom(fit: false) }
+                    StatusButton(title: "Fit", on: model.fitShown, help: "Fit the photograph in the window (⌘0)") { model.zoomToFit() }
+                    StatusButton(title: "100%", on: !model.fitShown && model.canvasZoomSteps == 0, help: "Show the photograph at its export size (⌘1)") { model.zoomActualSize() }
                 }
                 OriginalButton(model: model)
             }

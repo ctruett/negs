@@ -20,6 +20,8 @@ struct PreviewCanvas: NSViewRepresentable {
     var proofPixels: CGSize? = nil
     /// Steps of ⌘+ and ⌘− away from that size.
     var zoomSteps = 0
+    /// ⌘0: the whole photograph, at 85% of the window, in place of that size.
+    var fitShown = false
     /// The camera details shown under the photograph.
     var exif: PhotoExif? = nil
     var fileName: String? = nil
@@ -63,6 +65,7 @@ struct PreviewCanvas: NSViewRepresentable {
         photo.onSelectRegion = onSelectRegion
         if photo.region != region { photo.region = region; scroll.overlay.redraw() }
         scroll.proofPixels = proofPixels
+        scroll.fitShown = fitShown
         scroll.zoomSteps = zoomSteps
         scroll.exif = exif
         scroll.overlay.showFileName(fileName)
@@ -188,6 +191,12 @@ final class ImageScrollView: NSScrollView {
         }
     }
     private var isProof: Bool { proofPixels != nil }
+    /// ⌘0: the whole photograph at `fitShare` of the window, followed as the
+    /// window changes, in place of the export's size.
+    var fitShown = false {
+        didSet { if fitShown != oldValue { applyZoom() } }
+    }
+    static let fitShare: CGFloat = 0.85
     /// A fitted photograph leaves room for its details above it, and is centred.
     var exif: PhotoExif? {
         didSet {
@@ -212,7 +221,7 @@ final class ImageScrollView: NSScrollView {
     /// Counted in whole steps, so stepping back lands exactly on one to one.
     var zoomSteps = 0 {
         didSet {
-            guard zoomSteps != oldValue, let documentView,
+            guard zoomSteps != oldValue, !fitShown, let documentView,
                   let wanted = proofMagnification(document: documentView.frame.size) else { return }
             let visible = contentView.bounds
             setMagnification(min(max(wanted, minMagnification), maxMagnification), centeredAt: NSPoint(x: visible.midX, y: visible.midY))
@@ -280,7 +289,8 @@ final class ImageScrollView: NSScrollView {
         // Room for the details; the clip view places it.
         let margin = max(overlay.detailsLine.isEmpty ? 0 : CanvasOverlayView.exifMargin * 2, contentInsets.top + contentInsets.bottom)
         let fit = min(contentSize.width / size.width, max(contentSize.height - margin, 1) / size.height)
-        let amount = proofMagnification(document: size) ?? (fitting ? min(fit, oneToOne) : oneToOne)
+        let amount = fitShown ? fit * Self.fitShare
+            : proofMagnification(document: size) ?? (fitting ? min(fit, oneToOne) : oneToOne)
         setMagnification(min(max(amount, minMagnification), maxMagnification), centeredAt: NSPoint(x: size.width / 2, y: size.height / 2))
         // Constraining again centres whatever is smaller than the window.
         contentView.scroll(to: contentView.bounds.origin)

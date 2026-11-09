@@ -86,6 +86,17 @@ final class LabScanTests: XCTestCase {
         XCTAssertEqual(EditorModel.lutName(film: "kodak_portra_400", paper: "kodak_portra_endura", params: params), "kodak_portra_400_kodak_portra_endura.cube")
     }
 
+    func testKeyButtonsStepOneClickAndStopAtTwenty() {
+        let model = EditorModel()
+        model.stepKey("scanner.yellow_key", by: 1)
+        model.stepKey("scanner.yellow_key", by: 1)
+        XCTAssertEqual(model.value("scanner.yellow_key"), .number(2))
+        model.stepKey("scanner.density_key", by: -1)
+        XCTAssertEqual(model.value("scanner.density_key"), .number(-1))
+        for _ in 0..<30 { model.stepKey("scanner.cyan_key", by: 1) }
+        XCTAssertEqual(model.value("scanner.cyan_key"), .number(20))
+    }
+
     func testKeysClampToTwentySteps() {
         XCTAssertEqual(ScannerKeys.clamped(25), 20)
         XCTAssertEqual(ScannerKeys.clamped(-21.4), -20)

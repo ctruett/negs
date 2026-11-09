@@ -303,6 +303,38 @@ struct SegmentedRow<Selection: Hashable>: View {
     }
 }
 
+/// A lab operator's key: its name, − and + buttons a click apiece, and the
+/// clicks between them. ⌥-click either button to go back to 0.
+struct KeyStepperRow: View {
+    let title: String
+    let value: Double
+    let step: (Double) -> Void
+    let reset: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title).lineLimit(1)
+            Spacer(minLength: 0)
+            button("−", -1)
+            Text(value == 0 ? "0" : String(format: "%+.0f", value))
+                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                .foregroundStyle(value == 0 ? Ink.dim : Ink.paper)
+                .frame(minWidth: 28)
+            button("+", 1)
+        }
+        .frame(minHeight: InkLayout.rowHeight)
+    }
+
+    private func button(_ label: String, _ clicks: Double) -> some View {
+        Button(label) {
+            if NSEvent.modifierFlags.contains(.option) { reset() } else { step(clicks) }
+        }
+        .buttonStyle(InkButtonStyle())
+        .help("\(clicks > 0 ? "More" : "Less") \(title.lowercased()), a click of about 1/12 stop. ⌥-click to reset.")
+        .accessibilityLabel("\(clicks > 0 ? "More" : "Less") \(title)")
+    }
+}
+
 /// A card for the film or the paper: the stock's name, and which it is.
 struct StockCard: View {
     let name: String
