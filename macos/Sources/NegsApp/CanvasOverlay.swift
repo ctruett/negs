@@ -16,6 +16,7 @@ final class CanvasOverlayView: NSView {
     var detailsLine: String { PhotoExif.detailsLine(exif, fileName: fileName) }
     /// The box being dragged for the white balance or a zone reading.
     private let marquee = CAShapeLayer()
+    private let marqueeCasing = CAShapeLayer()
     /// The region the histogram counts, kept on the photograph: amber on a
     /// dark casing, so it reads on light and dark tones alike.
     private let selection = CAShapeLayer()
@@ -27,26 +28,21 @@ final class CanvasOverlayView: NSView {
         layerContentsRedrawPolicy = .never
         autoresizingMask = [.width, .height]
         let none = ["path": NSNull(), "bounds": NSNull(), "position": NSNull()]
-        marquee.actions = none
-        marquee.fillColor = EdgePrint.colour.withAlphaComponent(0.08).cgColor
-        marquee.strokeColor = EdgePrint.colour.cgColor
-        marquee.lineWidth = 2
-        marquee.lineDashPattern = [5, 3]
-        marquee.shadowColor = NSColor.black.cgColor
-        marquee.shadowOpacity = 0.8
-        marquee.shadowRadius = 1.5
-        marquee.shadowOffset = .zero
-        layer?.addSublayer(marquee)
-        for shape in [selectionCasing, selection] {
-            shape.actions = none
-            shape.fillColor = nil
-            shape.lineJoin = .miter
-            layer?.addSublayer(shape)
+        // Every box on the photograph is drawn alike: a dashed amber line on a
+        // dark casing, which reads on light and dark tones.
+        for (casing, line) in [(marqueeCasing, marquee), (selectionCasing, selection)] {
+            for shape in [casing, line] {
+                shape.actions = none
+                shape.fillColor = nil
+                shape.lineJoin = .miter
+                layer?.addSublayer(shape)
+            }
+            casing.strokeColor = NSColor.black.withAlphaComponent(0.7).cgColor
+            casing.lineWidth = 4
+            line.strokeColor = EdgePrint.colour.cgColor
+            line.lineWidth = 2
+            line.lineDashPattern = [6, 4]
         }
-        selectionCasing.strokeColor = NSColor.black.withAlphaComponent(0.7).cgColor
-        selectionCasing.lineWidth = 4
-        selection.strokeColor = EdgePrint.colour.cgColor
-        selection.lineWidth = 2
         detailsLayer.actions = none.merging(["string": NSNull(), "contents": NSNull(), "hidden": NSNull()]) { $1 }
         detailsLayer.foregroundColor = EdgePrint.colour.cgColor
         detailsLayer.truncationMode = .middle
@@ -66,6 +62,7 @@ final class CanvasOverlayView: NSView {
     /// Draws the picking box, in this view's coordinates; nil takes it away.
     func showMarquee(_ rect: CGRect?) {
         marquee.path = rect.map { CGPath(rect: $0, transform: nil) }
+        marqueeCasing.path = marquee.path
     }
     var marqueeShown: Bool { marquee.path != nil }
     /// The selection's outline in this view, for tests; nil when none shows.
