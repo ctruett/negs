@@ -64,9 +64,11 @@ The user-facing name is "Output: Lab scan / Paper print". The new key is `scanne
   - `DensityLut::apply(&self, img: &ImageBuf) -> ImageBuf`
 - `apply` is per pixel: tetrahedral lookup, using the LUT grid and `scanner_lut_bounds` pattern from `stages/scanning.rs`, at `params.settings.lut_resolution`.
 
-- [ ] **Step 1:** Write `status_m.json` as `{"wavelengths":[…81], "log_responsivity":[[r…],[g…],[b…]]}`.
-  - Transcribe the values from the ISO 5-3 Status M table (10 nm), interpolate linearly in log to 5 nm, and use −∞ (stored as `null`) outside the table's range.
-  - Note the source in a `"source"` field.
+- [x] **Step 1:** `data/scanners/status_m.json` is already committed. It holds ISO 5-3:1984 Table 4, transcribed from the standard and checked against the rendered page:
+  - Each row has `start_nm`, a 10 nm step, its `log_product` values and its edge slopes.
+  - Rows: blue 410–510, green 470–610, red 620–770.
+  - `Sensitivity::load` extends each row beyond its range at the stated slopes, interpolates linearly in log onto 380–780 nm in 5 nm steps, and turns the result into linear weights with `10^x`.
+  - Test that load gives each row its peak at the tabulated 5.000 (blue 450, green 540, red 640).
 - [ ] **Step 2: Write the failing tests** in `tests/lab_scan.rs`:
   - `base_has_zero_net_density`: `lut.net([0.0;3])` is within 1e-6 of `[0,0,0]` for `kodak_portra_400`, which uses `bases::film_base_density`.
   - `density_rises_with_dye`: on Portra, `net([0.5,0.5,0.5])` is greater than `net([0.25,0.25,0.25])` on every channel.
