@@ -114,6 +114,17 @@ final class LabScanTests: XCTestCase {
         XCTAssertEqual(model.value(ScannerKeys.contrastPath), .number(4))
     }
 
+    /// A burst of clicks renders as a drag does, and ends once the clicks pause.
+    func testAKeyBurstIsAnInteractionUntilTheClicksPause() async throws {
+        let model = EditorModel()
+        model.stepKey(ScannerKeys.contrastPath, by: 1)
+        model.stepKey(ScannerKeys.contrastPath, by: 1)
+        XCTAssertTrue(model.interacting)
+        try await Task.sleep(for: .milliseconds(700))
+        XCTAssertFalse(model.interacting)
+        XCTAssertEqual(model.value(ScannerKeys.contrastPath), .number(2))
+    }
+
     /// Contrast runs ±10 clicks, each big enough to see.
     func testContrastStopsAtTen() {
         let model = EditorModel()

@@ -401,6 +401,8 @@ import UniformTypeIdentifiers
     @ObservationIgnored private let previewCache: RenderedPreviewCache
     @ObservationIgnored let canvasScale = CanvasScale()
     @ObservationIgnored private var pendingRender: Task<Void, Never>?
+    /// Ends a burst of key clicks; see [`stepKey`].
+    @ObservationIgnored private var keyBurst: Task<Void, Never>?
     @ObservationIgnored private var activityTimer: Task<Void, Never>?
     @ObservationIgnored private var interactionStart: EditState?
     /// The last border colour change, which the next one to the same colour
@@ -445,8 +447,23 @@ import UniformTypeIdentifiers
     var labScan: Bool { OutputRoute.of(state.params) == .labScan }
 
     /// A lab operator's key: one click up or down, within its range.
+    /// A key click. A burst of clicks renders as a slider drag does, at the
+    /// canvas's size, and at full size once the clicks pause; it undoes as one.
     func stepKey(_ path: String, by clicks: Double) {
-        set(path, .number(ScannerKeys.clamped(value(path).double + clicks, to: ScannerKeys.range(of: path))))
+        // Inside another interaction (a slider held), only step.
+        guard keyBurst != nil || !interacting else { return set(path, stepped(path, clicks)) }
+        beginInteraction()
+        set(path, stepped(path, clicks))
+        keyBurst?.cancel()
+        keyBurst = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled, let self else { return }
+            self.keyBurst = nil
+            self.endInteraction(action: "Change Key")
+        }
+    }
+    private func stepped(_ path: String, _ clicks: Double) -> JSONValue {
+        .number(ScannerKeys.clamped(value(path).double + clicks, to: ScannerKeys.range(of: path)))
     }
 
     /// The keypad's N: the density key back to normal.
