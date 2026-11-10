@@ -3102,7 +3102,15 @@ impl FilmChainReadback {
         let data = buffer.slice(..).get_mapped_range();
         let out = match self.output {
             crate::ChainOutput::Scan => {
-                let out_f32: Vec<f32> = bytemuck::cast_slice(&data).to_vec();
+                // Copied across the cores: at preview sizes one core's copy,
+                // mostly faulting in the new image's pages, was ~10 ms.
+                use rayon::prelude::*;
+                let mapped: &[f32] = bytemuck::cast_slice(&data);
+                let mut out_f32 = vec![0.0f32; mapped.len()];
+                out_f32
+                    .par_chunks_mut(1 << 16)
+                    .zip(mapped.par_chunks(1 << 16))
+                    .for_each(|(out, mapped)| out.copy_from_slice(mapped));
                 crate::ChainResult::Scan(ImageBuf::from_data(width, height, f32_to_scalars(out_f32)))
             }
             crate::ChainOutput::Rgba8 { .. } => crate::ChainResult::Rgba8 { width, height, rgba: data.to_vec() },
