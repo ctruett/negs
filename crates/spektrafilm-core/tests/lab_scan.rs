@@ -475,11 +475,13 @@ fn thin_frames_scan_as_what_they_are() {
 
 /// The operator's contrast key steepens the scan about the metered grey: a
 /// grey card stays where it is, and the patches either side move apart.
+/// With auto colour, so the pivot is the frame's own metered colour.
 #[test]
 fn contrast_key_steepens_about_the_grey() {
     let scan = |contrast: f32, image: ImageBuf| {
         let mut params = lab_params(ScannerModel::Frontier);
         params.io.output_cctf_encoding = false;
+        params.scanner.auto_colour = true;
         params.scanner.contrast_key = contrast;
         render("kodak_portra_400", params, image)
     };
@@ -494,3 +496,24 @@ fn contrast_key_steepens_about_the_grey() {
     assert!(spread(6.0) > spread(0.0) * 1.2, "{} vs {}", spread(6.0), spread(0.0));
     assert!(spread(-6.0) < spread(0.0) / 1.2);
 }
+
+/// With auto colour off the scanner still meters density but holds the grey
+/// card's colour: a warm frame stays warm, where auto colour neutralises it,
+/// and a grey card still scans neutral.
+#[test]
+fn auto_colour_off_keeps_the_frames_cast() {
+    let scan = |rgb: [f64; 3], auto: bool| {
+        let mut params = lab_params(ScannerModel::Frontier);
+        params.io.output_cctf_encoding = false;
+        params.scanner.auto_colour = auto;
+        px(&render("kodak_portra_400", params, uniform(rgb)), 1, 1)
+    };
+    let warmth = |v: [f64; 3]| v[0] / v[2];
+    let warm = [0.30, 0.18, 0.08];
+    let (auto, held) = (scan(warm, true), scan(warm, false));
+    assert!(warmth(held) > warmth(auto) * 1.5, "auto {auto:?} vs held {held:?}");
+    let grey = scan([0.18; 3], false);
+    let (lo, hi) = (grey.iter().cloned().fold(f64::MAX, f64::min), grey.iter().cloned().fold(f64::MIN, f64::max));
+    assert!(hi - lo <= 0.005 * hi, "{grey:?}");
+}
+

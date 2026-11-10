@@ -1136,8 +1136,12 @@ struct AdjustmentInspector: View {
 
     @ViewBuilder private var scanTab: some View {
         if model.labScan {
-            InkSection("Lab Scanner", footer: "The scanner balances every frame for density and colour itself. The keys correct on top, as a lab operator’s do, a click at a time: each colour key turns the photograph its colour, and +D darkens it. Contrast steepens the tones about the frame’s grey.") {
+            InkSection("Lab Scanner", footer: "The scanner balances every frame’s density itself. Auto colour neutralises its colour too, as a lab’s does; off, the frame keeps the colour of its light. The keys correct on top, as a lab operator’s do, a click at a time: each colour key turns the photograph its colour, and +D darkens it. Contrast steepens the tones about the frame’s grey.") {
                 scannerPicker
+                if !model.filmIsBW {
+                    control(.toggle("Auto colour", "scanner.auto_colour"))
+                        .help("On, the scanner neutralises each frame’s colour, as a lab’s does. Off, it keeps the scene’s light (tungsten stays warm, shade stays blue); density is still metered.")
+                }
                 LabKeypad(model: model)
                 KeyStepperRow(title: "Contrast", value: model.value(ScannerKeys.contrastPath).double,
                               step: { model.stepKey(ScannerKeys.contrastPath, by: $0) },

@@ -189,6 +189,12 @@ pub struct ScannerParams {
     /// `lab_scan::CONTRAST_STEP`.
     #[serde(default)]
     pub contrast_key: f32,
+    /// The scanner's auto colour correction: on, each frame's colour is
+    /// neutralised as a lab's is; off (the default), the scanner still meters
+    /// density but holds the colour of the film's grey card, so the scene's
+    /// own light (tungsten's warmth, shade's blue) stays in the scan.
+    #[serde(default)]
+    pub auto_colour: bool,
 }
 
 /// The lab scanner a Lab-scan render imitates.
@@ -225,6 +231,7 @@ impl Default for ScannerParams {
             magenta_key: 0.0,
             yellow_key: 0.0,
             contrast_key: 0.0,
+            auto_colour: false,
         }
     }
 }

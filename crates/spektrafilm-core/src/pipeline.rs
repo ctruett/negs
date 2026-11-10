@@ -412,7 +412,15 @@ impl Pipeline {
         let filmed = stages::filming::develop(log_raw, &self.film, &meter_params, &CPU);
         let net = crate::lab_scan::density::DensityLut::new(&self.film, params, &scanner.sensitivity).apply(&filmed);
         let default_offset = scanner.look(params.scanner.model).default_offset;
-        let balance = meter(&net, FilmType::of(&self.film), default_offset);
+        let film_type = FilmType::of(&self.film);
+        let mut balance = meter(&net, film_type, default_offset);
+        if !params.scanner.auto_colour && !matches!(film_type, FilmType::BlackAndWhite { .. }) {
+            // Keep the frame's metered density, with the grey card's colour.
+            let mut grey_params = params.clone();
+            grey_params.scanner.auto_colour = true;
+            let grey = self.grey_card_balance_with(grey_params).offset;
+            balance.offset = hold_colour(balance.offset, grey);
+        }
         // The fitting tool (scripts/lab_scan) reads this to train the looks' default offsets.
         tracing::info!(offset = ?balance.offset, "lab balance");
         balance
@@ -422,8 +430,11 @@ impl Pipeline {
     /// what has no photograph to meter (a LUT, the tone graph, a reading
     /// without the photograph's balance). The look renders it at 18%.
     pub fn grey_card_balance(&self) -> crate::lab_scan::balance::Balance {
+        self.grey_card_balance_with(self.params.clone())
+    }
+
+    fn grey_card_balance_with(&self, mut params: RuntimeParams) -> crate::lab_scan::balance::Balance {
         let grey = ImageBuf::from_data(4, 4, vec![from_f64(0.18); 4 * 4 * 3]);
-        let mut params = self.params.clone();
         params.camera.auto_exposure = false;
         params.prep = Default::default();
         params.io.input_cctf_decoding = false;
@@ -1891,6 +1902,14 @@ impl Pipeline {
             rgb
         }
     }
+}
+
+/// `metered`'s density (its channels' mean) with `grey`'s colour (each
+/// channel's departure from its mean): the balance with auto colour off.
+fn hold_colour(metered: [f64; 3], grey: [f64; 3]) -> [f64; 3] {
+    let mean = |v: [f64; 3]| (v[0] + v[1] + v[2]) / 3.0;
+    let (m, g) = (mean(metered), mean(grey));
+    grey.map(|o| m + o - g)
 }
 
 #[cfg(test)]

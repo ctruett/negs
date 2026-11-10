@@ -163,7 +163,7 @@ pub fn import(text: &str, data_dir: &Path) -> Result<Preset, String> {
 }
 
 /// The `negs_scanner` section's keys.
-const SCANNER_KEYS: [&str; 6] = ["model", "density_key", "cyan_key", "magenta_key", "yellow_key", "contrast_key"];
+const SCANNER_KEYS: [&str; 7] = ["model", "density_key", "cyan_key", "magenta_key", "yellow_key", "contrast_key", "auto_colour"];
 
 /// `scanner` with the section's model and keys set. A key outside its range
 /// or of the wrong kind refuses the file, with the reason.
@@ -702,13 +702,14 @@ mod tests {
 
     /// Negs values a preset sets to Negs's default: Python's GUI has no such
     /// setting and renders with the same default.
-    const NEGS_DEFAULTS: [&str; 14] = [
+    const NEGS_DEFAULTS: [&str; 15] = [
         "scanner.model",
         "scanner.density_key",
         "scanner.cyan_key",
         "scanner.magenta_key",
         "scanner.yellow_key",
         "scanner.contrast_key",
+        "scanner.auto_colour",
         "film_render.grain.monochrome",
         "film_render.glare",
         "enlarger.normalize_print_exposure",
@@ -994,6 +995,7 @@ mod tests {
         saved.scanner.cyan_key = -2.0;
         saved.scanner.magenta_key = 4.0;
         saved.scanner.yellow_key = -5.0;
+        saved.scanner.auto_colour = true;
         let text = export("kodak_portra_400", "kodak_supra_endura", &saved, &data).unwrap();
         assert!(text.contains("negs_scanner"), "{text}");
         let preset = import(&text, &data).unwrap();
@@ -1003,6 +1005,7 @@ mod tests {
         let applied = apply_with_finish(&preset, &RuntimeParams::default(), false);
         assert_eq!(applied.scanner.model, ScannerModel::Noritsu);
         assert_eq!(applied.scanner.yellow_key, -5.0);
+        assert!(applied.scanner.auto_colour, "auto colour travels with the keys");
         let out_of_range = text.replace("\"density_key\": 3.0", "\"density_key\": 30.0");
         assert!(import(&out_of_range, &data).unwrap_err().contains("-20 to +20"));
     }

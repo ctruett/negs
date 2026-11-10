@@ -168,6 +168,11 @@ def balance(film: str, scanner: str, ev: float) -> np.ndarray:
 
 
 def _run(film, scanner, src, out, params, extra=()):
+    # The studio scans were auto-corrected, so the lab's auto colour is on
+    # here whatever the app's default.
+    p = json.loads(params.read_text())
+    p.setdefault("scanner", {})["auto_colour"] = True
+    params.write_text(json.dumps(p))
     r = subprocess.run(
         [str(CLI), "process", str(src), "-o", str(out), "--film", film, "--scan-film",
          "--scanner", scanner.lower(), "--input-colour", "ITU-R BT.2020", "--input-linear",
