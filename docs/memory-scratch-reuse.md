@@ -21,7 +21,7 @@ maximum number required by enabled effects.
 | Glare | B in place, A blur intermediate | S0 noise, overwritten by generation before use |
 | Gamut | B in place | None |
 | Scanner lens blur | B → A → destination → B | S0 destination |
-| Unsharp | B original, A blur intermediate | S0 sharpened output, S1 blurred image; copy S0 → B |
+| Unsharp | B original, A blur intermediate, then sharpened output; copy A → B | S0 blurred image |
 | Post-scan + readback | B | No scratch; map B or copy to dedicated readback |
 
 No dispatch binds the same buffer as both a read-only input and writable output.

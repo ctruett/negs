@@ -919,11 +919,11 @@ impl WgpuBackend {
         // evict old sizes BEFORE allocating its buffers, not after its peak.
         let scratch_count = if p.dir_couplers.is_some()
             || p.halation.is_some()
-            || p.unsharp.is_some()
             || p.grain.is_some()
         {
             2
         } else if p.glare.is_some()
+            || p.unsharp.is_some()
             || p.diffusion.is_some()
             || (!p.scan_film && p.enlarger_diffusion.is_some())
         {
@@ -5706,7 +5706,7 @@ impl DirState {
 struct UnsharpState {
     blur: RefBlur,
     combine: DispatchJob,
-    out_buf: wgpu::Buffer, // combine target; copied back to buf_b at the end
+    out_buf: wgpu::Buffer, // combine target (buf_a); copied back to buf_b at the end
 }
 
 #[cfg(feature = "wgpu-backend")]
@@ -5722,11 +5722,12 @@ fn build_unsharp_state(
     backend: &WgpuBackend,
 ) -> UnsharpState {
     let n_pixels = (width as usize) * (height as usize);
-    let out_buf = scratch[0].clone();
-    let blur_dst = &scratch[1];
+    // A is free once the blur has passed through it.
+    let out_buf = buf_a.clone();
+    let blur_dst = &scratch[0];
 
-    // Blur B → S1 (A as intermediate), then combine B + S1 → S0 and copy
-    // S0 → B. CPU: `backend.gaussian_blur` = `gaussian_blur_channel`.
+    // Blur B → S0 (A as intermediate), then combine B + S0 → A and copy
+    // A → B. CPU: `backend.gaussian_blur` = `gaussian_blur_channel`.
     let blur = build_ref_blur(device, backend, width, height, buf_b, buf_a, blur_dst, [up.sigma_px; 3], [1.0; 3], false, "unsharp");
 
     // ── Combine: out = (1+amount)*orig - amount*blurred
