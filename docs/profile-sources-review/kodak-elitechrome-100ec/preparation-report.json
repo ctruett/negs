@@ -1,0 +1,68 @@
+{
+  "stock": "kodak_elitechrome_100ec",
+  "source_exposure_anchor": [
+    -0.8049972074147013,
+    -0.8128762400343406,
+    -0.9181468468230659
+  ],
+  "dye_source": "this sheet, rescaled against its own visual neutral",
+  "neutral_mix": [
+    0.9993358633124175,
+    1.0,
+    1.0003329588238432
+  ],
+  "neutral_fit_residual": 0.015261864773123857,
+  "crosstalk_matrix": [
+    [
+      0.9999999999995519,
+      0.17263299424084438,
+      0.006907586560715875
+    ],
+    [
+      0.17476257286151808,
+      1.0,
+      0.07711410950408776
+    ],
+    [
+      0.07669215311501602,
+      0.17943093951177097,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.2613004337125409,
+    1.217557813164201,
+    1.141230341458008
+  ],
+  "channel_dmin": [
+    0.169943938,
+    0.16994393800000002,
+    0.139961593
+  ],
+  "max_amount_residual": 0.015982385889985462,
+  "max_amount_residual_untrimmed": 0.015982385889985462,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    37.50095645051692,
+    47.84645879942317,
+    68.20236388741492
+  ],
+  "dye_amount_max": [
+    2.491757531194928,
+    2.6585239818414013,
+    2.8019089431157274
+  ],
+  "source_points_sha256": {
+    "characteristic-b.csv": "720c12b0ac6c9885f38ef9bdd078fd83697ecc7a0af82aa7070c022dffd77f74",
+    "characteristic-g.csv": "3cafe15c61266121c3e97b2ee921d3eca4ea617c837d5fa34b2efc4392607f78",
+    "characteristic-r.csv": "a8cd2e239f00e68751ff5dd459adec248d4c43e7ab7c86f44e7ca02e00a32049",
+    "dye-c.csv": "0289ff09bcc8869445d89c31959b41a2131c6e4c5e5936c41b9fad1dae6e2bef",
+    "dye-m.csv": "7809f9dd2e9e216eedd976e37a8c181a155e9c74dde67e9ba77771121bbe7177",
+    "dye-neutral.csv": "25b68752b0c2977618905e48b954277904e0b40ceeaafea846775a8b5cb6f6d1",
+    "dye-y.csv": "6399dd82a1d3a61453e22c40e3ddd9dfe730a0a144beac8ec5ce6bfcce315d98",
+    "sensitivity-b.csv": "f8a5bbf85e304d8892cdf091e73b27e3c2c113e86a9a8c6f0eca9be21e9d419e",
+    "sensitivity-g.csv": "70e268b7cb5751f8145fb92d2472e511330d443ca39b6f8cc6368b7e7de2fda8",
+    "sensitivity-r.csv": "703ccb4dcf150a967a67b208896b5a97e075f35d2a4fb76a1939069842aaf330"
+  },
+  "profile_sha256": "20f5abdb019632e12fd8ead386d6cace35fef511d9b29a4920267c05fb76d783"
+}

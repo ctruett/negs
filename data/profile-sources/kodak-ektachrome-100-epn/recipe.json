@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-05",
+  "film": {
+    "type": "positive",
+    "densitometer": "status_A",
+    "base_density": 0.1,
+    "base_density_note": "Not on the sheet. The dye panel is normalised to a visual neutral of 1.0 and plots no D-min; the characteristic minimum is a status-A reading, not a spectral curve. A flat 0.10 is assumed, within the 0.09-0.13 range the shipped positives carry. Assumption, not a measurement.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel sensitivity criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not plotted density. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range used for the sibling Ektachrome preparations.",
+    "midgray_total_density": 0.735182,
+    "midgray_note": "Rendering convention: engine log exposure zero is placed where the green channel's total status-A density equals -log10(0.184), the 18.4% reference grey this repository uses elsewhere. Not absolute ISO metering.",
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektachrome_100, the nearest E-6 sibling, rather than guessed; it drives the halation preset only.",
+    "log_sensitivity_density_over_min": 1.0,
+    "id": "kodak_ektachrome_100_epn",
+    "name": "*Kodak Ektachrome 100 EPN",
+    "reference_illuminant": "D55"
+  },
+  "print": {
+    "target_print": null,
+    "note": "A reversal film: scanned directly, no print stage."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel, fitted on mirrored log exposure (the engine negates the argument for a positive)."
+  },
+  "adaptation_donor": {
+    "stock": "kodak_ektachrome_100",
+    "reason": "Nearest shipped E-6 reversal sibling; spectral adaptation parameters cannot be derived here, so they are borrowed and the borrow is recorded in the profile."
+  },
+  "page_1based": 5,
+  "source": {
+    "document": "Kodak Kodak Ektachrome 100 EPN film datasheet (e27-ektachrome-100-epn.pdf)",
+    "sha256": "48a0b36a4085011b3207355cc44754a1c4a100b5fc346e8c28008eadd25739d2",
+    "credit": "Eastman Kodak Company; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_A_density",
+      "x_range": [
+        -3.0,
+        1.0
+      ],
+      "x_tolerance": 0.15,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "page_1based": 5,
+      "conditions": "Panel 'Characteristic Curves'. Exposure: Daylight, 1/100 second. Process: E-6. Densitometry: Status A. Curves labelled B, G, R; sorted by maximum density.",
+      "derived": {
+        "page_1based": 5,
+        "frame_pdf_pt": [
+          86.612,
+          124.855,
+          271.119,
+          309.363
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 46.12700006503785,
+          "zero_pdf_pt": 224.99300006503785,
+          "labels": 5,
+          "worst_label_error": 8.67171069951489e-05
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 46.12800008671523,
+          "zero_pdf_pt": 309.36400017343044,
+          "labels": 5,
+          "worst_label_error": 8.671898679590839e-05
+        },
+        "traces": {
+          "characteristic-r": {
+            "points": 126,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -2.809981,
+              0.04002
+            ],
+            "y_extent": [
+              0.154006,
+              3.065947
+            ],
+            "peak_x": -2.81
+          },
+          "characteristic-g": {
+            "points": 137,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -2.809981,
+              0.04002
+            ],
+            "y_extent": [
+              0.155047,
+              3.384929
+            ],
+            "peak_x": -2.81
+          },
+          "characteristic-b": {
+            "points": 137,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01561,
+            "x_extent": [
+              -2.809981,
+              0.04002
+            ],
+            "y_extent": [
+              0.13003,
+              3.696931
+            ],
+            "peak_x": -2.81
+          }
+        }
+      }
+    },
+    "sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        250.0,
+        750.0
+      ],
+      "x_tolerance": 10.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "page_1based": 5,
+      "conditions": "Panel 'Spectral-Sensitivity Curve'. Effective exposure: 1/10 second. Process: E-6. Densitometry: E.N.D., Density 1.0. Traces label Yellow-, Magenta- and Cyan-forming layers; sorted by peak wavelength as b, g, r. Frame x-axis calibrated to 242.6-749.7 nm (the box extends past the 250/750 labels); x_tolerance widened to 10.0 to match the frame.",
+      "derived": {
+        "page_1based": 5,
+        "frame_pdf_pt": [
+          368.255,
+          122.641,
+          568.783,
+          274.114
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.39546978018130174,
+          "zero_pdf_pt": 272.3083654048167,
+          "labels": 4,
+          "worst_label_error": 3.0020284512851276
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 37.430549885106636,
+          "zero_pdf_pt": 236.36054988510656,
+          "labels": 4,
+          "worst_label_error": 0.02643429278838827
+        },
+        "traces": {
+          "sensitivity-b": {
+            "points": 97,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01924,
+            "x_extent": [
+              375.615632,
+              517.902077
+            ],
+            "y_extent": [
+              -0.841623,
+              1.561199
+            ],
+            "peak_x": 444.22
+          },
+          "sensitivity-g": {
+            "points": 126,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01924,
+            "x_extent": [
+              406.105987,
+              589.047884
+            ],
+            "y_extent": [
+              -0.656614,
+              1.377819
+            ],
+            "peak_x": 549.667
+          },
+          "sensitivity-r": {
+            "points": 172,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01924,
+            "x_extent": [
+              436.593718,
+              680.513856
+            ],
+            "y_extent": [
+              -0.900373,
+              1.375495
+            ],
+            "peak_x": 642.405
+          }
+        }
+      }
+    },
+    "dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        400.0,
+        700.0
+      ],
+      "x_tolerance": 2.0,
+      "curves": 4,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "y",
+        "m",
+        "neutral",
+        "c"
+      ],
+      "page_1based": 5,
+      "conditions": "Panel 'Spectral-Dye-Density Curves' (Yellow, Visual Neutral, Magenta, Cyan): Normalized dyes to form a visual neutral density of 1.0 for a viewing illuminant of 5000 K, Process: E-6.",
+      "derived": {
+        "page_1based": 5,
+        "frame_pdf_pt": [
+          86.77,
+          361.856,
+          271.119,
+          546.205
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.6145000000000002,
+          "zero_pdf_pt": -159.0300000000002,
+          "labels": 4,
+          "worst_label_error": 2.2737367544323206e-13
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 92.17400026037711,
+          "zero_pdf_pt": 546.2050003254711,
+          "labels": 4,
+          "worst_label_error": 4.3395479139896054e-05
+        },
+        "traces": {
+          "dye-y": {
+            "points": 177,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00781,
+            "x_extent": [
+              399.81936,
+              699.817731
+            ],
+            "y_extent": [
+              -0.001866,
+              0.886009
+            ],
+            "peak_x": 444.814
+          },
+          "dye-m": {
+            "points": 223,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00781,
+            "x_extent": [
+              399.81936,
+              699.817731
+            ],
+            "y_extent": [
+              0.007106,
+              0.906459
+            ],
+            "peak_x": 548.571
+          },
+          "dye-neutral": {
+            "points": 222,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00781,
+            "x_extent": [
+              399.81936,
+              699.817731
+            ],
+            "y_extent": [
+              0.697138,
+              1.129668
+            ],
+            "peak_x": 557.323
+          },
+          "dye-c": {
+            "points": 220,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00781,
+            "x_extent": [
+              399.81936,
+              699.817731
+            ],
+            "y_extent": [
+              0.046672,
+              0.93611
+            ],
+            "peak_x": 654.823
+          }
+        }
+      }
+    }
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-05. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. No donor stock curves copied: each sheet publishes its own C, M and Y dye curves plus a visual neutral. CC BY-SA 4.0."
+}

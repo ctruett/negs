@@ -1,0 +1,295 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-05",
+  "page_1based": 9,
+  "source": {
+    "document": "Kodak Professional Pro 100T (PRT) colour negative film, publication E-182, February 1997",
+    "sha256": "43f9be571f731356d868993dce6760c1f0254d04c50bf09b761027c5d0bd60cc",
+    "credit": "Eastman Kodak Company; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "pro100t-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_M_density",
+      "x_range": [
+        -3.0,
+        1.0
+      ],
+      "x_tolerance": 0.15,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "page_1based": 9,
+      "conditions": "Panel 'Characteristic Curves' on page 9. Process: C-41. Densitometry: Status M; Log H Ref = -0.86. Tungsten (3200 K) film. Curves labelled B, G, R; sorted by maximum density.",
+      "derived": {
+        "page_1based": 9,
+        "frame_pdf_pt": [
+          86.612,
+          79.352,
+          271.119,
+          263.859
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 46.12700006503785,
+          "zero_pdf_pt": 224.99300006503785,
+          "labels": 5,
+          "worst_label_error": 8.67171069951489e-05
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 46.127000065037784,
+          "zero_pdf_pt": 263.85800013007554,
+          "labels": 5,
+          "worst_label_error": 8.671710699426072e-05
+        },
+        "traces": {
+          "pro100t-characteristic-r": {
+            "points": 19,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.860039,
+              0.939992
+            ],
+            "y_extent": [
+              0.20901,
+              1.897977
+            ],
+            "peak_x": 0.94
+          },
+          "pro100t-characteristic-g": {
+            "points": 20,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.859995,
+              0.940035
+            ],
+            "y_extent": [
+              0.629978,
+              2.441022
+            ],
+            "peak_x": 0.94
+          },
+          "pro100t-characteristic-b": {
+            "points": 19,
+            "stroke_pdf_pt": 1.08,
+            "stroke_in_y_units": 0.02341,
+            "x_extent": [
+              -2.860039,
+              0.939992
+            ],
+            "y_extent": [
+              0.881003,
+              2.719969
+            ],
+            "peak_x": 0.94
+          }
+        }
+      }
+    },
+    "pro100t-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        250.0,
+        750.0
+      ],
+      "x_tolerance": 10.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "page_1based": 9,
+      "join_fragments": true,
+      "conditions": "Panel 'Spectral-Sensitivity Curves' on page 9. Process: C-41. Effective exposure: 1/100 second. Densitometry: Status M. Traces label Yellow-, Magenta- and Cyan-forming layers; sorted by peak wavelength as b, g, r. Sparse gridline ticks are overridden by a direct label-centre fit.",
+      "derived": {
+        "page_1based": 9,
+        "frame_pdf_pt": [
+          362.144,
+          78.732,
+          562.672,
+          230.204
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.4014593491000988,
+          "zero_pdf_pt": 262.4703254499506,
+          "labels": 11,
+          "worst_label_error": 0.7344137723672475
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 37.86742862316653,
+          "zero_pdf_pt": 230.20171440212476,
+          "labels": 4,
+          "worst_label_error": 8.299597629335409e-05
+        },
+        "traces": {
+          "pro100t-sensitivity-b": {
+            "points": 49,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              378.428569,
+              456.49869
+            ],
+            "y_extent": [
+              0.876946,
+              2.336487
+            ],
+            "peak_x": 456.499
+          },
+          "pro100t-sensitivity-g": {
+            "points": 134,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              448.5079,
+              571.003419
+            ],
+            "y_extent": [
+              0.427933,
+              2.255361
+            ],
+            "peak_x": 546.074
+          },
+          "pro100t-sensitivity-r": {
+            "points": 84,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              548.62261,
+              668.754316
+            ],
+            "y_extent": [
+              0.198923,
+              1.839884
+            ],
+            "peak_x": 645.277
+          }
+        }
+      }
+    },
+    "pro100t-dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        400.0,
+        700.0
+      ],
+      "x_tolerance": 2.0,
+      "curves": 2,
+      "curve_order": "max_y",
+      "curve_names": [
+        "min",
+        "mid"
+      ],
+      "page_1based": 9,
+      "join_fragments": true,
+      "conditions": "Panel 'Spectral-Dye-Density Curves' on page 9: Minimum Density (orange mask) and Midscale Neutral. Process: C-41. The two traces are stroked with short shoulder fragments, rejoined and the two longest kept.",
+      "derived": {
+        "page_1based": 9,
+        "frame_pdf_pt": [
+          224.775,
+          326.557,
+          409.124,
+          510.906
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.6144900022783122,
+          "zero_pdf_pt": -21.02200125307186,
+          "labels": 4,
+          "worst_label_error": 0.011391745821470067
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 73.74000000000002,
+          "zero_pdf_pt": 510.91000000000014,
+          "labels": 6,
+          "worst_label_error": 8.881784197001252e-16
+        },
+        "traces": {
+          "pro100t-dye-min": {
+            "points": 265,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00976,
+            "x_extent": [
+              400.001618,
+              700.006509
+            ],
+            "y_extent": [
+              0.186317,
+              1.611039
+            ],
+            "peak_x": 400.002
+          },
+          "pro100t-dye-mid": {
+            "points": 236,
+            "stroke_pdf_pt": 0.72,
+            "stroke_in_y_units": 0.00976,
+            "x_extent": [
+              428.779964,
+              700.006509
+            ],
+            "y_extent": [
+              0.76805,
+              1.615772
+            ],
+            "peak_x": 449.122
+          }
+        }
+      }
+    }
+  },
+  "film": {
+    "id": "kodak_pro_100t",
+    "name": "*Kodak Pro 100T (PRT)",
+    "type": "negative",
+    "densitometer": "status_M",
+    "base_density": 0.1,
+    "base_density_note": "Measured, not assumed: the sheet's D-min (Minimum Density) trace is the spectral base density, and what the Status M densitometer reads through it is subtracted from the characteristic curves.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not plotted density. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range used for the sibling preparations.",
+    "midgray_note": "Measured: engine zero is placed where each layer reaches the density the densitometer reads through the sheet's own midscale-neutral (mid) trace.",
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektar_100 (nearest sibling) rather than guessed; it drives the halation preset only.",
+    "log_sensitivity_density_over_min": 0.2,
+    "reference_illuminant": "T"
+  },
+  "print": {
+    "target_print": "kodak_portra_endura",
+    "note": "The sheet predates the Endura papers and names none that ships here. Paired with Kodak's portrait-negative paper as a rendering choice."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel."
+  },
+  "dye_donor": {
+    "stock": "kodak_portra_400",
+    "reason": "Swept shipped negatives (neutral_fit_residual): kodak_portra_400 0.0404, kodak_portra_800 0.0449, kodak_ultramax_400 0.0530, kodak_ektar_100 0.0546, kodak_gold_200 0.0590, fujifilm_pro_400h 0.0653, kodak_vision3_50d 0.1107, kodak_vision3_200t 0.1178, kodak_vision3_500t 0.1228, fujifilm_c200 0.1478."
+  },
+  "adaptation_donor": {
+    "stock": "kodak_portra_400",
+    "reason": "Same donor as the dye shapes."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-05. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. Colour negative: dye shapes are a donor's, anchored against this sheet's own D-min and midscale-neutral traces. New profile preparation and profile data released under CC BY-SA 4.0."
+}

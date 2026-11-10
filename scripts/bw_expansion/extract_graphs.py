@@ -112,12 +112,25 @@ def minus_rules(segs):
             if abs(p.y - q.y) < 0.6 and 1.0 < abs(q.x - p.x) < 7.0]
 
 
+def overline_rules(page):
+    """Negation overbars some sheets hand to the font instead of drawing: a
+    '_' / '¯' / '‾' glyph centred above a digit (e.g. E-113 sensitivity axes).
+    Return each as (x0, x1, y) so labels() can treat it exactly like a rule."""
+    out = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            for span in line["spans"]:
+                text = span["text"].strip()
+                if len(text) == 1 and text in ("_", "\u203e", "\u00af", "\u02c9"):
+                    bx0, by0, bx1, by1 = span["bbox"]
+                    out.append((bx0, bx1, (by0 + by1) / 2))
+    return out
+
+
 def labels(page, frame, xticks, yticks, rules):
     """Numeric labels along the bottom and left edges, with their values."""
     x0, y0, x1, y1 = frame
     xs, ys = np.array(sorted(xticks)), np.array(sorted(yticks))
-    xgap = np.min(np.diff(xs)) if len(xs) > 1 else 1.0
-    ygap = np.min(np.diff(ys)) if len(ys) > 1 else 1.0
     xlab, ylab = [], []
     for block in page.get_text("dict")["blocks"]:
         for line in block.get("lines", []):
@@ -134,8 +147,12 @@ def labels(page, frame, xticks, yticks, rules):
                 in_x = y1 - 4 < by0 < y1 + 22 and x0 - 25 < cx < x1 + 25
                 in_y = x0 - 40 < bx1 < x0 + 4 and y0 - 8 < cy < y1 + 8
                 if in_x and in_y:   # the label at the origin sits in both
-                    in_x = (np.min(np.abs(xs - cx)) / xgap
-                            <= np.min(np.abs(ys - cy)) / ygap)
+                    # Assign it to the axis whose tick it lies closest to, in
+                    # absolute points. Normalising by tick spacing mis-fires
+                    # when one axis carries gridlines and its spacing collapses
+                    # (e.g. the '0.0' shared by the density and log-exposure
+                    # axes on Elite Chrome 200).
+                    in_x = np.min(np.abs(xs - cx)) <= np.min(np.abs(ys - cy))
                     in_y = not in_x
                 (xlab if in_x else ylab if in_y else []).append(
                     (cx if in_x else cy, value))
@@ -217,10 +234,25 @@ def calibrate(tickpos, found, axis_name):
             return None
         pairs = snap(SNAP_FRACTION * abs(value_step / label_slope))
         fallback = True
+    def direct_pairs(found):
+        # No usable ticks: a label's own centre is its axis coordinate, and
+        # (centre -> value) is linear for a monotonic axis. Round to a hundredth
+        # of a point so two labels collapse only when they share a position.
+        out = {}
+        for a, v in sorted(found):
+            key = round(float(a), 2)
+            if key in out and out[key] != v:
+                return None
+            out[key] = v
+        return out
+
     if pairs is None:
         return None
     if len(pairs) < 3:
+        pairs = direct_pairs(found)
+    if pairs is None or len(pairs) < 3:
         return None
+
 
     # Same width on the page means same sign and same digit count for these
     # sheets: a label's position is its text's centre, so "-3.0" and "1.0" on
@@ -239,19 +271,46 @@ def calibrate(tickpos, found, axis_name):
 
     fit = line_through(pairs)
     if fit is None:
+        # The snapped mapping was non-monotonic: labels rode on sparse,
+        # misaligned ticks (a spectral panel prints 11 wavelength labels over a
+        # handful of drawn gridlines). Their own centres are monotonic, so fit
+        # on those instead; the LABEL_FIT gate below still applies.
+        pairs = direct_pairs(found)
+        if pairs is None or len(pairs) < 3:
+            return None
+        fit = line_through(pairs)
+    if fit is None:
         return None
     # The second pass only earns its keep when the pairing it finds is
     # genuinely collinear. Where the ticks are so poor that even the labels'
     # own spacing cannot pair them - the Pro 100 and Pro 100T sensitivity
     # panels, whose only honest ticks are their frame edges - it lands several
-    # nanometres out while still inside the loose acceptance below. Hold it to
-    # the tight threshold instead, and let the panel fail.
+    # nanometres out while still inside the loose acceptance below. Better
+    # than letting the panel fail is the direct label-centre fit, which is
+    # accurate and needs no ticks at all.
     if fallback and fit[2] > OUTLIER_FIT * fit[4]:
-        return None
+        pairs = direct_pairs(found)
+        if pairs is None or len(pairs) < 3:
+            return None
+        fit = line_through(pairs)
+        fallback = False
+        if fit is None:
+            return None
 
     slope, intercept, worst, kept, span = fit
     if worst > LABEL_FIT * span:
-        return None
+        # The tick-snapped fit is poor (labels rode on misaligned sparse ticks).
+        # The labels' own centres are accurate; fit on them directly and keep
+        # the LABEL_FIT gate on that result.
+        pairs = direct_pairs(found)
+        if pairs is None or len(pairs) < 3:
+            return None
+        fit = line_through(pairs)
+        if fit is None:
+            return None
+        slope, intercept, worst, kept, span = fit
+        if worst > LABEL_FIT * span:
+            return None
     # Same convention as extract_sources.py's hand-measured entries: points
     # per unit is positive on both axes, and PDF y grows downward.
     return dict(axis=axis_name, pt_per_unit=float(abs(1 / slope)),
@@ -423,7 +482,7 @@ def main():
             return scanned[page_number]
         page = doc[page_number - 1]
         segs = segments(page)
-        rules = minus_rules(segs)
+        rules = minus_rules(segs) + overline_rules(page)
         calibrated = []
         for frame in frames(segs):
             xt, yt = ticks(frame, segs)
@@ -431,14 +490,32 @@ def main():
             xcal, ycal = calibrate(xt, xlab, "x"), calibrate(yt, ylab, "y")
             if xcal and ycal:
                 calibrated.append((frame, xcal, ycal))
-        # Gridlines make boxes of their own; keep the largest in each region.
+        # Gridlines make boxes of their own; keep one frame per panel. Two frames
+        # count as the SAME panel only when they calibrate to the same x-axis
+        # values AND overlap on the page; side-by-side panels that share an axis
+        # stay (the recipe can then separate them with frame_near). A bare overlap
+        # test used to be too aggressive and dropped distinct adjacent panels,
+        # e.g. a spectral-sensitivity panel touching the characteristic or MTF
+        # frame on the same sheet.
         calibrated.sort(key=lambda f: (f[0][2]-f[0][0])*(f[0][3]-f[0][1]), reverse=True)
         kept = []
         for frame, xcal, ycal in calibrated:
-            if any(frame[0] < k[0][2] and k[0][0] < frame[2]
-                   and frame[1] < k[0][3] and k[0][1] < frame[3] for k in kept):
-                continue
-            kept.append((frame, xcal, ycal))
+            lo = (frame[0] - xcal["zero_pdf_pt"]) / xcal["pt_per_unit"]
+            hi = (frame[2] - xcal["zero_pdf_pt"]) / xcal["pt_per_unit"]
+            span = hi - lo
+            dup = False
+            for kframe, kxcal, _ in kept:
+                klo = (kframe[0] - kxcal["zero_pdf_pt"]) / kxcal["pt_per_unit"]
+                khi = (kframe[2] - kxcal["zero_pdf_pt"]) / kxcal["pt_per_unit"]
+                same_axis = (abs(lo - klo) < 0.03 * span
+                             and abs(hi - khi) < 0.03 * span)
+                overlaps = (frame[0] < kframe[2] and kframe[0] < frame[2]
+                            and frame[1] < kframe[3] and kframe[1] < frame[3])
+                if same_axis and overlaps:
+                    dup = True
+                    break
+            if not dup:
+                kept.append((frame, xcal, ycal))
         scanned[page_number] = (page, kept)
         return scanned[page_number]
 
@@ -492,6 +569,14 @@ def main():
                      for points in join_fragments([points for points, _ in found],
                                                   spec.get("join_tolerance", 2.5))
                      if np.ptp(points[:, 0]) >= 0.1 * span]
+            if len(found) > spec["curves"]:
+                # A few sheets stroke each real trace's steep shoulder as its
+                # own 11-13 point stroke (and some carry a panel-top rule), so
+                # the count overshoots. The real traces are hundreds of points;
+                # an over-detected shoulder is a dozen. Keep the longest
+                # `curves` of them and drop the rest.
+                found.sort(key=lambda t: len(t[0]), reverse=True)
+                found = found[: spec["curves"]]
         else:
             found = curves_in(page, frame, clip=spec.get("clip_to_frame", False))
         if len(found) != spec["curves"]:

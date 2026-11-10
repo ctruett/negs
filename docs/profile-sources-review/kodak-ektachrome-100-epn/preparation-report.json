@@ -1,0 +1,68 @@
+{
+  "stock": "kodak_ektachrome_100_epn",
+  "source_exposure_anchor": [
+    -0.833927581033331,
+    -0.825184550128328,
+    -0.8966061889151308
+  ],
+  "dye_source": "this sheet, rescaled against its own visual neutral",
+  "neutral_mix": [
+    1.0000870921378346,
+    1.0,
+    1.001246188227305
+  ],
+  "neutral_fit_residual": 0.004881066849871996,
+  "crosstalk_matrix": [
+    [
+      0.9999999999995088,
+      0.1466571353345324,
+      -0.0016212787112516148
+    ],
+    [
+      0.1659307570960933,
+      0.9999999999999998,
+      0.0674261972596084
+    ],
+    [
+      0.08396300608623167,
+      0.1756557322291851,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.250714762055037,
+    1.2222802075473653,
+    1.1743444472248974
+  ],
+  "channel_dmin": [
+    0.154006035,
+    0.155046708,
+    0.130029545
+  ],
+  "max_amount_residual": 0.007635913210843448,
+  "max_amount_residual_untrimmed": 0.01084389188172502,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    43.881428271653,
+    44.4656189644728,
+    67.27286906128568
+  ],
+  "dye_amount_max": [
+    2.533222333335429,
+    2.614345232719675,
+    2.894979689655125
+  ],
+  "source_points_sha256": {
+    "characteristic-b.csv": "8905951459b8f9dcd031c2054a953ce2b1c56e1723b6611eca769c55f103afa7",
+    "characteristic-g.csv": "57d367e16fd9829a4b6967928d4ddf8258d57ff1b2883bdf8694107c98b41e7f",
+    "characteristic-r.csv": "03b046137a545777395de429854e43e5e7e82cdec5267109f21871ebec30a498",
+    "dye-c.csv": "d919796cc74b1c7c4a7dbd2255ab40e0a1f512d5d1bf26c4ebab61be9d47cdf4",
+    "dye-m.csv": "b24ff85967d9d9f70ed5844d7b6168c3e082d6b764ca9d2f0437ab88f2ffed76",
+    "dye-neutral.csv": "5de992b2b85cea4099d8828be60d929d700558123ba5c1db7003db89a1e72f2d",
+    "dye-y.csv": "dd8206f8259c54007e699614847a09a3f6f90ab1bc623452c379c93caa7aa051",
+    "sensitivity-b.csv": "7d422faf45730fd15e47096c37e4ce4a7bbc245bbd6fdb1e9745481664cb9bd2",
+    "sensitivity-g.csv": "a8cc48a123580162c24ed504efe9be0012d41bb413ebedc54d6d8ea3c1fc876a",
+    "sensitivity-r.csv": "436d5d6eab20dc9336b7b8f62596a5d2dcc07cf0e94cb2cacb41f2df6131fd8d"
+  },
+  "profile_sha256": "27e524549be1e9ffafd92e1857085f1267064905fa11be823c9746786e5d5bf4"
+}

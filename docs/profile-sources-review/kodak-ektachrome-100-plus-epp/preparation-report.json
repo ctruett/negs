@@ -1,0 +1,68 @@
+{
+  "stock": "kodak_ektachrome_100_plus_epp",
+  "source_exposure_anchor": [
+    -0.8158447080078555,
+    -0.8012644329039575,
+    -0.827272897353023
+  ],
+  "dye_source": "this sheet, rescaled against its own visual neutral",
+  "neutral_mix": [
+    0.9993677825626419,
+    1.0,
+    0.9976453379711853
+  ],
+  "neutral_fit_residual": 0.014525784398946806,
+  "crosstalk_matrix": [
+    [
+      0.9999999999998139,
+      0.15235911292035015,
+      0.001165175543353526
+    ],
+    [
+      0.15779130441636527,
+      0.9999999999999999,
+      0.06028190846520506
+    ],
+    [
+      0.07030885252103038,
+      0.16447487057515706,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.2545035985807083,
+    1.1970696752426893,
+    1.134752665019217
+  ],
+  "channel_dmin": [
+    0.20990432453975275,
+    0.209942234,
+    0.17996568985178757
+  ],
+  "max_amount_residual": 0.012057436889203466,
+  "max_amount_residual_untrimmed": 0.01656096771942781,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    27.809801847273544,
+    25.43238931290147,
+    29.20732712739054
+  ],
+  "dye_amount_max": [
+    2.4076060639307073,
+    2.6853933200288664,
+    2.909129829545696
+  ],
+  "source_points_sha256": {
+    "epp-characteristic-b.csv": "eb46bafc98178118f743ef11b9f5f2ade3f8df7e47e4c5f3061b386e9888e684",
+    "epp-characteristic-g.csv": "2360286b22d239657c417863a05885bec3d4f47be3535c01502c9ffde51a6bb5",
+    "epp-characteristic-r.csv": "e1d697f4a83a4e4517973bebfed9f1fbb64f199ea85a57103e58d9faf53530ce",
+    "epp-dye-c.csv": "15436910ddee298d29a3e05fe69bb73677d6f3f12b4e82b3a0b0a6e3c1c44f6b",
+    "epp-dye-m.csv": "97fa41bcaf7374557a69259bdf4c91b6806efb20408159525487f33636fb8b08",
+    "epp-dye-neutral.csv": "eeb099678e383a01bae5128913cf9830487ebc96acc3de8d03c63ede60fef72d",
+    "epp-dye-y.csv": "c21bd7fbf3da85e5bfb970feff0d266d9e58bc18093533a2121b17da3e6195ad",
+    "epp-sensitivity-b.csv": "e1e36679c6a6dd48e9cf11aefdbec33b7a8a25fcc16838aabd8780784fb96e8d",
+    "epp-sensitivity-g.csv": "9a19b26a845bbd42578e758f5a64785c7edb0c3f96d96ebc08fb690c6a9037c6",
+    "epp-sensitivity-r.csv": "6fde28e064233804d42afe31a0ab295ce097fbfa06c5e7fb10d58093d3f30743"
+  },
+  "profile_sha256": "859d9f9aa1d171afc80f1a5f07996fefa88407aeb1fbbc3ba1380c969d695905"
+}

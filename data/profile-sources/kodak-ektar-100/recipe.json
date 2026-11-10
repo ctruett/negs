@@ -1,0 +1,291 @@
+{
+  "version": 1,
+  "version_tag": "colour-1",
+  "created": "2026-11-05",
+  "page_1based": 4,
+  "source": {
+    "document": "Kodak Professional Ektar 100 Film, publication E-4046, revised 2/16",
+    "sha256": "e39971d16dc8679fb92742a229c237acde5b0dddb0428a708f8ad68d7a1d5590",
+    "credit": "Eastman Kodak Company; original manufacturer measurements and graph content"
+  },
+  "graphs": {
+    "ektar100-characteristic": {
+      "role": "characteristic",
+      "x_label": "log10_exposure_lux_seconds",
+      "y_label": "status_M_density",
+      "x_range": [
+        -3.0,
+        2.0
+      ],
+      "x_tolerance": 0.2,
+      "curves": 3,
+      "curve_order": "max_y",
+      "curve_names": [
+        "r",
+        "g",
+        "b"
+      ],
+      "conditions": "Panel 'Characteristic Curves'. Exposure: Daylight. Process: C-41. Densitometry: Status M. Log H Ref = -0.84. Curves labelled B, G, R; sorted by maximum density.",
+      "derived": {
+        "page_1based": 4,
+        "frame_pdf_pt": [
+          81.193,
+          107.924,
+          265.698,
+          292.408
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 36.92167275428714,
+          "zero_pdf_pt": 191.80083637714353,
+          "labels": 6,
+          "worst_label_error": 0.014332059827786736
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 46.12500266666666,
+          "zero_pdf_pt": 292.42200533333323,
+          "labels": 5,
+          "worst_label_error": 0.0006070460353670981
+        },
+        "traces": {
+          "ektar100-characteristic-r": {
+            "points": 142,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.02081,
+            "x_extent": [
+              -2.835728,
+              1.162303
+            ],
+            "y_extent": [
+              0.209084,
+              1.932943
+            ],
+            "peak_x": 1.162
+          },
+          "ektar100-characteristic-g": {
+            "points": 106,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.02081,
+            "x_extent": [
+              -2.835728,
+              1.162303
+            ],
+            "y_extent": [
+              0.634536,
+              2.413138
+            ],
+            "peak_x": 1.162
+          },
+          "ektar100-characteristic-b": {
+            "points": 131,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.02081,
+            "x_extent": [
+              -2.835728,
+              1.162303
+            ],
+            "y_extent": [
+              0.844596,
+              3.065604
+            ],
+            "peak_x": 1.162
+          }
+        }
+      }
+    },
+    "ektar100-sensitivity": {
+      "role": "sensitivity",
+      "x_label": "wavelength_nm",
+      "y_label": "log10_sensitivity",
+      "x_range": [
+        250.0,
+        750.0
+      ],
+      "x_tolerance": 3.0,
+      "curves": 3,
+      "curve_order": "peak_x",
+      "curve_names": [
+        "b",
+        "g",
+        "r"
+      ],
+      "join_fragments": true,
+      "conditions": "Panel 'Spectral-Sensitivity Curves'. Exposure: Daylight. Effective exposure: 1/25 second. Process: C-41. Densitometry: Status M, Density 0.2 > D-min. Traces label Yellow-, Magenta- and Cyan-forming layers, stroked in pieces; sorted by peak wavelength as b, g, r. Relative shape only. Four short shoulder strokes and a panel-top rule are detected and dropped by keeping the three longest traces.",
+      "derived": {
+        "page_1based": 4,
+        "frame_pdf_pt": [
+          74.188,
+          356.559,
+          274.651,
+          508.036
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.40091092458455146,
+          "zero_pdf_pt": -26.03637138318481,
+          "labels": 11,
+          "worst_label_error": 0.05872795780692286
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 50.497002495197805,
+          "zero_pdf_pt": 508.04300374279654,
+          "labels": 4,
+          "worst_label_error": 0.00037623525085095366
+        },
+        "traces": {
+          "ektar100-sensitivity-b": {
+            "points": 261,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              380.022998,
+              495.028581
+            ],
+            "y_extent": [
+              0.352991,
+              2.151952
+            ],
+            "peak_x": 469.667
+          },
+          "ektar100-sensitivity-g": {
+            "points": 438,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              395.046273,
+              590.03972
+            ],
+            "y_extent": [
+              0.370893,
+              1.838089
+            ],
+            "peak_x": 545.628
+          },
+          "ektar100-sensitivity-r": {
+            "points": 416,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.01901,
+            "x_extent": [
+              555.016977,
+              694.990724
+            ],
+            "y_extent": [
+              0.191853,
+              2.053021
+            ],
+            "peak_x": 652.06
+          }
+        }
+      }
+    },
+    "ektar100-dye": {
+      "role": "dye",
+      "x_label": "wavelength_nm",
+      "y_label": "diffuse_spectral_density",
+      "x_range": [
+        400.0,
+        700.0
+      ],
+      "x_tolerance": 2.0,
+      "curves": 2,
+      "curve_order": "max_y",
+      "curve_names": [
+        "min",
+        "mid"
+      ],
+      "conditions": "Panel 'Spectral-Dye-Density Curves': Minimum Density (the orange mask) and Midscale Neutral, including typical densities for a midscale neutral subject and D-min. Process: C-41. A colour negative plots no separate C/M/Y dyes, so this sheet's midscale-neutral-minus-D-min anchors a donor dye set.",
+      "derived": {
+        "page_1based": 4,
+        "frame_pdf_pt": [
+          357.453,
+          106.025,
+          541.777,
+          290.39
+        ],
+        "x": {
+          "axis": "x",
+          "pt_per_unit": 0.6143571976680448,
+          "zero_pdf_pt": 111.71211271114709,
+          "labels": 7,
+          "worst_label_error": 0.04767333229222004
+        },
+        "y": {
+          "axis": "y",
+          "pt_per_unit": 73.21747249345019,
+          "zero_pdf_pt": 290.0435072834793,
+          "labels": 6,
+          "worst_label_error": 0.012567682532724334
+        },
+        "traces": {
+          "ektar100-dye-min": {
+            "points": 366,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.01311,
+            "x_extent": [
+              400.053739,
+              684.90923
+            ],
+            "y_extent": [
+              0.198605,
+              0.866956
+            ],
+            "peak_x": 439.149
+          },
+          "ektar100-dye-mid": {
+            "points": 359,
+            "stroke_pdf_pt": 0.96,
+            "stroke_in_y_units": 0.01311,
+            "x_extent": [
+              400.125369,
+              684.90923
+            ],
+            "y_extent": [
+              0.792666,
+              2.106458
+            ],
+            "peak_x": 446.646
+          }
+        }
+      }
+    }
+  },
+  "film": {
+    "id": "kodak_ektar_100",
+    "name": "*Kodak Ektar 100",
+    "type": "negative",
+    "densitometer": "status_M",
+    "base_density": 0.1,
+    "base_density_note": "Measured, not assumed: the sheet's D-min (Minimum Density) trace is the spectral base density, and what the Status M densitometer reads through it is subtracted from the characteristic curves.",
+    "channel_dmin_note": "Per-channel minima are read off the characteristic curves and subtracted before unmixing, so the fitted dye amounts reach zero at full exposure.",
+    "midgray_net_density": null,
+    "sensitivity_note": "PCHIP of the three plotted log-sensitivity traces; engine covers 380-780 nm, each trace is used only over its own plotted span and is unmeasured elsewhere. Relative shape only; the panel's Density 0.2 > D-min criterion is not an absolute speed.",
+    "density_tolerance": 0.02,
+    "density_tolerance_note": "Gate on the unmixed dye amounts, not plotted density. 0.02 dye-amount units is about 0.8% of the 2.5-2.8 unit range used for the sibling preparations.",
+    "midgray_note": "Measured: engine zero is placed where each layer reaches the density the densitometer reads through the sheet's own midscale-neutral (mid) trace.",
+    "antihalation": "strong",
+    "antihalation_note": "Not stated on the sheet. Taken from shipped kodak_ektar_100 (the same stock, upstream) rather than guessed; it drives the halation preset only.",
+    "log_sensitivity_density_over_min": 0.2,
+    "reference_illuminant": "D55"
+  },
+  "print": {
+    "target_print": "kodak_portra_endura",
+    "note": "The sheet names the Endura papers. Paired with Kodak's portrait-negative paper as a rendering choice."
+  },
+  "sampling": {
+    "log_exposure_min": -3.0,
+    "log_exposure_max": 4.0,
+    "count": 256,
+    "method": "Constrained positive normal-CDF mixture, four components per channel."
+  },
+  "dye_donor": {
+    "stock": "kodak_vision3_200t",
+    "reason": "Placeholder donor for the first run; the dye shapes are swept across shipped negatives and the best residual is chosen."
+  },
+  "adaptation_donor": {
+    "stock": "kodak_portra_400",
+    "reason": "Spectral adaptation parameters cannot be derived in this repository; borrowed from a shipped negative and recorded in the profile."
+  },
+  "authorship": "New source extraction, preparation recipe and profile prepared with Claude for this repository, 2026-11-05. Axis calibration derived from the page by scripts/bw_expansion/extract_graphs.py. Colour negative: dye shapes are a donor's, anchored against this sheet's own D-min and midscale-neutral traces. New profile preparation and profile data released under CC BY-SA 4.0."
+}

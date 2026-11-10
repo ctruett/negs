@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_ektar_100",
+  "source_exposure_anchor": [
+    -0.8236597369638092,
+    -0.5481390927366824,
+    -0.5056231459907398
+  ],
+  "dye_source": "kodak_vision3_200t shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.7777486501472302,
+    0.7247751418654205,
+    1.0726833372005593
+  ],
+  "neutral_fit_residual": 0.07738567923330797,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999999,
+      0.05322237331948618,
+      0.000892961218726295
+    ],
+    [
+      0.023313362367117996,
+      0.9999999999970505,
+      0.005799311975536479
+    ],
+    [
+      -0.018447322402687396,
+      -0.009290418818716015,
+      1.000000000000505
+    ]
+  ],
+  "dye_scale": [
+    1.2839491136672057,
+    1.1362262424356235,
+    0.8607991003252066
+  ],
+  "channel_dmin": [
+    0.20500344524227984,
+    0.6165657895890206,
+    0.8275809226498536
+  ],
+  "max_amount_residual": 0.01534607387459741,
+  "max_amount_residual_untrimmed": 0.03981189620870351,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    203.61432155389963,
+    173.03736807545192,
+    326.14952413032864
+  ],
+  "dye_amount_max": [
+    1.6330129752966414,
+    1.7452530454565227,
+    2.2843616229289925
+  ],
+  "source_points_sha256": {
+    "ektar100-characteristic-b.csv": "137011cdb70862f4c990fc4da8132f2151c76cb81889568d4165368b30329c2c",
+    "ektar100-characteristic-g.csv": "c2ddf221cce12e41dd65f71ed35bc16fba4b99a04abb99e8428f3d8d76491a7c",
+    "ektar100-characteristic-r.csv": "09f12f8db5776a84cc2fce70bebd7d0a216b2b87ba65d84a8f26d52136c1269f",
+    "ektar100-dye-mid.csv": "42f62ffd2292c1b0bc34e346075ae0f00e2b81f5bd0541257dcb8c297cf62e77",
+    "ektar100-dye-min.csv": "7eab49dc1fb0b5dbe6ed82b85cdc39447de6386f9510363be6996a7ab082b458",
+    "ektar100-sensitivity-b.csv": "a72127e28c9b8aa9d2e864789ce2149025b07d0600c02d0cc4b73d90ecccfc52",
+    "ektar100-sensitivity-g.csv": "d39f5e1aa9cb0056717b87959e41c8f1ba27c6b4b1e7b1929f05f8486acd4553",
+    "ektar100-sensitivity-r.csv": "3a8970a217cc1906918c5e53885b9f76cdec29a35416ef1e5ae7b4014a554238"
+  },
+  "profile_sha256": "b5d54f8f3d5025a28cf5531e2d59d67b65218f7277049897e815e3806d7cd088"
+}

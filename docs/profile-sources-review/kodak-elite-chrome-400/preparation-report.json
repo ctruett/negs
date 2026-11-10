@@ -1,0 +1,68 @@
+{
+  "stock": "kodak_elite_chrome_400",
+  "source_exposure_anchor": [
+    -1.3603022494550774,
+    -1.3390068285763723,
+    -1.3761878122990086
+  ],
+  "dye_source": "this sheet, rescaled against its own visual neutral",
+  "neutral_mix": [
+    1.0004102787771434,
+    1.0,
+    1.0017460558456723
+  ],
+  "neutral_fit_residual": 0.002093208559982185,
+  "crosstalk_matrix": [
+    [
+      0.9999999999998174,
+      0.1785358224937223,
+      0.0013321575462859915
+    ],
+    [
+      0.16507053709036712,
+      0.9999999999999999,
+      0.07784209707858211
+    ],
+    [
+      0.07341898355263272,
+      0.17454266247018208,
+      1.0
+    ]
+  ],
+  "dye_scale": [
+    1.2818478304602,
+    1.2419303491227454,
+    1.1484659212690633
+  ],
+  "channel_dmin": [
+    0.165015055,
+    0.19788416,
+    0.19190013900000003
+  ],
+  "max_amount_residual": 0.01877710394531329,
+  "max_amount_residual_untrimmed": 0.01877710394531329,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    38.33289531813955,
+    38.93742733825734,
+    72.65989822774166
+  ],
+  "dye_amount_max": [
+    2.623973854985699,
+    2.51987203960601,
+    3.162724901821266
+  ],
+  "source_points_sha256": {
+    "elite400-characteristic-b.csv": "cbae1168cbca9b4f9a3c9eb20cad282d73e3e6b4b5ca819cdbf7100d959a8e8e",
+    "elite400-characteristic-g.csv": "ed10921ca377a2be01579399991d3576859fbb90374b3a4469d0dbab1a899e64",
+    "elite400-characteristic-r.csv": "20c7538f10a5eb057367c1ee840a1538e888b3ef483725af128c73c691cbc3f7",
+    "elite400-dye-c.csv": "4fea109136a0af140dbcdaf417b489f131e8bbe5e98a5e7254ae6f658cccb932",
+    "elite400-dye-m.csv": "d3759a6c998262c829a781b1e7cb3a273faa07277589b84e1a401828d0a2b491",
+    "elite400-dye-neutral.csv": "2f9a599d76e7f4fa9c39b69a8a449856dc6391d0d165f4a95f622bfe5a82ec67",
+    "elite400-dye-y.csv": "f3e00fcdba3ae3698dc3d7d438786ed31da93ec4bea254f5befdcba0db02836c",
+    "elite400-sensitivity-b.csv": "43486c81e0913d35ab2831d1f0bb64f8e79c9c987a09dd839beb7b03c09fbd6a",
+    "elite400-sensitivity-g.csv": "662b7fbbe38d85ee2a83c7ca023ad3a6b40e9a91e6945bab8bfd6e733422edc0",
+    "elite400-sensitivity-r.csv": "e8af7589225a2c81ae0b58bf50da04a05d14af5f0f5b52a7c5dd143b71a35711"
+  },
+  "profile_sha256": "3fb243aefd9453fcff79159b29b66cfee7463e5f27e5f77beaeff501281ec18f"
+}

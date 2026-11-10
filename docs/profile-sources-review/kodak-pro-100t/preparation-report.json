@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_pro_100t",
+  "source_exposure_anchor": [
+    -0.7869151481999075,
+    -0.5734647831281697,
+    -1.6196865240184544
+  ],
+  "dye_source": "kodak_portra_400 shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.747201738640315,
+    0.8012478866419784,
+    0.6803079745498757
+  ],
+  "neutral_fit_residual": 0.04043610109785467,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999558,
+      0.011492125143707127,
+      0.0017319958914385062
+    ],
+    [
+      -0.007224154883328451,
+      0.9999999999970809,
+      0.002536614228669713
+    ],
+    [
+      0.004732689062302573,
+      0.0026056849366396717,
+      0.9999999999997264
+    ]
+  ],
+  "dye_scale": [
+    1.3371319915410231,
+    1.0987948490675261,
+    1.4061786702827022
+  ],
+  "channel_dmin": [
+    0.19752832981966478,
+    0.5936022489417652,
+    0.8352382176091109
+  ],
+  "max_amount_residual": 0.015694465676411085,
+  "max_amount_residual_untrimmed": 0.03784697610141463,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    203.05971404394018,
+    251.93681471897708,
+    96.35501338238005
+  ],
+  "dye_amount_max": [
+    1.6758917424196071,
+    1.854754110088817,
+    1.8719665750266195
+  ],
+  "source_points_sha256": {
+    "pro100t-characteristic-b.csv": "9e9ab37f8b00afd61df716dcd91ff4e89ca41de52c21e916e62932e22c1f86ab",
+    "pro100t-characteristic-g.csv": "52fee5f1c9d215c1efa681815577a1d526ecd67ee1310afd95e040ed99665888",
+    "pro100t-characteristic-r.csv": "e30c99cc1ebbc191759e6332ecab9582f901c021e3a28fdb5e8212f1fde440d2",
+    "pro100t-dye-mid.csv": "658e280a7d2bbbf14309b4d67210ebb1d3b657231fa2d27e659a2c58f9e447dc",
+    "pro100t-dye-min.csv": "b63fada70017e1fd002051efe184f7c7859239ada47e7f2f22549193ad098511",
+    "pro100t-sensitivity-b.csv": "d51f7a8a43ffb1c19646d29f5d60593b79cc7b714bd6521a62e70bbd0df932fc",
+    "pro100t-sensitivity-g.csv": "d1e37087ec2779bc56597c52b3c84a9f7fe6bc1c0bb9cbf8e3ce7e89c93019d8",
+    "pro100t-sensitivity-r.csv": "5b2108bc5b592d49eed54e8e9a2750973d23a6ce11afc9ff2521680d36485236"
+  },
+  "profile_sha256": "0bdc835e7eb5cd407438b62f84a9bec6f845d6d9093bb69757956d20d0eef249"
+}

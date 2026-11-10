@@ -1,0 +1,66 @@
+{
+  "stock": "kodak_pro_100",
+  "source_exposure_anchor": [
+    -1.0059952779485195,
+    -1.116047921563812,
+    -0.9868025341225883
+  ],
+  "dye_source": "fujifilm_pro_400h shapes, scaled so their mixture reproduces this sheet's own midscale-neutral-minus-D-min",
+  "neutral_mix": [
+    0.6523895304208776,
+    0.5804647559481049,
+    0.7134195005831206
+  ],
+  "neutral_fit_residual": 0.07723399785694907,
+  "crosstalk_matrix": [
+    [
+      0.9999999999999704,
+      0.03230960525640697,
+      0.002205421289975779
+    ],
+    [
+      -0.0038162350018141394,
+      0.9999999999885174,
+      -0.0042845813765558455
+    ],
+    [
+      0.0008262463530776996,
+      -0.0152750003541348,
+      0.9999999999999407
+    ]
+  ],
+  "dye_scale": [
+    1.5370968935127887,
+    1.4767345785703108,
+    1.30830333025955
+  ],
+  "channel_dmin": [
+    0.200945452,
+    0.627940137,
+    0.8562052183889343
+  ],
+  "max_amount_residual": 0.006269165136514411,
+  "max_amount_residual_untrimmed": 0.026212010892515458,
+  "tolerance": 0.02,
+  "grey_balance_applied": [
+    311.8682586815155,
+    485.95573701658816,
+    594.3498426898349
+  ],
+  "dye_amount_max": [
+    1.6695941603247542,
+    1.9499472689795194,
+    2.010213723749303
+  ],
+  "source_points_sha256": {
+    "pro100-characteristic-b.csv": "13b89ec56e2f3d2cb113020c8f64f5b151bbf549e185e24ac8e462c27b516cbb",
+    "pro100-characteristic-g.csv": "3d5d1a3c172c13744cda335f815dcb53d8bf4db7766fe82441e0541d81dded82",
+    "pro100-characteristic-r.csv": "25ff8ca01c864116c4d745e97297ea1f0ecb6494e764e81e74074d9e96488a89",
+    "pro100-dye-mid.csv": "3505213e47d46c0cdfcbca5b543336638aea7407a3931dbb799b6bc9f19df6ce",
+    "pro100-dye-min.csv": "24ad2fecedff2b7b378c48d1c64b2838acfea8a78cecb7fbd9b43d64a0916384",
+    "pro100-sensitivity-b.csv": "019d15f8420703faf3046ce95f8985e00a21169054e4e53434e58fe08973eb6d",
+    "pro100-sensitivity-g.csv": "9513a9c94538a64de6ae985951960ba6097725b902fe1196b496368a8e5a76af",
+    "pro100-sensitivity-r.csv": "2f760200dcf1a7538735e1d450c29f315f0f5afc79c5b0f4d144c1a8c4ea9902"
+  },
+  "profile_sha256": "4035e0f5db99846776f49be2a3f4b4f8966961912df8215ba7a628bf2db17a5a"
+}

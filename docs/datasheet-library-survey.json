@@ -1,0 +1,7795 @@
+{
+ "totals": {
+  "pdfs": 293,
+  "characteristic_panels": 544,
+  "sensitivity_panels": 105,
+  "dye_panels": 208,
+  "any_usable": 166,
+  "sens_and_char": 60,
+  "sens_char_dye": 37,
+  "raster_only": 17,
+  "no_label_only": 79
+ },
+ "per_brand": {
+  "fujifilm": {
+   "pdfs": 39,
+   "characteristic": 7,
+   "sensitivity": 6,
+   "dye": 7,
+   "any_usable": 10,
+   "sens_and_char": 3
+  },
+  "charts": {
+   "pdfs": 2,
+   "characteristic": 0,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 0,
+   "sens_and_char": 0
+  },
+  "ilford-harman": {
+   "pdfs": 30,
+   "characteristic": 3,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 2,
+   "sens_and_char": 0
+  },
+  "kentmere": {
+   "pdfs": 4,
+   "characteristic": 0,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 0,
+   "sens_and_char": 0
+  },
+  "agfa": {
+   "pdfs": 7,
+   "characteristic": 34,
+   "sensitivity": 27,
+   "dye": 6,
+   "any_usable": 7,
+   "sens_and_char": 7
+  },
+  "kodak": {
+   "pdfs": 123,
+   "characteristic": 452,
+   "sensitivity": 72,
+   "dye": 187,
+   "any_usable": 109,
+   "sens_and_char": 50
+  },
+  "konica": {
+   "pdfs": 19,
+   "characteristic": 0,
+   "sensitivity": 0,
+   "dye": 8,
+   "any_usable": 8,
+   "sens_and_char": 0
+  },
+  "polaroid": {
+   "pdfs": 58,
+   "characteristic": 46,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 28,
+   "sens_and_char": 0
+  },
+  "maco": {
+   "pdfs": 4,
+   "characteristic": 1,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 1,
+   "sens_and_char": 0
+  },
+  "rollei": {
+   "pdfs": 7,
+   "characteristic": 1,
+   "sensitivity": 0,
+   "dye": 0,
+   "any_usable": 1,
+   "sens_and_char": 0
+  }
+ },
+ "pdfs": [
+  {
+   "rel": "fujifilm/color-negative-film/fujicolor-pro-neg-family-brochure-101305.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 9,
+   "vector_pages": 8,
+   "raster_pages": 1,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 raster"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/nexia-400-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/nexia-a200-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/npz.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "charts/ilford/2006216122447.pdf",
+   "brand": "charts",
+   "media_type": "ilford",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/black-and-white-film/acros-120-af3-083e.pdf",
+   "brand": "fujifilm",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/black-and-white-film/neopan1600.pdf",
+   "brand": "fujifilm",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 0,
+   "raster_pages": 8,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p2 raster",
+    "p3 raster",
+    "p4 raster",
+    "p5 raster",
+    "p6 raster",
+    "p7 raster",
+    "p8 raster"
+   ]
+  },
+  {
+   "rel": "fujifilm/black-and-white-film/neopan400.pdf",
+   "brand": "fujifilm",
+   "media_type": "black-and-white-film",
+   "pages": 10,
+   "vector_pages": 0,
+   "raster_pages": 10,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p2 raster",
+    "p3 raster",
+    "p4 raster",
+    "p5 raster",
+    "p6 raster",
+    "p7 raster",
+    "p8 raster",
+    "p9 raster",
+    "p10 raster"
+   ]
+  },
+  {
+   "rel": "fujifilm/black-and-white-film/neopanacros100.pdf",
+   "brand": "fujifilm",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/af3-203u-pro160s-product-information-bulletin.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/af3-204u-pro160c-product-information-bulletin.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/c200-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-100-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-1600-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-200-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-reala-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/pro-160c-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/pro-160s-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/pro-400h-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/pro-800z-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/provia-400x-pib-1007.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/provia400faf3-066e-1.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/rtpiiaf3-024e-1.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/sensia-100-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-xtra400-datasheet-archive2026.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-xtra400-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/superia-xtra800-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-negative-film/true-definition-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/sensia-200-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/sensia-400-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/t64-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": []
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/velvia-100-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/af3-0221e2velvia50pib.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/astia-100f-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 4
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/provia-100f-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/provia-400x-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/ilfobrom-galerie-fb-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/ilfospeed-rc-deluxe-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/mg4rc-vs-mgrc-deluxe-comparison-c20.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-art-300-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/velvia-100f-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 4
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/color-reversal-film/velvia-50-datasheet.pdf",
+   "brand": "fujifilm",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/reference/profilm-misc.pdf",
+   "brand": "fujifilm",
+   "media_type": "reference",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "fujifilm/reference/proseries.pdf",
+   "brand": "fujifilm",
+   "media_type": "reference",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-rc-papers-j20.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/photobooth-paper-b26.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kentmere/black-and-white-film/kentmere-pan-100-04-07-22.pdf",
+   "brand": "kentmere",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kentmere/black-and-white-film/kentmere-pan-200-260325.pdf",
+   "brand": "kentmere",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-fb-classic-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 7
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-fb-cooltone-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-fb-warmtone-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/multigrade-iv-rc-papers-060619.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "agfa/black-and-white-film/agfa-scala.pdf",
+   "brand": "agfa",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/black-and-white-film/agfapanapx25.pdf",
+   "brand": "agfa",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/black-and-white-film/apx100.pdf",
+   "brand": "agfa",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/black-and-white-film/apx400.pdf",
+   "brand": "agfa",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/panf+-200407.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 6,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/panf+-technical-data-sheet-2026.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/sfx-200-technical-data-sheet-nov-18.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/sfx200-200404.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/sfx200-200704.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/xp2-super-200101.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/xp2-super-technical-data-sheet-nov-18.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-paper/harman-direct-positive-fb-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-paper",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/hp5+-200407.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/hp5+-technical-data-sheet-nov-18.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/ortho+-200408.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/ortho-plus-technical-data-sheet.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/delta-400-technical-data-sheet-nov-18.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/dp3200-f25.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/fp4+-200404.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 6,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/fp4+-technical-data-sheet-i19.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kentmere/black-and-white-film/kentmere-pan-400-04-07-22.pdf",
+   "brand": "kentmere",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kentmere/black-and-white-paper/kvc-070222.pdf",
+   "brand": "kentmere",
+   "media_type": "black-and-white-paper",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/black-and-white-film/2475.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 1,
+   "vector_pages": 0,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f10-ektapan-199710.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/reference/agfa-films.pdf",
+   "brand": "agfa",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 11,
+    "curves": 36
+   },
+   "sensitivity": {
+    "panels": 9,
+    "curves": 19
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/reference/datasheet-f-pf-e4.pdf",
+   "brand": "agfa",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 8,
+    "curves": 16
+   },
+   "sensitivity": {
+    "panels": 7,
+    "curves": 15
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "agfa/reference/fpd1e.pdf",
+   "brand": "agfa",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 8,
+    "curves": 16
+   },
+   "sensitivity": {
+    "panels": 7,
+    "curves": 15
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "charts/ilford/2006129224892363.pdf",
+   "brand": "charts",
+   "media_type": "ilford",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/delta-100-200209.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/delta-100-technical-data-sheet-april-23.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/delta-3200-200209.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "ilford-harman/black-and-white-film/delta-400-200209.pdf",
+   "brand": "ilford-harman",
+   "media_type": "black-and-white-film",
+   "pages": 7,
+   "vector_pages": 7,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f16-commercial.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 3,
+    "curves": 10
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f17-copy.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f2350-t400cn-199902.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 3
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f2350-t400cn.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 3
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/p3200-faqs.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 0,
+   "raster_pages": 2,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p2 raster"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e116-ektapress.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 7,
+    "curves": 21
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 6,
+    "curves": 18
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p10 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e182-pro-films.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 5,
+    "curves": 15
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 13
+   },
+   "dye": {
+    "panels": 6,
+    "curves": 20
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p13 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e190-portra-2006.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 7,
+    "curves": 25
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 9,
+    "curves": 22
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p14 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e2328-ga100.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e24-vericolor.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e2468-portra-100t.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e26-vericolor-iii.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f8-plus-x-pan-199709.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 9,
+   "characteristic": {
+    "panels": 8,
+    "curves": 38
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p9 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f8-plus-x-pan.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 8,
+    "curves": 38
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p9 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f9-tri-x-pan-199906.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 8,
+    "curves": 27
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f9-tri-x-pan.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 8,
+    "curves": 26
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e29-pro-100t-prt.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 8
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e2e-profoto-100.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4035-100uc-400uc.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 11
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 3,
+    "curves": 10
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4040-portra-2006.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 7,
+    "curves": 23
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 10,
+    "curves": 53
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p14 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4046-ektar-2008.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4046-ektar-2009.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4046-ektar-2010.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4050-portra-400-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4040-portra-2008.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 10,
+    "curves": 36
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p14 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4040-portra-2009.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 10,
+    "curves": 36
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p14 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4040-portra-800-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 8
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4046-ektar-100-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4050-portra-400.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4051-portra-160-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e4051-portra-160.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7013-hd400.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 10
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7017-hd200.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7019-en-ultra-max-400.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7022-gold-100-200.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7022-gold-200-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7022-gold-200.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7023-max-400-2016.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7023-ultra-max-400.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 6
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/e7024-ultra-max-800.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e126e-elitechrome-100ec.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e130-ektachrome-64t-epy.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e144-ektachrome-160t-ept.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e145-ektachrome-320t-epj.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/kodak-professional-portra160nc160vc400nv400vc800.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 8,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 10,
+    "curves": 36
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p14 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-negative-film/portra-film-q&a.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/color-negative-film/portra400qas.pdf",
+   "brand": "kodak",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e113-ektachrome-100-plus-epp.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4017-trix.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 9,
+   "vector_pages": 9,
+   "raster_pages": 0,
+   "no_label_pages": 6,
+   "characteristic": {
+    "panels": 10,
+    "curves": 45
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4018-125px-2002.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 6,
+    "curves": 20
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p10 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4018-125px-2007.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 6,
+    "curves": 20
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 1
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p10 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4036-bw400cn.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/kodak-ektachrome-100d-color-reversal-film-5294-7294-datasheet-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/motion-picture-film/kodak-panchromatic-sound-recording-film-2374-data-sheet.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/kodak-vision-3-color-digital-intermediate-film-2254-5254-datasheet.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/kodak-vision3-digital-separation-film-2237-datasheet-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4043-tmax-400-2007.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 9,
+   "characteristic": {
+    "panels": 7,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 1
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4043-tmax-400-2016.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 9,
+   "vector_pages": 9,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 7,
+    "curves": 21
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f7-verichrome-199611.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 3,
+    "curves": 11
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f7-verichrome.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 3,
+    "curves": 10
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f10-ektapan.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f12-ektagraphic-hc.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f13-hie-200006.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 8
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f13-hie.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 8
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e163-ektachrome-e100vs.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e2529-ektachrome-edupe.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e27-ektachrome-100-epn.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e28-ektachrome-e200.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e147-ektachrome-p1600-eph.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e148e-elite-chrome-200.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e149-elite-chrome-400.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 4
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e161-ektachrome-400x-epl.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/f11-199904.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 5,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/f11-duplicating-so-132-200105.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 5,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/f11-duplicating-so-132.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 5,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/ti2323-ektachrome-eir.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 1,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 8
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e41-1998-02.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 7
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e42-1998-02.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e43-1998-02.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e44-1998-02.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e4024-ektachrome-e100g.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 8
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 8
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e4039-elite.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 3,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 2,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 3
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p9 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e7014e-elitechrome-100.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 5
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/color-reversal-film/e8-ektachrome-64-epr.pdf",
+   "brand": "kodak",
+   "media_type": "color-reversal-film",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision-50d-sellsheet-us-180929-sp-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 7
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision3-200t-film-5213-7213-technical-data-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision3-250d-technical-data-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision3-500t-color-negative-film-7219-technical-data.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/csuper1600.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/csuper200.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 1
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/csuper400.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/csuper800.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4016-tmax-2007b.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 30,
+   "vector_pages": 30,
+   "raster_pages": 0,
+   "no_label_pages": 20,
+   "characteristic": {
+    "panels": 22,
+    "curves": 82
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p17 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p24 frames-no-labels",
+    "p29 frames-no-labels",
+    "p30 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4017-2016.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 9,
+   "vector_pages": 9,
+   "raster_pages": 0,
+   "no_label_pages": 6,
+   "characteristic": {
+    "panels": 10,
+    "curves": 45
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4017-400tx-2005.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 16,
+   "vector_pages": 16,
+   "raster_pages": 0,
+   "no_label_pages": 10,
+   "characteristic": {
+    "panels": 15,
+    "curves": 75
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p16 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4017-400tx-2007.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 16,
+   "vector_pages": 16,
+   "raster_pages": 0,
+   "no_label_pages": 10,
+   "characteristic": {
+    "panels": 15,
+    "curves": 75
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p16 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/imp50.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 2,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p3 raster"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/professional-160.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 4,
+   "vector_pages": 3,
+   "raster_pages": 1,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 raster",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx-s100.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx-s200.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 1
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx-s400.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx100improved.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx200.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 2,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p3 raster"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/vx400.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-reversal-film/chrocen100.pdf",
+   "brand": "konica",
+   "media_type": "color-reversal-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-reversal-film/chrocen200.pdf",
+   "brand": "konica",
+   "media_type": "color-reversal-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-reversal-film/csuper100.pdf",
+   "brand": "konica",
+   "media_type": "color-reversal-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/color-reversal-film/r100.pdf",
+   "brand": "konica",
+   "media_type": "color-reversal-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 3
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e55-1999-12.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 3,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e55-2003-08.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e55-2009-06.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 3,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 9
+   },
+   "dye": {
+    "panels": 3,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e7006-2002-03.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/339fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/500fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/51fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/52fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/guides/4x5filmguide.pdf",
+   "brand": "polaroid",
+   "media_type": "guides",
+   "pages": 18,
+   "vector_pages": 18,
+   "raster_pages": 0,
+   "no_label_pages": 16,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p14 frames-no-labels",
+    "p15 frames-no-labels",
+    "p16 frames-no-labels",
+    "p17 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/guides/instantpackfilmsguide.pdf",
+   "brand": "polaroid",
+   "media_type": "guides",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 12,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/guides/packfilms-guide.pdf",
+   "brand": "polaroid",
+   "media_type": "guides",
+   "pages": 14,
+   "vector_pages": 14,
+   "raster_pages": 0,
+   "no_label_pages": 12,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/125ifds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/53fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/54fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/553fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/554fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "maco/black-and-white-film/maco-ir820c-aura.pdf",
+   "brand": "maco",
+   "media_type": "black-and-white-film",
+   "pages": 12,
+   "vector_pages": 11,
+   "raster_pages": 1,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p7 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "maco/black-and-white-film/tacube4e.pdf",
+   "brand": "maco",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "maco/black-and-white-film/tagenie.pdf",
+   "brand": "maco",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "maco/black-and-white-film/tapo1cd.pdf",
+   "brand": "maco",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 7,
+   "raster_pages": 1,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/559fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/55fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/56fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/572fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/606fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/611fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/64tfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/64tpfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/579fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/57fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/59fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/600plfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/664fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/665fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/667fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/669fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/72fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/779fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 2,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/803fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/804fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/672fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/679fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/689fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/690fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/809fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/84fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 1,
+    "curves": 2
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/85fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 5,
+   "vector_pages": 5,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/879fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 1
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/eiduvfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/notepfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/p100fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/piduvfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/87fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/88fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/89fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/990fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/pktstfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/pocktfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/specgfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/splatfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/studofds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/t79fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 4
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/timezfds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/viva3fds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 3,
+   "vector_pages": 3,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "rollei/black-and-white-film/tarire.pdf",
+   "brand": "rollei",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 1,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster"
+   ]
+  },
+  {
+   "rel": "rollei/black-and-white-film/tarrete.pdf",
+   "brand": "rollei",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 1,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster"
+   ]
+  },
+  {
+   "rel": "rollei/infrared/rollei-infrared.pdf",
+   "brand": "rollei",
+   "media_type": "infrared",
+   "pages": 2,
+   "vector_pages": 1,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster"
+   ]
+  },
+  {
+   "rel": "rollei/reference/development-rollei-films.pdf",
+   "brand": "rollei",
+   "media_type": "reference",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "rollei/unsorted/taror3-e.pdf",
+   "brand": "rollei",
+   "media_type": "unsorted",
+   "pages": 22,
+   "vector_pages": 12,
+   "raster_pages": 1,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p9 frames-no-labels",
+    "p12 frames-no-labels",
+    "p15 frames-no-labels",
+    "p20 frames-no-labels",
+    "p22 raster"
+   ]
+  },
+  {
+   "rel": "kodak/reference/professionalfilmdataguide.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 65,
+   "vector_pages": 65,
+   "raster_pages": 0,
+   "no_label_pages": 27,
+   "characteristic": {
+    "panels": 9,
+    "curves": 27
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p14 frames-no-labels",
+    "p16 frames-no-labels",
+    "p17 frames-no-labels",
+    "p18 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p25 frames-no-labels",
+    "p27 frames-no-labels",
+    "p28 frames-no-labels",
+    "p29 frames-no-labels",
+    "p34 frames-no-labels",
+    "p35 frames-no-labels",
+    "p42 frames-no-labels",
+    "p47 frames-no-labels",
+    "p50 frames-no-labels",
+    "p52 frames-no-labels",
+    "p54 frames-no-labels",
+    "p59 frames-no-labels",
+    "p62 frames-no-labels",
+    "p64 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "konica/black-and-white-film/inf750.pdf",
+   "brand": "konica",
+   "media_type": "black-and-white-film",
+   "pages": 3,
+   "vector_pages": 1,
+   "raster_pages": 2,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p3 raster"
+   ]
+  },
+  {
+   "rel": "konica/black-and-white-film/konica-inf750.pdf",
+   "brand": "konica",
+   "media_type": "black-and-white-film",
+   "pages": 3,
+   "vector_pages": 1,
+   "raster_pages": 2,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster",
+    "p3 raster"
+   ]
+  },
+  {
+   "rel": "konica/color-negative-film/centuria-pro-400.pdf",
+   "brand": "konica",
+   "media_type": "color-negative-film",
+   "pages": 2,
+   "vector_pages": 2,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f32-199910.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 28,
+   "vector_pages": 28,
+   "raster_pages": 0,
+   "no_label_pages": 21,
+   "characteristic": {
+    "panels": 13,
+    "curves": 51
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p17 frames-no-labels",
+    "p18 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p26 frames-no-labels",
+    "p27 frames-no-labels",
+    "p28 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f32-tmax-200109.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 28,
+   "vector_pages": 28,
+   "raster_pages": 0,
+   "no_label_pages": 21,
+   "characteristic": {
+    "panels": 13,
+    "curves": 51
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p17 frames-no-labels",
+    "p18 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p26 frames-no-labels",
+    "p27 frames-no-labels",
+    "p28 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f32-tmax.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 28,
+   "vector_pages": 28,
+   "raster_pages": 0,
+   "no_label_pages": 21,
+   "characteristic": {
+    "panels": 13,
+    "curves": 51
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p17 frames-no-labels",
+    "p18 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p26 frames-no-labels",
+    "p27 frames-no-labels",
+    "p28 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4001-p3200tmz-2018.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 7,
+    "curves": 26
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/vivafds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 1,
+   "vector_pages": 1,
+   "raster_pages": 0,
+   "no_label_pages": 1,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "polaroid/instant-film/writefds.pdf",
+   "brand": "polaroid",
+   "media_type": "instant-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 2,
+   "characteristic": {
+    "panels": 2,
+    "curves": 5
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "rollei/black-and-white-film/pan25eng.pdf",
+   "brand": "rollei",
+   "media_type": "black-and-white-film",
+   "pages": 2,
+   "vector_pages": 1,
+   "raster_pages": 1,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 raster"
+   ]
+  },
+  {
+   "rel": "rollei/black-and-white-film/superpan.pdf",
+   "brand": "rollei",
+   "media_type": "black-and-white-film",
+   "pages": 17,
+   "vector_pages": 10,
+   "raster_pages": 6,
+   "no_label_pages": 9,
+   "characteristic": {
+    "panels": 1,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 raster",
+    "p6 raster",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 raster",
+    "p12 raster",
+    "p13 raster",
+    "p14 raster",
+    "p15 frames-no-labels",
+    "p16 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4012-portra-400bw.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 5
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4016-tmax-100-2016.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 9,
+   "vector_pages": 9,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 7,
+    "curves": 26
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4016-tmax-2004.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 30,
+   "vector_pages": 30,
+   "raster_pages": 0,
+   "no_label_pages": 20,
+   "characteristic": {
+    "panels": 26,
+    "curves": 96
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p24 frames-no-labels",
+    "p29 frames-no-labels",
+    "p30 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/black-and-white-film/f4016-tmax-2007a.pdf",
+   "brand": "kodak",
+   "media_type": "black-and-white-film",
+   "pages": 30,
+   "vector_pages": 30,
+   "raster_pages": 0,
+   "no_label_pages": 20,
+   "characteristic": {
+    "panels": 22,
+    "curves": 81
+   },
+   "sensitivity": {
+    "panels": 3,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p9 frames-no-labels",
+    "p10 frames-no-labels",
+    "p11 frames-no-labels",
+    "p12 frames-no-labels",
+    "p13 frames-no-labels",
+    "p17 frames-no-labels",
+    "p19 frames-no-labels",
+    "p20 frames-no-labels",
+    "p21 frames-no-labels",
+    "p22 frames-no-labels",
+    "p23 frames-no-labels",
+    "p24 frames-no-labels",
+    "p29 frames-no-labels",
+    "p30 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision3-50d-5203-ti-2657-technical-data-en.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/motion-picture-film/vision3-5219-7219-technical-data.pdf",
+   "brand": "kodak",
+   "media_type": "motion-picture-film",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 0,
+   "characteristic": {
+    "panels": 0,
+    "curves": 0
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": []
+  },
+  {
+   "rel": "kodak/reference/e2509-2000-01.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p5 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e2519-2003-05.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 6,
+    "curves": 14
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p5 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e88-1998-01.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 2,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 3,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e88-2002-03.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 8,
+   "vector_pages": 8,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 3,
+    "curves": 9
+   },
+   "sensitivity": {
+    "panels": 2,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 3,
+    "curves": 12
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p8 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e88-2005-09.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 2,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 8
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e88-2009-06.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 4,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 2,
+    "curves": 6
+   },
+   "dye": {
+    "panels": 2,
+    "curves": 8
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/le1-2003-04.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 5,
+   "characteristic": {
+    "panels": 7,
+    "curves": 21
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 5,
+    "curves": 14
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels",
+    "p10 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/p255-2000-02.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 11,
+    "curves": 58
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/p255-2001-05.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 5,
+    "curves": 24
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 2
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/p255-2003-06.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 12,
+   "vector_pages": 12,
+   "raster_pages": 0,
+   "no_label_pages": 7,
+   "characteristic": {
+    "panels": 11,
+    "curves": 58
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 2
+   },
+   "dye": {
+    "panels": 0,
+    "curves": 0
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels",
+    "p7 frames-no-labels",
+    "p8 frames-no-labels",
+    "p12 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e40-1996-12.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 4,
+   "vector_pages": 4,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 1,
+    "curves": 3
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 3
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p1 frames-no-labels",
+    "p2 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e4024-2009.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 6,
+   "vector_pages": 6,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 2,
+    "curves": 6
+   },
+   "sensitivity": {
+    "panels": 1,
+    "curves": 7
+   },
+   "dye": {
+    "panels": 1,
+    "curves": 4
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p6 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e4026-2002-06.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 6,
+    "curves": 15
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  },
+  {
+   "rel": "kodak/reference/e4029-2003-05.pdf",
+   "brand": "kodak",
+   "media_type": "reference",
+   "pages": 10,
+   "vector_pages": 10,
+   "raster_pages": 0,
+   "no_label_pages": 3,
+   "characteristic": {
+    "panels": 6,
+    "curves": 18
+   },
+   "sensitivity": {
+    "panels": 0,
+    "curves": 0
+   },
+   "dye": {
+    "panels": 6,
+    "curves": 15
+   },
+   "notes": [
+    "p2 frames-no-labels",
+    "p3 frames-no-labels",
+    "p4 frames-no-labels"
+   ]
+  }
+ ]
+}
