@@ -208,7 +208,10 @@ pub struct Pipeline {
 /// scanner, its keys and the Post adjustments come after the film, so a
 /// render that changes only those scans the kept film again instead of
 /// exposing and developing it (with its grain) anew. Kept under a key of
-/// everything the film reads; any other render replaces it.
+/// everything the film reads; any other render replaces it. A GPU render
+/// given the caller's image key ([`Pipeline::process_resident_keyed`])
+/// leaves the film on the GPU instead, which counts its own reuses
+/// ([`ComputeBackend::developed_reuses`]).
 #[derive(Clone, Default)]
 pub struct DevelopedFrame(std::sync::Arc<std::sync::Mutex<DevelopedSlot>>);
 
@@ -459,15 +462,11 @@ impl Pipeline {
         self.lab_scanner.as_deref().filter(|_| self.params.lab_scan())
     }
 
-    /// Keep the GPU path's Prep output in `frame` and reuse it while nothing
-    /// Prep reads changes (its settings, the exposure before it, the input
-    /// decoding and the frame size), so other edits skip Prep. The caller
-    /// promises that every image it renders with `frame` at one size has the
-    /// same pixels, and uses a new slot when they change. The kept frame
-    /// stays uploaded on a GPU that keeps keyed inputs, under a key of its
-    /// own (`1 << 63` and up: the caller's image keys stay below).
     /// Keep the lab route's developed film in `frame` and reuse it while
-    /// nothing the film reads changes; see [`DevelopedFrame`].
+    /// nothing the film reads changes; see [`DevelopedFrame`]. On the GPU,
+    /// given an image key ([`Self::process_resident_keyed`]), the backend
+    /// keeps the film instead
+    /// ([`spektrafilm_gpu::FilmChainParams::developed_key`]).
     pub fn with_developed_frame(mut self, frame: DevelopedFrame) -> Self {
         self.developed_frame = Some(frame);
         self
@@ -475,8 +474,15 @@ impl Pipeline {
 
     /// What the developed film of `image` depends on: the film, every param
     /// but the scanner's and the Post adjustments, the exposure, the backend
-    /// and the pixels.
-    fn developed_key(&self, image: &ImageBuf, autoexposure_ev: f64, backend: &dyn ComputeBackend) -> u64 {
+    /// and the pixels, or the caller's `image_key` for them, which costs far
+    /// less than hashing a large frame.
+    fn developed_key(
+        &self,
+        image: &ImageBuf,
+        image_key: Option<u64>,
+        autoexposure_ev: f64,
+        backend: &dyn ComputeBackend,
+    ) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut params = self.params.clone();
         params.scanner = Default::default();
@@ -488,12 +494,24 @@ impl Pipeline {
         autoexposure_ev.to_bits().hash(&mut h);
         backend.name().hash(&mut h);
         (image.width, image.height).hash(&mut h);
-        for v in &image.data {
-            v.to_bits().hash(&mut h);
+        match image_key {
+            Some(key) => key.hash(&mut h),
+            None => {
+                for v in &image.data {
+                    v.to_bits().hash(&mut h);
+                }
+            }
         }
         h.finish()
     }
 
+    /// Keep the GPU path's Prep output in `frame` and reuse it while nothing
+    /// Prep reads changes (its settings, the exposure before it, the input
+    /// decoding and the frame size), so other edits skip Prep. The caller
+    /// promises that every image it renders with `frame` at one size has the
+    /// same pixels, and uses a new slot when they change. The kept frame
+    /// stays uploaded on a GPU that keeps keyed inputs, under a key of its
+    /// own (`1 << 63` and up: the caller's image keys stay below).
     pub fn with_prepared_frame(mut self, frame: crate::prep::PreparedFrame) -> Self {
         self.prepared_frame = Some(frame);
         self
@@ -1094,7 +1112,7 @@ impl Pipeline {
 
         // On the lab route a caller's kept film serves while only the scan changes.
         let developed = lab.as_ref().and(self.developed_frame.as_ref()).map(|slot| {
-            let key = self.developed_key(&image, autoexposure_ev, backend);
+            let key = self.developed_key(&image, None, autoexposure_ev, backend);
             (slot, key, slot.take(key))
         });
         let filmed = if let Some((_, _, Some(film))) = &developed {
@@ -1295,8 +1313,22 @@ impl Pipeline {
         image: &ImageBuf,
         backend: &dyn ComputeBackend,
     ) -> Option<ImageBuf> {
+        self.process_resident_keyed(image, None, backend)
+    }
+
+    /// [`Self::process_resident_borrowed`] with `image_key` naming `image`'s
+    /// pixels ([`spektrafilm_gpu::FilmChainParams::image_key`]). On the lab
+    /// route with a [`Self::with_developed_frame`] slot it also names the
+    /// developed film, so a GPU that keeps it scans it again while only the
+    /// scan changes.
+    pub fn process_resident_keyed(
+        &self,
+        image: &ImageBuf,
+        image_key: Option<u64>,
+        backend: &dyn ComputeBackend,
+    ) -> Option<ImageBuf> {
         let run = |params: &spektrafilm_gpu::FilmChainParams<'_>| backend.try_run_film_chain(params);
-        let out = self.borrowed_resident(image, None, backend, run)?;
+        let out = self.borrowed_resident(image, image_key, backend, run)?;
         let out = self.finish_resident(out, backend);
         Some(self.apply_post(out))
     }
@@ -1413,6 +1445,16 @@ impl Pipeline {
         lab_balance: Option<crate::lab_scan::balance::Balance>,
         run: impl FnOnce(&spektrafilm_gpu::FilmChainParams<'_>) -> Option<T>,
     ) -> Result<Option<T>, String> {
+        // On the lab route the caller's slot for the developed film names it
+        // to the GPU, which keeps it while only the scan changes. Only with
+        // the caller's key: hashing the frame would cost more than the scan.
+        let lab_route = self.lab_scanner().is_some() && lab_balance.is_some();
+        let developed_key = self
+            .developed_frame
+            .as_ref()
+            .and(image_key)
+            .filter(|_| lab_route)
+            .map(|key| self.developed_key(image, Some(key), autoexposure_ev, backend));
         // The front pass expects linear RGB. Decoded pixels aren't the
         // caller's, so they have no key.
         let decoded;
@@ -1830,6 +1872,7 @@ impl Pipeline {
         let params = spektrafilm_gpu::FilmChainParams {
             image,
             image_key,
+            developed_key,
             front,
             film_log_exposure: &film_log_exp,
             film_density_curves_normalized: &film_curves_norm,

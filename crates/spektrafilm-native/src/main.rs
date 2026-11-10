@@ -278,6 +278,9 @@ struct Session {
     /// re-scan it instead of developing it again.
     developed_photo: spektrafilm_core::pipeline::DevelopedFrame,
     developed_interactive: spektrafilm_core::pipeline::DevelopedFrame,
+    /// Sources loaded so far, so a working frame's image key
+    /// ([`working_key`]) names its pixels.
+    source_loads: u64,
     /// The source's auto-exposure metering frame. Every render of the source,
     /// at any preview or working size, meters it, as the exporter does, so
     /// the preview's exposure is the export's.
@@ -451,6 +454,7 @@ impl Session {
             self.prepared_interactive = Default::default();
             self.developed_photo = Default::default();
             self.developed_interactive = Default::default();
+            self.source_loads += 1;
             self.metering = None;
             self.thumbnail_source = None;
             self.thumbnail_wb_sources = Vec::new();
@@ -1041,6 +1045,7 @@ impl Session {
                     let balance = cached_lab_balance(&mut self.lab_balance, key, &pipeline, metering);
                     pipeline = pipeline.with_lab_balance(balance);
                 }
+                let image_key = working_key(self.source_loads, dimensions, dimensions != photo_dimensions);
                 let working = if dimensions == photo_dimensions {
                     pipeline = pipeline
                         .with_prepared_frame(self.prepared_photo.clone())
@@ -1064,7 +1069,7 @@ impl Session {
                     pipeline.process_with_backend(working.clone(), backend.as_ref())
                 } else {
                     pipeline
-                        .process_resident_borrowed(working, backend.as_ref())
+                        .process_resident_keyed(working, Some(image_key), backend.as_ref())
                         .map(|output| (output, backend.name()))
                         .unwrap_or_else(|| pipeline.process_with_backend(working.clone(), backend.as_ref()))
                 };
@@ -1174,6 +1179,18 @@ fn build_pipeline(data: &Path, film: &str, paper: &str, params: &RuntimeParams) 
     let film_profile = profile::load_profile_by_name(data, film)?;
     let print_profile = profile::load_profile_by_name(data, if params.scans_film() { film } else { paper })?;
     Pipeline::new_with_spectral(film_profile, print_profile, params.clone(), data).map_err(anyhow::Error::msg)
+}
+
+/// The image key (`FilmChainParams::image_key`) of the frame
+/// [`working_source`] makes at `dimensions` from the `load`th source, with
+/// the interactive or the photograph's resampling: the same pixels while the
+/// source stays loaded, so the GPU can keep what it made of them.
+fn working_key(load: u64, dimensions: (u32, u32), interactive: bool) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    (load, dimensions, interactive).hash(&mut h);
+    // Prepared frames' keys take the top half (`PreparedFrame`).
+    h.finish() >> 1
 }
 
 /// The source at `dimensions`. A resampled copy is kept until the source or
@@ -1563,18 +1580,27 @@ mod tests {
             preview_path: preview.clone(), interactive_scale: None, crop: None,
         };
         let mut session = Session::default();
+        // Renders that scanned a kept film: on the GPU, or else the CPU's slots.
+        let reuses = |session: &Session| {
+            session.backend.as_ref().map_or(0, |b| b.developed_reuses())
+                + session.developed_photo.reuses()
+                + session.developed_interactive.reuses()
+        };
         session.handle(Request { id: 1, command: command(&lab(&|_| {})) }, &data).unwrap();
         let plain = session.output.as_ref().unwrap().image.data.clone();
         let metered = session.lab_balance.clone().expect("metered");
+        assert_eq!(reuses(&session), 0);
 
         let keyed = lab(&|p| p.scanner.density_key = 3.0);
         session.handle(Request { id: 2, command: command(&keyed) }, &data).unwrap();
         assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the key re-renders");
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "without metering again");
+        assert_eq!(reuses(&session), 1, "nor developing the film again");
         let steeper = lab(&|p| p.scanner.contrast_key = 3.0);
         session.handle(Request { id: 2, command: command(&steeper) }, &data).unwrap();
         assert_ne!(session.output.as_ref().unwrap().image.data, plain, "the contrast key re-renders");
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "and isn't metered");
+        assert_eq!(reuses(&session), 2, "or developed");
         let shifted = lab(&|p| { p.prep.exposure_ev = 1.0; p.camera.exposure_compensation_ev = 0.5 });
         session.handle(Request { id: 2, command: command(&shifted) }, &data).unwrap();
         assert_eq!(session.lab_balance.as_ref(), Some(&metered), "an exposure edit isn't metered");
@@ -1582,10 +1608,6 @@ mod tests {
         let noritsu = lab(&|p| p.scanner.model = spektrafilm_core::params::ScannerModel::Noritsu);
         let response = session.handle(Request { id: 3, command: command(&noritsu) }, &data).unwrap();
         assert_eq!(response["cached_pipeline"], true, "the scanner needs no new pipeline");
-        // Off the GPU the kept film is scanned again; on it the whole chain
-        // runs resident, which is faster still.
-        let resident = response["backend"].as_str().is_some_and(|b| b != "cpu" && !b.contains("CPU"));
-        assert!(resident || session.developed_photo.reuses() + session.developed_interactive.reuses() >= 1, "nor a new develop: {}", response["backend"]);
         assert_ne!(session.lab_balance.as_ref().map(|b| &b.0), Some(&metered.0));
 
         let balance = session.lab_balance.as_ref().unwrap().1;

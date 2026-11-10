@@ -190,6 +190,12 @@ pub trait ComputeBackend: MaybeSendSync {
         false
     }
 
+    /// How many film chains scanned a kept developed film
+    /// ([`FilmChainParams::developed_key`]) instead of developing it.
+    fn developed_reuses(&self) -> u64 {
+        0
+    }
+
     /// True for f32 GPU backends where effects may trade exactness for
     /// speed (the diffusion filter uses a downsampled sum-of-Gaussians
     /// instead of the exact FFT convolution). CPU keeps the exact path.
@@ -288,6 +294,11 @@ pub struct FilmChainParams<'a> {
     /// The caller's name for `image`'s pixels, if it renders them again: a
     /// backend may keep them uploaded for the next chain with the same key.
     pub image_key: Option<u64>,
+    /// On the lab route, the caller's name for the film this chain develops
+    /// (everything before `lab_lut`), if it scans it again: a backend may
+    /// keep the developed density and, given the key again, run only the
+    /// scan on it. The wgpu backend keeps it; CUDA ignores it.
+    pub developed_key: Option<u64>,
     /// RGB → film-raw front pass (the configured upsampler).
     pub front: FrontPass<'a>,
     pub film_log_exposure: &'a [f64],

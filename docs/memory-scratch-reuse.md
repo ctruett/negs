@@ -41,6 +41,13 @@ full-image GPU buffers (A/B + two scratch). Both DIR blurs finish using A as
 their intermediate before the weighted mix writes A. The mix reads S0/S1 in
 separate dispatches, and the density curve overwrites A after subtraction.
 
+On the lab route a chain with a developed key (`FilmChainParams::developed_key`)
+copies A, the developed density after grain, into a buffer the backend keeps,
+one per frame size for the last two sizes. That is the one full image that
+stays on the GPU between native renders. A later chain with the same key skips
+everything before the lab LUT, which reads the kept buffer. It allocates A and
+B but uploads nothing, and needs only the scan's scratch: S0 for unsharp.
+
 ## Matched measurements
 
 Leica Q3 DNG, 9520 × 6336, Kodak Gold 200 → Portra Endura, M1 Pro / 32 GB.

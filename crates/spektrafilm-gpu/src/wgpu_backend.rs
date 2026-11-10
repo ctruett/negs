@@ -334,6 +334,11 @@ pub struct WgpuBackend {
     adapter: wgpu::Adapter,
     /// Keyed inputs (`FilmChainParams::image_key`), newest first.
     resident_inputs: std::sync::Mutex<Vec<(u64, wgpu::Buffer)>>,
+    /// Developed film densities (`FilmChainParams::developed_key`), newest
+    /// first, one per frame size.
+    resident_developed: std::sync::Mutex<Vec<(u64, wgpu::Buffer)>>,
+    /// Chains that scanned one of them (`ComputeBackend::developed_reuses`).
+    developed_reuses: std::sync::atomic::AtomicU64,
     /// The last film chain's TC LUT, by its f64 data.
     tc_lut_cache: std::sync::Mutex<Option<(Vec<f64>, wgpu::Buffer)>>,
     /// Buffers the chain being encoded made for itself (see `transient`).
@@ -514,6 +519,8 @@ impl WgpuBackend {
             image_pool: ImagePool::default(),
             tc_lut_cache: std::sync::Mutex::new(None),
             resident_inputs: std::sync::Mutex::new(Vec::new()),
+            resident_developed: std::sync::Mutex::new(Vec::new()),
+            developed_reuses: std::sync::atomic::AtomicU64::new(0),
             #[cfg(target_arch = "wasm32")]
             transient: std::sync::Mutex::new(Vec::new()),
             // SPEKTRAFILM_DIFFUSION_GRID_BUDGET (bytes) tries a limit natively.
@@ -914,17 +921,22 @@ impl WgpuBackend {
         let n_pixels = image.pixel_count() as u32;
         let img_bytes = n_pixels as usize * 3 * 4;
 
+        // On the lab route a developed film kept under the chain's key is
+        // scanned as it is: nothing from the upload through grain runs, and
+        // the lab LUT reads the kept density. Otherwise a keyed chain keeps
+        // its density for the next (see `keep_developed`).
+        let developed_key = p.developed_key.filter(|_| p.lab_lut.is_some());
+        let kept_developed = developed_key.and_then(|key| self.kept_developed(key, img_bytes as u64));
+        let develop = kept_developed.is_none();
+
         // Effects share up to two full-image scratch buffers. Plan these
         // before taking the pool: a render already too large to retain must
         // evict old sizes BEFORE allocating its buffers, not after its peak.
-        let scratch_count = if p.dir_couplers.is_some()
-            || p.halation.is_some()
-            || p.grain.is_some()
-        {
+        let scratch_count = if develop && (p.dir_couplers.is_some() || p.halation.is_some() || p.grain.is_some()) {
             2
         } else if p.glare.is_some()
             || p.unsharp.is_some()
-            || p.diffusion.is_some()
+            || (develop && p.diffusion.is_some())
             || (!p.scan_film && p.enlarger_diffusion.is_some())
         {
             1
@@ -957,7 +969,10 @@ impl WgpuBackend {
         // A keyed input stays uploaded for the next chain with its key, and
         // is copied to buf_a on the GPU first thing (see `input_copy`).
         let mut resident_input = None;
-        let buf_a = if mappable {
+        let buf_a = if !develop {
+            // Only the scan's effects use it, as scratch.
+            make_img_buf("img_a")
+        } else if mappable {
             let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("img_a"),
                 size: img_bytes as u64,
@@ -1448,7 +1463,9 @@ impl WgpuBackend {
                 },
             ],
         });
-        // The lab scanner's LUT pass, in place of the spectral scan.
+        // The lab scanner's LUT pass, in place of the spectral scan, on the
+        // density developed in buf_a or the kept one.
+        let density = kept_developed.as_ref().unwrap_or(&buf_a);
         let lab_lut_pass = p.lab_lut.as_ref().map(|lab| {
             #[repr(C)]
             #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -1499,7 +1516,7 @@ impl WgpuBackend {
                 layout: &pipe.layout,
                 entries: &[
                     wgpu::BindGroupEntry { binding: 0, resource: params_buf.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 1, resource: buf_a.as_entire_binding() },
+                    wgpu::BindGroupEntry { binding: 1, resource: density.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 2, resource: net_buf.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 3, resource: curve_buf.as_entire_binding() },
                     wgpu::BindGroupEntry { binding: 4, resource: buf_b.as_entire_binding() },
@@ -1575,7 +1592,7 @@ impl WgpuBackend {
         // The two ping-pong buffers are reused as blur input/mid; shared
         // `buf_c` and `buf_d` hold the scatter outputs and the halation
         // accumulator. None of this is touched when `p.halation` is `None`.
-        let halation_state = p.halation.as_ref().map(|hp| {
+        let halation_state = p.halation.as_ref().filter(|_| develop).map(|hp| {
             build_halation_state(
                 &self.device,
                 hp,
@@ -1593,12 +1610,13 @@ impl WgpuBackend {
         let highlight_state = p
             .highlight_boost
             .as_ref()
+            .filter(|_| develop)
             .map(|hp| build_highlight_boost_state(&self.device, hp, n_pixels, &buf_b, self));
 
         // ── Camera diffusion filter state ────────────────────────────────
         // Applied on the raw film exposure (buf_b) right after hanatos and
         // before halation, matching the CPU filming order.
-        let diffusion_state = p.diffusion.as_ref().map(|plan| {
+        let diffusion_state = p.diffusion.as_ref().filter(|_| develop).map(|plan| {
             build_diffusion_state(
                 &self.device,
                 plan,
@@ -1611,7 +1629,7 @@ impl WgpuBackend {
             )
         });
 
-        let camera_lens_blur_state = p.camera_lens_blur_px.and_then(|sigma| {
+        let camera_lens_blur_state = p.camera_lens_blur_px.filter(|_| develop).and_then(|sigma| {
             (sigma > 0.0).then(|| {
                 build_simple_blur_state(
                     &self.device,
@@ -1691,7 +1709,7 @@ impl WgpuBackend {
         // Applied to buf_a (density_cmy) after DIR couplers, before
         // print_spectral. Uses buf_b (log_raw_corrected is no longer needed
         // after DIR's final density_curve_0) and both scratch buffers.
-        let grain_state = p.grain.as_ref().map(|gp| {
+        let grain_state = p.grain.as_ref().filter(|_| develop).map(|gp| {
             build_grain_state(
                 &self.device,
                 gp,
@@ -1713,7 +1731,7 @@ impl WgpuBackend {
         // shared scratch buffers (correction, gaussian). After matmul
         // consumes density_cmy, buf_a serves as blur mid and then as the
         // weighted mix destination. The final density curve overwrites it.
-        let dir_state = p.dir_couplers.as_ref().map(|dp| {
+        let dir_state = p.dir_couplers.as_ref().filter(|_| develop).map(|dp| {
             build_dir_state(
                 &self.device,
                 dp,
@@ -1780,57 +1798,66 @@ impl WgpuBackend {
         }
         let mut profiler = GpuStageProfiler::new(&self.device, &self.queue);
         profiler.mark("upload", &mut encoder);
-        // 1. Front pass (tc LUT lookup): buf_a (rgb in) → buf_b (raw), after
-        // the spectral boundary guard in place on buf_a.
-        if let Some((pipe, bg)) = guard_pass.as_ref() {
-            dispatch(&mut encoder, pipe, bg, n_pixels);
-        }
-        dispatch(&mut encoder, &front_pipe, &bg_front, n_pixels);
-        profiler.mark("front", &mut encoder);
-        // 1a. Highlight boost on raw, before optical scatter.
-        if let Some(hs) = highlight_state.as_ref() {
-            hs.encode_passes(&mut encoder);
-            profiler.mark("highlight_boost", &mut encoder);
-        }
-        // 1a. Camera diffusion filter in-place on buf_b (raw), before
-        //     halation — mirrors the CPU filming order.
-        if let Some(ds) = diffusion_state.as_ref() {
-            ds.encode_passes(&mut encoder, &buf_b);
-            profiler.mark("camera_diffusion", &mut encoder);
-        }
-        // 1b. Camera lens blur on raw, after camera diffusion and before halation.
-        if let Some(bs) = camera_lens_blur_state.as_ref() {
-            bs.encode_passes(&mut encoder);
-            profiler.mark("camera_lens_blur", &mut encoder);
-        }
-        // 1b. Halation in-place on buf_b. Uses buf_a as blur scratch (the
-        //     input RGB image is no longer needed), buf_c / buf_d for the
-        //     scatter outputs and halation accumulator.
-        if let Some(hs) = halation_state.as_ref() {
-            hs.encode_passes(&mut encoder, n_pixels);
-            profiler.mark("halation", &mut encoder);
-        }
-        // 2. log10 in-place on buf_b: raw → log_raw (3 channels per thread).
-        let (log10_pipe, log10_bg, _keepalive) = &bg_log10;
-        dispatch(&mut encoder, &log10_pipe, log10_bg, n_pixels);
-        // 3. Density curve (film, normalized): buf_b (log_raw) → buf_a (density_cmy)
-        dispatch(
-            &mut encoder,
-            &density_pipe,
-            &bg_density_film,
-            n_pixels,
-        );
-        profiler.mark("log10_density", &mut encoder);
-        // 3b. DIR couplers (operates on buf_a, mutates buf_b → log_raw_corrected,
-        //     re-interps density curve back into buf_a).
-        if let Some(ds) = dir_state.as_ref() {
-            ds.encode_passes(&mut encoder, n_pixels);
-            profiler.mark("dir_couplers", &mut encoder);
-        }
-        // 3c. Grain (buf_a in and out, via buf_b and both scratch buffers).
-        if let Some(gs) = grain_state.as_ref() {
-            gs.encode_passes(&mut encoder);
-            profiler.mark("grain", &mut encoder);
+        // 1–3. Expose and develop the film, unless it is kept.
+        if develop {
+            // 1. Front pass (tc LUT lookup): buf_a (rgb in) → buf_b (raw), after
+            // the spectral boundary guard in place on buf_a.
+            if let Some((pipe, bg)) = guard_pass.as_ref() {
+                dispatch(&mut encoder, pipe, bg, n_pixels);
+            }
+            dispatch(&mut encoder, &front_pipe, &bg_front, n_pixels);
+            profiler.mark("front", &mut encoder);
+            // 1a. Highlight boost on raw, before optical scatter.
+            if let Some(hs) = highlight_state.as_ref() {
+                hs.encode_passes(&mut encoder);
+                profiler.mark("highlight_boost", &mut encoder);
+            }
+            // 1a. Camera diffusion filter in-place on buf_b (raw), before
+            //     halation — mirrors the CPU filming order.
+            if let Some(ds) = diffusion_state.as_ref() {
+                ds.encode_passes(&mut encoder, &buf_b);
+                profiler.mark("camera_diffusion", &mut encoder);
+            }
+            // 1b. Camera lens blur on raw, after camera diffusion and before halation.
+            if let Some(bs) = camera_lens_blur_state.as_ref() {
+                bs.encode_passes(&mut encoder);
+                profiler.mark("camera_lens_blur", &mut encoder);
+            }
+            // 1b. Halation in-place on buf_b. Uses buf_a as blur scratch (the
+            //     input RGB image is no longer needed), buf_c / buf_d for the
+            //     scatter outputs and halation accumulator.
+            if let Some(hs) = halation_state.as_ref() {
+                hs.encode_passes(&mut encoder, n_pixels);
+                profiler.mark("halation", &mut encoder);
+            }
+            // 2. log10 in-place on buf_b: raw → log_raw (3 channels per thread).
+            let (log10_pipe, log10_bg, _keepalive) = &bg_log10;
+            dispatch(&mut encoder, &log10_pipe, log10_bg, n_pixels);
+            // 3. Density curve (film, normalized): buf_b (log_raw) → buf_a (density_cmy)
+            dispatch(
+                &mut encoder,
+                &density_pipe,
+                &bg_density_film,
+                n_pixels,
+            );
+            profiler.mark("log10_density", &mut encoder);
+            // 3b. DIR couplers (operates on buf_a, mutates buf_b → log_raw_corrected,
+            //     re-interps density curve back into buf_a).
+            if let Some(ds) = dir_state.as_ref() {
+                ds.encode_passes(&mut encoder, n_pixels);
+                profiler.mark("dir_couplers", &mut encoder);
+            }
+            // 3c. Grain (buf_a in and out, via buf_b and both scratch buffers).
+            if let Some(gs) = grain_state.as_ref() {
+                gs.encode_passes(&mut encoder);
+                profiler.mark("grain", &mut encoder);
+            }
+            // 3d. Keep the developed density for the next chain with its key.
+            if let Some(key) = developed_key {
+                let kept = self.keep_developed(key, img_bytes as u64);
+                encoder.copy_buffer_to_buffer(&buf_a, 0, &kept, 0, img_bytes as u64);
+                profiler.mark("keep_developed", &mut encoder);
+            }
         }
         // 4 + 5. Printing: print_spectral (buf_a → buf_b) then the print
         //     density curve (buf_b → buf_a). Skipped for scan_film — the
@@ -2115,6 +2142,41 @@ impl WgpuBackend {
             }
         }
         inputs[0].1.clone()
+    }
+
+    /// The developed density kept under `key`, if there is one of `bytes`,
+    /// counted as a reuse.
+    fn kept_developed(&self, key: u64, bytes: u64) -> Option<wgpu::Buffer> {
+        let mut kept = self.resident_developed.lock().unwrap();
+        let i = kept.iter().position(|(k, b)| *k == key && b.size() == bytes)?;
+        let entry = kept.remove(i);
+        kept.insert(0, entry);
+        self.developed_reuses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        tracing::debug!(key, "film chain: developed film reused");
+        Some(kept[0].1.clone())
+    }
+
+    /// A buffer of `bytes` to keep a developed density in under `key`. It
+    /// replaces the one kept at that size, the same frame developed
+    /// otherwise; the last two sizes stay: a slider's interactive frame and
+    /// the settled frame after it.
+    fn keep_developed(&self, key: u64, bytes: u64) -> wgpu::Buffer {
+        let mut kept = self.resident_developed.lock().unwrap();
+        let reused = kept.iter().position(|(_, b)| b.size() == bytes).map(|i| kept.remove(i).1);
+        let buffer = reused.unwrap_or_else(|| {
+            self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("resident_developed"),
+                size: bytes,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            })
+        });
+        kept.insert(0, (key, buffer.clone()));
+        let most = kept.len().min(2);
+        for (_, old) in kept.drain(most..) {
+            release(&old);
+        }
+        buffer
     }
 
     /// `tc_lut` on the GPU in f32, uploaded again only when it changes: a
@@ -2720,6 +2782,9 @@ impl WgpuBackend {
         for (_, input) in self.resident_inputs.lock().unwrap().drain(..) {
             release(&input);
         }
+        for (_, film) in self.resident_developed.lock().unwrap().drain(..) {
+            release(&film);
+        }
     }
 
     /// Free the photograph's shown images, original, inputs AND pooled
@@ -3064,8 +3129,8 @@ impl FilmChainReadback {
 /// interactive frames and the settled frame after it. There a new buffer
 /// costs a few ms (the browser clears it) and a new readback buffer more,
 /// which at preview sizes is a good part of a frame. Native renders make
-/// them per render, so no full images stay on the GPU between renders
-/// (docs/memory-scratch-reuse.md).
+/// them per render, so no full images stay on the GPU between renders but a
+/// kept developed film (docs/memory-scratch-reuse.md).
 #[cfg(feature = "wgpu-backend")]
 #[derive(Clone, Default)]
 struct ImagePool(std::sync::Arc<std::sync::Mutex<Vec<ImageSet>>>);
@@ -3688,6 +3753,10 @@ impl ComputeBackend for WgpuBackend {
 
     fn resident_chain_applies_post_scan(&self) -> bool {
         true
+    }
+
+    fn developed_reuses(&self) -> u64 {
+        self.developed_reuses.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     fn is_gpu(&self) -> bool {
@@ -6455,6 +6524,26 @@ mod grain_tests {
         pool.0.lock().unwrap().push(set((200, 200), 3));
         pool.clear();
         assert!(pool.0.lock().unwrap().is_empty(), "forget clears the pool too");
+    }
+
+    /// One developed film stays per frame size, for the last two sizes, and
+    /// only its own key finds it.
+    #[test]
+    fn developed_films_are_kept_one_per_size() {
+        let Some(backend) = WgpuBackend::new() else { return };
+        let photo = backend.keep_developed(1, 1200);
+        backend.keep_developed(2, 300);
+        assert!(backend.kept_developed(1, 1200).is_some_and(|b| b == photo));
+        assert!(backend.kept_developed(1, 300).is_none(), "another size isn't the film");
+        assert!(backend.kept_developed(3, 1200).is_none());
+        // The photograph developed otherwise replaces it, in its buffer.
+        assert!(backend.keep_developed(3, 1200) == photo);
+        assert!(backend.kept_developed(1, 1200).is_none());
+        assert!(backend.kept_developed(2, 300).is_some(), "the interactive frame's stays");
+        backend.keep_developed(4, 600);
+        assert!(backend.kept_developed(3, 1200).is_none(), "a third size takes the oldest");
+        assert!(backend.kept_developed(2, 300).is_some() && backend.kept_developed(4, 600).is_some());
+        assert_eq!(backend.developed_reuses.load(std::sync::atomic::Ordering::Relaxed), 4);
     }
 
     #[test]

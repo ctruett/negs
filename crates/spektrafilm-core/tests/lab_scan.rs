@@ -372,6 +372,63 @@ fn lab_scan_runs_on_the_gpu_and_matches_the_cpu() {
     assert!(differs, "the lab scan rendered the upstream film scan");
 }
 
+/// Given the caller's image key, the GPU keeps the developed film: a render
+/// that changes only the scan scans the kept film, as the whole chain would
+/// have scanned it, and a change to the film or the frame develops anew.
+#[test]
+fn gpu_keeps_the_developed_film_for_the_scanner_only() {
+    use spektrafilm_core::pipeline::DevelopedFrame;
+    use spektrafilm_gpu::ComputeBackend;
+    let backend = spektrafilm_gpu::select_backend();
+    if backend.name() == CpuBackend.name() {
+        return;
+    }
+    let image = ImageBuf::from_data(
+        48,
+        32,
+        (0..48 * 32 * 3).map(|i| from_f64(0.02 + 0.8 * ((i * 37 % 101) as f64 / 100.0))).collect(),
+    );
+    // Grain and halation on: the kept film has the grain a full chain draws.
+    let mut params = lab_params(ScannerModel::Frontier);
+    params.film_render.grain.active = true;
+    params.film_render.halation.active = true;
+    let slot = DevelopedFrame::default();
+    let kept = |stock: &str, params: &RuntimeParams, key: u64| {
+        let pipeline = lab_pipeline(stock, params.clone()).with_developed_frame(slot.clone());
+        pipeline.process_resident_keyed(&image, Some(key), backend.as_ref()).expect("the lab scan runs resident").data
+    };
+    let fresh = |stock: &str, params: &RuntimeParams| {
+        let pipeline = lab_pipeline(stock, params.clone());
+        pipeline.process_resident_borrowed(&image, backend.as_ref()).expect("the lab scan runs resident").data
+    };
+
+    assert_eq!(kept("kodak_portra_400", &params, 7), fresh("kodak_portra_400", &params));
+    assert_eq!(backend.developed_reuses(), 0);
+
+    let mut keyed = params.clone();
+    keyed.scanner.contrast_key = 3.0;
+    keyed.scanner.yellow_key = -2.0;
+    keyed.scanner.model = ScannerModel::Noritsu;
+    let rescanned = kept("kodak_portra_400", &keyed, 7);
+    assert_eq!(backend.developed_reuses(), 1, "the scanner and keys scan the kept film");
+    assert_eq!(rescanned, fresh("kodak_portra_400", &keyed), "as the whole chain scans it");
+    assert_ne!(rescanned, fresh("kodak_portra_400", &params));
+
+    let mut exposed = keyed.clone();
+    exposed.camera.exposure_compensation_ev = 1.0;
+    assert_eq!(kept("kodak_portra_400", &exposed, 7), fresh("kodak_portra_400", &exposed));
+    assert_eq!(backend.developed_reuses(), 1, "an exposure change develops the film again");
+    assert_eq!(kept("kodak_gold_200", &exposed, 7), fresh("kodak_gold_200", &exposed));
+    assert_eq!(backend.developed_reuses(), 1, "so does another stock");
+    kept("kodak_gold_200", &exposed, 8);
+    assert_eq!(backend.developed_reuses(), 1, "and another frame");
+    kept("kodak_gold_200", &keyed, 8);
+    assert_eq!(backend.developed_reuses(), 1);
+    kept("kodak_gold_200", &params, 8);
+    assert_eq!(backend.developed_reuses(), 2);
+    assert_eq!(slot.reuses(), 0, "the film stays on the GPU, not in the slot");
+}
+
 #[test]
 fn zone_readout_uses_photo_balance() {
     let data = data_dir();
